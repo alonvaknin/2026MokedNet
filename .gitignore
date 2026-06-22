@@ -1,0 +1,19 @@
+# Credentials - NEVER commit
+config/local.php
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Vendor (if Composer added later)
+vendor/
+
+MOKED_CONTEXT.md

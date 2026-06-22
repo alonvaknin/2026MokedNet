@@ -1,0 +1,11 @@
+Options -Indexes
+RewriteEngine On
+
+# אם mod_rewrite עובד — נתב הכל ל-index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# אם גישה ישירה ל-index.php — נתב ל-/ (נקי)
+RewriteCond %{THE_REQUEST} ^GET.*index\.php [NC]
+RewriteRule ^index\.php$ / [R=301,L]
