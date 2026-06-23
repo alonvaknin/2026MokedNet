@@ -74,7 +74,7 @@ class CrmController extends Controller
             'direction'     => 'in',
             'start'         => $start,
             'end'           => $now,
-            'cnumber'       => $phone,
+            'callerid'      => $phone,
         ]);
 
         $ctx = stream_context_create(['http' => ['timeout' => 12]]);
