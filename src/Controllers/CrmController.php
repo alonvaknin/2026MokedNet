@@ -94,7 +94,14 @@ class CrmController extends Controller
             echo json_encode(['ok' => false, 'error' => 'mvoice error', 'response' => $resp, 'data' => [], 'caller_name' => $callerName]);
             return;
         }
-        $calls = $json['data'] ?? [];
+        $allCalls = $json['data'] ?? [];
+
+        // סינון לפי מספר המתקשר — mvoice לא מסנן בצד שלו
+        $phoneDigits = preg_replace('/\D/', '', $phone);
+        $calls = array_filter($allCalls, function($c) use ($phoneDigits) {
+            $cid = preg_replace('/\D/', '', $c['callerid_internal'] ?? $c['callerid'] ?? '');
+            return str_ends_with($cid, substr($phoneDigits, -9)) || str_ends_with($phoneDigits, substr($cid, -9));
+        });
 
         $rows = array_map(fn($c) => [
             'call_time' => date('d/m/Y H:i', $c['start'] ?? 0),
