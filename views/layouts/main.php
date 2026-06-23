@@ -336,7 +336,7 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
 </div>
 
 <!-- Global Search Modal -->
-<div id="gs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:600;align-items:flex-start;justify-content:center;padding:56px 16px 16px;">
+<div id="gs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:600;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);width:100%;max-width:620px;box-shadow:0 24px 80px rgba(0,0,0,.65);overflow:hidden;">
     <!-- Input row -->
     <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border);">
@@ -1035,11 +1035,14 @@ const _gsInput=document.getElementById('gs-input');
 let _gsScope='stores';
 let _gsHighlightIdx=-1;
 
-function gsOpen(q){
+function gsOpen(q,fromTopbar){
+  _gsModal.style.alignItems=fromTopbar?'flex-start':'center';
+  _gsModal.style.paddingTop=fromTopbar?'56px':'16px';
   _gsModal.style.display='flex';
   if(q!=null)_gsInput.value=q;
   setTimeout(()=>{_gsInput.focus();},30);
-  gsEmpty();
+  const qv=(_gsInput.value||'').trim();
+  if(qv.length>2) gsAutoSearch(qv); else gsEmpty();
 }
 function gsClose(){
   _gsModal.style.display='none';
@@ -1059,7 +1062,9 @@ const _gsScopes=['stores','calls','contacts','products'<?= !empty($canPbxSearch)
 function gsSetScope(scope){
   _gsScope=scope;
   document.querySelectorAll('.gs-scope').forEach(b=>b.classList.toggle('gs-scope-active',b.dataset.scope===scope));
-  if(document.getElementById('gs-results').querySelector('.gs-empty'))gsEmpty();
+  const q=(_gsInput.value||'').trim();
+  if(q) gsSearch();
+  else gsEmpty();
 }
 function gsNavScope(dir){
   // RTL: ArrowRight → previous, ArrowLeft → next
@@ -1283,10 +1288,10 @@ async function gsSearch(){
 }
 
 // Topbar input → just open modal, sync text, no auto-search
-si.addEventListener('focus',e=>{gsOpen(e.target.value||undefined);});
+si.addEventListener('focus',e=>{gsOpen(e.target.value||undefined,true);});
 si.addEventListener('input',e=>{
   const q=e.target.value;
-  if(_gsModal.style.display==='none')gsOpen(q||undefined);
+  if(_gsModal.style.display==='none')gsOpen(q||undefined,true);
   else _gsInput.value=q;
 });
 
