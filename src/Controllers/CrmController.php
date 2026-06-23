@@ -60,7 +60,13 @@ class CrmController extends Controller
 
         // שיחות מ-mvoice לפי cnumber (מספר המתקשר)
         $now   = time();
-        $start = strtotime('-1 year');
+        $range = $_GET['range'] ?? 'last1week';
+        $start = match($range) {
+            '1MonthOld'   => strtotime('-1 month'),
+            'halfYearOld' => strtotime('-6 months'),
+            '1YearOld'    => strtotime('-1 year'),
+            default       => strtotime('-1 week'),
+        };
         $mvoice = CFG['mvoice'] ?? [];
         $url   = self::MVOICE_BASE . '?' . http_build_query([
             'auth_username' => $mvoice['user'] ?? '',

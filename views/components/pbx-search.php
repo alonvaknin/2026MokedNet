@@ -270,7 +270,8 @@ function pbxSearch(){
   }
   pbxSetLoading(true);
   document.getElementById('pbx-cnt').textContent='מחפש שיחות...';
-  fetch('/api/crm/calls?phone='+encodeURIComponent(phone), {credentials:'include'})
+  var range = document.getElementById('pbx-range').value;
+  fetch('/api/crm/calls?phone='+encodeURIComponent(phone)+'&range='+encodeURIComponent(range), {credentials:'include'})
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(function(data){
     pbxSetLoading(false);
