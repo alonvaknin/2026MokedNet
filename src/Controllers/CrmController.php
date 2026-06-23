@@ -79,6 +79,15 @@ class CrmController extends Controller
         }
 
         $json = json_decode($raw, true);
+        if (!is_array($json)) {
+            echo json_encode(['ok' => false, 'error' => 'mvoice bad response', 'raw' => $raw, 'data' => [], 'caller_name' => $callerName]);
+            return;
+        }
+        $resp = $json['responses'][0] ?? [];
+        if (($resp['code'] ?? '') !== '200') {
+            echo json_encode(['ok' => false, 'error' => 'mvoice error', 'response' => $resp, 'data' => [], 'caller_name' => $callerName]);
+            return;
+        }
         $calls = $json['data'] ?? [];
 
         $rows = array_map(fn($c) => [
