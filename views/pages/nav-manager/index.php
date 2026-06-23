@@ -3,8 +3,10 @@ use Core\View;
 $base = rtrim(CFG['app']['url'], '/');
 $csrf = $_SESSION['csrf_token'] ?? '';
 $permGroups = $permGroups ?? [];
+$items = $items ?? [];
 $parents  = array_filter((array)$items, fn($i) => !$i['parent_id']);
 $childMap = [];
+
 foreach ((array)$items as $i) {
     if ($i['parent_id']) $childMap[$i['parent_id']][] = $i;
 }
@@ -319,7 +321,7 @@ function standaloneRow(item) {
     <span class="nm-name">${esc(item.label_he)}</span>
     <span class="nm-badge" style="background:rgba(255,255,255,.06);color:var(--text3);">${ti.label}</span>
     ${item.link?`<span class="nm-link">${esc(item.link)}</span>`:''}
-    ${(item.open_in_blank||item.open_blank)?`<i class="bi bi-box-arrow-up-right" style="color:var(--text3);font-size:11px;" title="טאב חדש"></i>`:''}
+    ${(item.open_in_blank||item.open_blank)?`<i class="bi " style="color:var(--text3);font-size:11px;" title="טאב חדש"></i>`:''}
     <button class="nm-btn" onclick="openModal(${item.id})"><i class="bi bi-pencil-fill"></i></button>
     <button class="nm-btn ${active?'':'dng'}" onclick="doToggle(${item.id})">${active?'השבת':'הפעל'}</button>
   </div>`;
