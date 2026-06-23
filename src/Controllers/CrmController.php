@@ -9,8 +9,10 @@ use Core\DB;
 
 class CrmController extends Controller
 {
-    private const WIZE_BASE  = 'https://bug.wizenet.co.il/wizeapi/';
-    private const WIZE_TOKEN = 'ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb';
+    private const WIZE_BASE    = 'https://bug.wizenet.co.il/wizeapi/';
+    private const WIZE_TOKEN   = 'ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb';
+    private const MVOICE_BASE   = 'https://app.mvoice.co.il/api/json/cdrs/list/';
+    private const IGNORE_PHONES = ['0523122212'];
 
     public function index(): void
     {
@@ -19,7 +21,6 @@ class CrmController extends Controller
     }
 
     // ── GET /api/crm/calls?phone=05XXXXXXXX ─────────────────────────────────
-    // שם לקוח + הערה קריטית מ-crm_caller_notes, שיחות אחרונות מ-DB הפנימי
     public function apiCalls(): void
     {
         $this->requireAuth();
@@ -33,7 +34,12 @@ class CrmController extends Controller
         if (str_starts_with($phone, '972')) {
             $phone = '0' . substr($phone, 3);
         }
+        if (in_array($phone, self::IGNORE_PHONES)) {
+            echo json_encode(['ok' => true, 'data' => [], 'caller_name' => '', 'critical_note' => '']);
+            return;
+        }
 
+        // שם לקוח + הערה קריטית מ-DB המקומי
         try {
             $callerName = DB::value(
                 "SELECT customer_name FROM crm_caller_notes
@@ -41,44 +47,55 @@ class CrmController extends Controller
                  ORDER BY created_at DESC LIMIT 1",
                 [$phone]
             ) ?: '';
-
             $criticalNote = DB::value(
                 "SELECT note FROM crm_caller_notes
                  WHERE phone = ? AND is_critical = 1
                  ORDER BY created_at DESC LIMIT 1",
                 [$phone]
             ) ?: '';
-
-            // עדכן שמות טבלה/עמודות לפי ה-DB שלך
-            $rows = DB::query(
-                "SELECT
-                    DATE_FORMAT(c.call_time, '%d/%m/%Y %H:%i') AS call_time,
-                    SEC_TO_TIME(c.duration_sec)                 AS duration,
-                    u.first_name                                AS agent,
-                    d.name_heb                                  AS dept,
-                    c.direction,
-                    NULL                                        AS recording_url
-                 FROM pbx_calls c
-                 LEFT JOIN users       u ON u.id = c.agent_id
-                 LEFT JOIN departments d ON d.id = c.dept_id
-                 WHERE c.caller_phone = ?
-                   AND c.call_time >= DATE_SUB(NOW(), INTERVAL 6 DAY)
-                 ORDER BY c.call_time DESC
-                 LIMIT 50",
-                [$phone]
-            );
-
-            echo json_encode([
-                'ok'            => true,
-                'data'          => $rows,
-                'caller_name'   => $callerName,
-                'critical_note' => $criticalNote,
-            ]);
-
-        } catch (\Throwable $ex) {
-            http_response_code(500);
-            echo json_encode(['ok' => false, 'error' => 'db error', 'data' => [], 'caller_name' => '']);
+        } catch (\Throwable) {
+            $callerName   = '';
+            $criticalNote = '';
         }
+
+        // שיחות מ-mvoice לפי cnumber (מספר המתקשר)
+        $now   = time();
+        $start = strtotime('-1 year');
+        $mvoice = CFG['mvoice'] ?? [];
+        $url   = self::MVOICE_BASE . '?' . http_build_query([
+            'auth_username' => $mvoice['user'] ?? '',
+            'auth_password' => $mvoice['pass'] ?? '',
+            'direction'     => 'in',
+            'start'         => $start,
+            'end'           => $now,
+            'cnumber'       => $phone,
+        ]);
+
+        $ctx = stream_context_create(['http' => ['timeout' => 12]]);
+        $raw = @file_get_contents($url, false, $ctx);
+        if ($raw === false) {
+            echo json_encode(['ok' => false, 'error' => 'שגיאת חיבור ל-mvoice', 'data' => [], 'caller_name' => $callerName, 'critical_note' => $criticalNote]);
+            return;
+        }
+
+        $json = json_decode($raw, true);
+        $calls = $json['data'] ?? [];
+
+        $rows = array_map(fn($c) => [
+            'call_time' => date('d/m/Y H:i', $c['start'] ?? 0),
+            'duration'  => gmdate('H:i:s', $c['totaltime'] ?? 0),
+            'agent'     => $c['callerid_internal'] ?? '',
+            'dept'      => $c['dnumber'] ?? '',
+            'direction' => 'in',
+            'status'    => $c['status'] ?? '',
+        ], $calls);
+
+        echo json_encode([
+            'ok'            => true,
+            'data'          => $rows,
+            'caller_name'   => $callerName,
+            'critical_note' => $criticalNote,
+        ]);
     }
 
     // ── GET /api/crm/service?phone=05XXXXXXXX ───────────────────────────────
