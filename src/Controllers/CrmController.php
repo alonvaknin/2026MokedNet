@@ -58,7 +58,9 @@ class CrmController extends Controller
             $criticalNote = '';
         }
 
-        // שיחות מ-mvoice לפי cnumber (מספר המתקשר)
+        // שיחות מ-mvoice לפי callerid_internal (מספר המתקשר)
+        // mvoice: cnumber = מספר יעד (חנות), callerid_internal = מספר מתקשר
+        // אין פרמטר סינון לפי מתקשר — מביאים direction=in ומסננים בצד שלנו
         $now   = time();
         $range = $_GET['range'] ?? 'last1week';
         $start = match($range) {
@@ -74,7 +76,7 @@ class CrmController extends Controller
             'direction'     => 'in',
             'start'         => $start,
             'end'           => $now,
-            'callerid'      => $phone,
+            'status'        => 'queue_any',
         ]);
 
         $ctx = stream_context_create(['http' => ['timeout' => 12]]);
@@ -96,17 +98,22 @@ class CrmController extends Controller
         }
         $allCalls = $json['data'] ?? [];
 
-        // סינון לפי מספר המתקשר — mvoice לא מסנן בצד שלו
+        // סינון לפי מספר המתקשר — mvoice לא תומך בפרמטר סינון למתקשר
+        // callerid_internal או snumber = מספר המתקשר בתשובה
         $phoneDigits = preg_replace('/\D/', '', $phone);
-        $calls = array_filter($allCalls, function($c) use ($phoneDigits) {
-            $cid = preg_replace('/\D/', '', $c['callerid_internal'] ?? $c['callerid'] ?? '');
-            return str_ends_with($cid, substr($phoneDigits, -9)) || str_ends_with($phoneDigits, substr($cid, -9));
+        $last9 = substr($phoneDigits, -9);
+        $calls = array_filter($allCalls, function($c) use ($last9) {
+            foreach (['callerid_internal', 'snumber', 'callerid'] as $field) {
+                $val = preg_replace('/\D/', '', $c[$field] ?? '');
+                if ($val !== '' && str_ends_with($val, $last9)) return true;
+            }
+            return false;
         });
 
         $rows = array_map(fn($c) => [
             'call_time' => date('d/m/Y H:i', $c['start'] ?? 0),
             'duration'  => gmdate('H:i:s', $c['totaltime'] ?? 0),
-            'agent'     => $c['callerid_internal'] ?? '',
+            'agent'     => $c['callerid_internal'] ?? $c['snumber'] ?? '',
             'dept'      => $c['dnumber'] ?? '',
             'direction' => 'in',
             'status'    => $c['status'] ?? '',
