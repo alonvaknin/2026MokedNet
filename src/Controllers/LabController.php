@@ -197,10 +197,15 @@ class LabController extends Controller
 
         $userId = (int)($_SESSION['user_id'] ?? 0);
         $id     = (int)($_POST['id']      ?? 0);
-        $qty    = (int)($_POST['qty']     ?? 0);
 
         $old = DB::row('SELECT qty FROM lab_inventory_items WHERE id = ?', [$id]);
         if (!$old) $this->json(['success' => false, 'message' => 'פריט לא נמצא'], 404);
+
+        // אם qty לא נשלח או ריק — שמור על הכמות הקיימת (מניעת איפוס בטעות)
+        $qty = isset($_POST['qty']) && $_POST['qty'] !== '' ? (int)$_POST['qty'] : (int)$old['qty'];
+        if ($qty < (int)$old['qty']) {
+            $this->json(['success' => false, 'message' => 'לא ניתן להוריד כמות דרך עריכה — השתמש בתנועות מלאי'], 400);
+        }
 
         DB::execute("
             UPDATE lab_inventory_items

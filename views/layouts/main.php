@@ -491,7 +491,7 @@ function wizRunSearch(q){
 
 /* ── Wizenet Modal ─────────────────────────────────────── */
 function _wizDefaultDates(){
-  const now=new Date(),past=new Date();past.setFullYear(past.getFullYear()-1);
+  const now=new Date(),past=new Date();past.setFullYear(past.getFullYear()-2);
   const fmt=d=>d.toISOString().split('T')[0];
   document.getElementById('wiz-from').value=fmt(past);
   document.getElementById('wiz-to').value=fmt(now);
@@ -769,7 +769,7 @@ function renderWizCall(container,d,append,searchQuery){
   }
   h+='<div style="flex:1;"></div>';
   h+='<span id="toggle-'+cardId+'" style="font-size:11px;color:var(--text3);background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;flex-shrink:0;line-height:1.4;">▲</span>';
-  h+='<a href="https://bug.wizenet.co.il/login.aspx?ReturnUrl=%2fserviceControl.aspx%3fcontrol%3dmodulesCustom%2fbug%2fCallDetailsTech%26CallID%3d310845&control=modulesCustom/bug/CallDetailsTech&CallID='+esc(d.callId||'')+'" target="_blank" onclick="event.stopPropagation()"'
+  h+='<a href="https://bug.wizenet.co.il/serviceControl.aspx?control=modulesCustom/bug/CallDetailsTech&CallID='+esc(d.callId||'')+'" target="_blank" onclick="event.stopPropagation()"'
     +' style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent);text-decoration:none;'
     +'padding:4px 9px;border:1px solid rgba(91,141,238,.3);border-radius:var(--radius-sm);white-space:nowrap;flex-shrink:0;background:var(--accent-dim);">'
     +'<i class="bi bi-box-arrow-up-right"></i> וייזנט</a>';

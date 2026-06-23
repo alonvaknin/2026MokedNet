@@ -723,9 +723,18 @@ async function fmtIcnSubmit() {
       alert(res.msg || 'שגיאה בשליחה');
     } else {
       if (typeof v2Toast === 'function') v2Toast(res.msg || 'נשלח בהצלחה');
+      // clear ICN fields
       document.getElementById('fmt-icn-invoice').value = '';
       document.getElementById('fmt-icn-newname').value = '';
       document.getElementById('fmt-icn-note').value    = '';
+      // clear shared name/phone
+      document.getElementById('fmt-cname').value  = '';
+      document.getElementById('fmt-cphone').value = '';
+      // clear dynamic fields
+      document.querySelectorAll('#fmt-dyn-fields input, #fmt-dyn-fields textarea, #fmt-dyn-fields select')
+        .forEach(el => { el.type === 'checkbox' || el.type === 'radio' ? el.checked = false : el.value = ''; });
+      fmtPreview();
+      closeFmtModal();
     }
   } catch(e) {
     alert('שגיאת רשת — נסה שוב');

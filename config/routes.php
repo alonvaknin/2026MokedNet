@@ -101,7 +101,8 @@ $router->get ('/api/products',  'Controllers\\FormatterController@apiProducts');
 $router->get ('/api/inventory', 'Controllers\\FormatterController@apiInventory');
 
 // ── CRM API ──────────────────────────────────────────────────────────────────
-$router->get ('/api/crm/calls',   'Controllers\\CrmController@apiCalls');
+$router->get ('/api/crm/calls',             'Controllers\\CrmController@apiCalls');
+$router->get ('/api/crm/calls/recording',   'Controllers\\CrmController@apiCallRecording');
 $router->get ('/api/crm/service', 'Controllers\\CrmController@apiService');
 $router->get ('/api/crm/notes',   'Controllers\\CrmController@apiNotes');
 $router->post('/api/crm/note',    'Controllers\\CrmController@apiSaveNote');

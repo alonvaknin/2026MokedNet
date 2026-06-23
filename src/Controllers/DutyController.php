@@ -124,7 +124,6 @@ class DutyController extends Controller
     // ── Current week (for dashboard / digital signage) ───────
     public function apiCurrentWeek(): void
     {
-        $this->requireAuth();
         $this->json(DutyModel::currentWeek());
     }
 

@@ -11,14 +11,24 @@ class View
 
     public function __construct(string $template, array $data = [])
     {
-        $this->template = $template;
+        $this->template = self::safePath($template);
         $this->data     = $data;
     }
 
     public function withLayout(?string $layout): static
     {
-        $this->layout = $layout;
+        $this->layout = $layout !== null ? self::safePath($layout) : null;
         return $this;
+    }
+
+    /** Strip path-traversal sequences so template names can never escape the views/ directory. */
+    private static function safePath(string $path): string
+    {
+        // Remove any ../ or ..\ segments and null bytes
+        $path = str_replace("\0", '', $path);
+        $parts = preg_split('#[/\\\\]#', $path);
+        $safe  = array_filter($parts, fn($p) => $p !== '..' && $p !== '.');
+        return implode('/', $safe);
     }
 
     public function render(): void
@@ -54,7 +64,7 @@ class View
     public static function component(string $name, array $data = []): void
     {
         extract($data, EXTR_SKIP);
-        $file = ROOT . '/views/components/' . $name . '.php';
+        $file = ROOT . '/views/components/' . self::safePath($name) . '.php';
         if (file_exists($file)) require $file;
     }
 }

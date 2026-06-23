@@ -282,34 +282,55 @@ function pbxSearch(){
     }
     var rows = data.data;
     var E = function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+    var TH = 'text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;';
+    var TD = 'padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;';
+
     var dirLabel = function(d){
-      if(d==='in'||d==='inbound')return'<span style="color:#22c55e;font-size:11px;">⬇ נכנסת</span>';
-      if(d==='out'||d==='outbound')return'<span style="color:#5b8dee;font-size:11px;">⬆ יוצאת</span>';
-      return'<span style="color:var(--text3);font-size:11px;">'+E(d)+'</span>';
+      if(d==='in'||d==='inbound')  return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#22c55e;"><i class="bi bi-telephone-inbound-fill"></i> נכנסת</span>';
+      if(d==='out'||d==='outbound')return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#5b8dee;"><i class="bi bi-telephone-outbound-fill"></i> יוצאת</span>';
+      return '<span style="font-size:11px;color:var(--text3);">'+E(d)+'</span>';
     };
+    var statLabel = function(s){
+      if(s==='answer')   return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#22c55e;"><i class="bi bi-check-circle-fill"></i> ענה</span>';
+      if(s==='noanswer'||s==='no answer') return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-x-circle-fill"></i> לא ענה</span>';
+      if(s==='busy')     return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-dash-circle-fill"></i> תפוס</span>';
+      if(s==='cancel')   return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.08);color:#ef4444;"><i class="bi bi-slash-circle-fill"></i> בוטל</span>';
+      return '<span style="font-size:11px;color:var(--text3);">'+E(s)+'</span>';
+    };
+    var agentCell = function(row){
+      if(row.agent_name) return '<div style="font-weight:600;font-size:13px;color:var(--text);">'+E(row.agent_name)+'</div>';
+      if(row.agent_line) return '<span style="color:var(--text2);">'+E(row.agent_line)+'</span>';
+      return '<span style="color:var(--text3);font-size:11px;">—</span>';
+    };
+    var recCell = function(row){
+      if(!row.uniqueid) return '<span style="font-size:11px;color:var(--text3);">—</span>';
+      var href='https://app.mvoice.co.il/#/calls/cdrs/edit/?callid='+encodeURIComponent(row.uniqueid)+'&customer=8113&cost_customer=scustomer&include_tax=1&archive=0&sort=start&descending=0&detail=leg';
+      return '<a href="'+href+'" target="_blank" class="pbx-recbtn"><i class="bi bi-play-circle-fill"></i> הקלטה</a>';
+    };
+
     var h='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
     h+='<tr>';
-    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">זמן</th>';
-    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">כיוון</th>';
-    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">משך</th>';
-    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">נציג</th>';
-    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">מחלקה</th>';
-    if(_pbxCanRec)h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">הקלטה</th>';
+    h+='<th style="'+TH+'">זמן &amp; משך</th>';
+    h+='<th style="'+TH+'">כיוון</th>';
+    h+='<th style="'+TH+'">נציג</th>';
+    h+='<th style="'+TH+'">סטטוס</th>';
+    if(_pbxCanRec)h+='<th style="'+TH+'">הקלטה</th>';
     h+='</tr>';
     rows.forEach(function(row){
-      h+='<tr onmouseenter="this.querySelectorAll(\'td\').forEach(function(td){td.style.background=\'var(--bg3)\'})" onmouseleave="this.querySelectorAll(\'td\').forEach(function(td){td.style.background=\'\'})">';
-      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.call_time)+'</td>';
-      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);">'+dirLabel(row.direction)+'</td>';
-      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.duration)+'</td>';
-      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.agent)+'</td>';
-      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.dept)+'</td>';
-      if(_pbxCanRec)h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);">'+(row.recording_url?'<audio src="'+E(row.recording_url)+'" controls style="height:28px;max-width:200px;"></audio>':'<span style="font-size:11px;color:var(--text3);">אין</span>')+'</td>';
+      var hov='onmouseenter="this.querySelectorAll(\'td\').forEach(function(t){t.style.background=\'var(--bg3)\'})" onmouseleave="this.querySelectorAll(\'td\').forEach(function(t){t.style.background:\'\'})"';
+      h+='<tr '+hov+'>';
+      h+='<td style="'+TD+'color:var(--text2);"><div style="font-size:13px;">'+E(row.call_time)+'</div><div style="font-size:11px;color:var(--text3);">'+E(row.duration)+'</div></td>';
+      h+='<td style="'+TD+'">'+dirLabel(row.direction)+'</td>';
+      h+='<td style="'+TD+'">'+agentCell(row)+'</td>';
+      h+='<td style="'+TD+'">'+statLabel(row.status)+'</td>';
+      if(_pbxCanRec)h+='<td style="'+TD+'" id="pbxrec-'+E(row.uniqueid)+'">'+recCell(row)+'</td>';
       h+='</tr>';
     });
     h+='</table>';
     var res = document.getElementById('pbx-res');
     res.innerHTML='<div style="padding:0 0 8px;">'+h+'</div>';
-    if(data.caller_name)res.insertAdjacentHTML('afterbegin','<div style="padding:8px 14px 4px;font-size:12px;color:#10b981;"><i class="bi bi-person-fill"></i> '+E(data.caller_name)+'</div>');
+    if(data.caller_name)res.insertAdjacentHTML('afterbegin','<div style="padding:8px 14px 4px;font-size:12px;color:#10b981;font-weight:600;"><i class="bi bi-person-fill"></i> '+E(data.caller_name)+'</div>');
+    if(data.critical_note)res.insertAdjacentHTML('afterbegin','<div style="padding:6px 14px;font-size:12px;color:#ef4444;font-weight:600;background:rgba(239,68,68,.07);border-bottom:1px solid rgba(239,68,68,.2);"><i class="bi bi-exclamation-triangle-fill"></i> '+E(data.critical_note)+'</div>');
     document.getElementById('pbx-cnt').textContent=rows.length+' שיחות';
   })
   .catch(function(err){
@@ -319,7 +340,27 @@ function pbxSearch(){
   });
 }
 
-/* ══ 5. האזנה להקלטה ══ */
+/* ══ 5. טעינת הקלטה lazy ══ */
+window.pbxLoadRec = function(btn, uniqueid){
+  var td = btn.closest('td');
+  if(!td) return;
+  td.innerHTML='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><div class="pbx-spin" style="width:13px;height:13px;"></div> טוען...</span>';
+  // בדיקה אם קיימת הקלטה ישירה ב-mvoice ע"י uniqueid
+  fetch('/api/crm/calls/recording?uniqueid='+encodeURIComponent(uniqueid),{credentials:'include'})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok && d.url){
+      td.innerHTML='<audio src="'+d.url+'" controls style="height:28px;max-width:220px;border-radius:6px;outline:none;display:block;"></audio>';
+    } else {
+      td.innerHTML='<span style="font-size:11px;color:var(--text3);">אין הקלטה</span>';
+    }
+  })
+  .catch(function(){
+    td.innerHTML='<span style="font-size:11px;color:var(--danger);">שגיאה</span>';
+  });
+};
+
+/* ══ 5b. האזנה להקלטה (ישן) ══ */
 window.getCallrecord = function(uniqueid, elSel){
   var el = typeof elSel==='string' ? document.querySelector(elSel) : elSel;
   if(!el) return;

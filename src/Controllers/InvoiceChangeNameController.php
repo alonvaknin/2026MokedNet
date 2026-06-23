@@ -11,7 +11,9 @@ use Models\UserModel;
 
 class InvoiceChangeNameController extends Controller
 {
-    private const MAIL_TO = 'eyal@bug.co.il;alonv@bug.co.il;bat-el@bug.co.il';
+    private const MAIL_TO      = 'eyal@bug.co.il;bat-el@bug.co.il';
+    private const FROM_ADDRESS = 'moked-net-noreply@alexisdeveloping.com';
+    private const FROM_NAME    = 'מוקד-נט';
 
     public function index(): void
     {
@@ -155,16 +157,15 @@ class InvoiceChangeNameController extends Controller
         string $customerName, string $phone, string $mail,
         array $user
     ): void {
-        $from    = str_replace(["\r", "\n"], '', $user['email'] ?? '');
-        $uname   = str_replace(["\r", "\n"], '', trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+        $replyTo = str_replace(["\r", "\n"], '', $user['email'] ?? '');
         $subject = "[שינוי שם בחש] לחש: {$invoiceNum} נא לשנות לשם {$newName}";
         $body    = $this->buildMailBody(
             'בקשה לשינוי שם',
             $invoiceNum, $newName, $note, $customerName, $phone, $mail
         );
-        $headers  = "From: {$uname} <{$from}>\r\n";
-        $headers .= "Reply-To: {$from}\r\n";
-        $headers .= "CC: {$from}\r\n";
+        $headers  = "From: " . self::FROM_NAME . " <" . self::FROM_ADDRESS . ">\r\n";
+        $headers .= "Reply-To: {$replyTo}\r\n";
+        $headers .= "CC: {$replyTo}\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=utf-8\r\n";
         mail(self::MAIL_TO, $subject, $body, $headers);
@@ -173,8 +174,7 @@ class InvoiceChangeNameController extends Controller
     private function sendStatusMail(array $row, string $careByUserId): void
     {
         $user    = Auth::user();
-        $from    = str_replace(["\r", "\n"], '', $user['email'] ?? '');
-        $uname   = str_replace(["\r", "\n"], '', trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')));
+        $replyTo = str_replace(["\r", "\n"], '', $user['email'] ?? '');
         $openerMail = \Core\DB::value(
             'SELECT email FROM users WHERE id = ?', [$row['open_by_id']]
         ) ?? '';
@@ -186,8 +186,8 @@ class InvoiceChangeNameController extends Controller
             $row['invoice_sap_number'], $row['new_name'], $row['invoice_note'],
             $row['customer_name'], $row['customer_phone'], $row['customer_mail']
         );
-        $headers  = "From: {$uname} <{$from}>\r\n";
-        $headers .= "Reply-To: {$from}\r\n";
+        $headers  = "From: " . self::FROM_NAME . " <" . self::FROM_ADDRESS . ">\r\n";
+        $headers .= "Reply-To: {$replyTo}\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=utf-8\r\n";
         mail($to, $subject, $body, $headers);

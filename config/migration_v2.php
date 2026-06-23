@@ -92,10 +92,8 @@ run($pdo, 'lab_inventory_movements',
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 // ── lab_inventory_items: rebuild to match V1 schema ───────
-// Drop the old stub table (had only item_name/sku) and recreate properly.
-// Safe because if it already has the right columns the ALTERs below are no-ops.
-run($pdo, 'lab_inventory_items.DROP_OLD',
-    "DROP TABLE IF EXISTS lab_inventory_items");
+// ⚠️  DROP מושבת בכוונה — גרם למחיקת נתונים בעבר.
+// run($pdo, 'lab_inventory_items.DROP_OLD', "DROP TABLE IF EXISTS lab_inventory_items");
 run($pdo, 'lab_inventory_items.CREATE',
     "CREATE TABLE IF NOT EXISTS lab_inventory_items (
         id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -117,8 +115,8 @@ run($pdo, 'lab_inventory_items.CREATE',
         INDEX idx_barcode(barcode)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-run($pdo, 'lab_inventory_movements.DROP_OLD',
-    "DROP TABLE IF EXISTS lab_inventory_movements");
+// ⚠️  DROP מושבת בכוונה — גרם למחיקת נתונים בעבר.
+// run($pdo, 'lab_inventory_movements.DROP_OLD', "DROP TABLE IF EXISTS lab_inventory_movements");
 run($pdo, 'lab_inventory_movements.CREATE',
     "CREATE TABLE IF NOT EXISTS lab_inventory_movements (
         id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

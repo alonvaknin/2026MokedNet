@@ -257,7 +257,7 @@ use Models\UserModel;
 
 class InvoiceChangeNameController extends Controller
 {
-    private const MAIL_TO = 'eyal@bug.co.il;alonv@bug.co.il;bat-el@bug.co.il';
+    private const MAIL_TO = 'eyal@bug.co.il;bat-el@bug.co.il';
 
     public function index(): void
     {

@@ -595,6 +595,7 @@ if (isset($_GET['caller'])) {
   font-weight: 700;
   color: var(--text2);
   flex-shrink: 0;
+  min-height: 47px;
 }
 .crm-badge {
   margin-right: auto;
@@ -948,6 +949,10 @@ if (isset($_GET['caller'])) {
 .crm-sc-val  { color: var(--text); font-weight: 600; text-align: left; }
 .crm-pbx-wrap{ font-size: 12px; }
 .crm-pbx-wrap a { color: #2196f3; }
+.pbx-recbtn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(33,150,243,.35);border-radius:20px;background:rgba(33,150,243,.1);color:#2196f3;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--font);transition:all .13s;white-space:nowrap;}
+.pbx-recbtn:hover{background:rgba(33,150,243,.2);}
+.pbx-spin{border-radius:50%;border:2.5px solid var(--border2);border-top-color:#2196f3;animation:pbxspin .7s linear infinite;}
+@keyframes pbxspin{to{transform:rotate(360deg)}}
 </style>
 
 <!-- ════════════════════════════════════════════════════════ SCRIPT -->
@@ -1026,6 +1031,7 @@ function open(phone) {
   $('crm-mini-phone').textContent    = phone;
   $('crm-note-phone').value          = phone;
   $('crm-wa-phone').value            = phone;
+  document.title = '📞 ' + phone + ' | CRM';
 
   el.classList.add('open');
   el.style.display = 'flex';
@@ -1108,6 +1114,7 @@ function renderCustomerPanel(phone, name, criticalNote) {
     $('crm-name-block').style.display = 'flex';
     $('crm-note-name').value = name;
     $('crm-wa-name').value   = name;
+    document.title = '📞 ' + name + ' (' + phone + ') | CRM';
   }
   if (criticalNote) {
     $('crm-critical-text').textContent = criticalNote;
@@ -1164,11 +1171,9 @@ async function loadService(phone) {
 }
 
 async function loadCalls(phone) {
-  const range  = document.getElementById('crm-pbx-range')?.value  || 'last1week';
-  const source = document.getElementById('crm-pbx-source')?.value || 'branches';
+  const range = document.getElementById('crm-pbx-range')?.value || 'last1week';
   try {
-    // קריאות שם + הערה קריטית מהDB
-    const rd = await fetch(`${BASE}/api/crm/calls?phone=${encodeURIComponent(phone)}`);
+    const rd = await fetch(`${BASE}/api/crm/calls?phone=${encodeURIComponent(phone)}&range=${encodeURIComponent(range)}`, {credentials:'include'});
     const dd = await rd.json();
     if (dd.caller_name) {
       state.name = dd.caller_name;
@@ -1181,20 +1186,7 @@ async function loadCalls(phone) {
       $('crm-critical-text').textContent = dd.critical_note;
       $('crm-critical-banner').style.display = 'flex';
     }
-    // שיחות מרכזיה מ-PBX
-    const fd = new URLSearchParams({
-      phoneQ: phone,
-      'time-range': range,
-      'source-select': source,
-      fromSearch: 'YES'
-    });
-    const rp = await fetch('/API/getPhoneCalls.api.php', {
-      method: 'POST', credentials: 'include',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
-      body: fd.toString()
-    });
-    const dp = await rp.json();
-    renderPbxCalls(dp);
+    renderPbxCalls(dd);
   } catch(e) {
     $('crm-calls-body').innerHTML = err('שגיאה בטעינת שיחות');
   }
@@ -1242,37 +1234,71 @@ function renderService(items) {
 function renderPbxCalls(data) {
   const el  = $('crm-calls-body');
   const cnt = $('crm-calls-count');
-  const html = (data && data.allcalls) ? String(data.allcalls).trim() : '';
-  if (!html) {
+  const rows = (data && Array.isArray(data.data)) ? data.data : [];
+  if (!rows.length) {
     el.innerHTML = '<div class="crm-empty-state"><i class="bi bi-telephone-x"></i><span>אין שיחות בטווח הנבחר</span></div>';
     cnt.style.display = 'none';
     return;
   }
-  el.innerHTML = '<div class="crm-pbx-wrap">' + html + '</div>';
-  // Style the raw PBX HTML to match CRM dark theme
-  el.querySelectorAll('table').forEach(t => { t.style.cssText='width:100%;border-collapse:collapse;font-size:12px;'; });
-  el.querySelectorAll('th').forEach(th => { th.style.cssText='background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;text-align:right;'; });
-  el.querySelectorAll('td').forEach(td => { td.style.cssText='padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;font-size:12px;'; });
-  el.querySelectorAll('tr').forEach(tr => {
-    tr.addEventListener('mouseenter', () => tr.querySelectorAll('td').forEach(td => td.style.background='var(--bg3)'));
-    tr.addEventListener('mouseleave', () => tr.querySelectorAll('td').forEach(td => td.style.background=''));
+  const E = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const dirLabel = d => {
+    if(d==='in'||d==='inbound')  return '<span style="font-size:11px;font-weight:600;color:#22c55e;"><i class="bi bi-telephone-inbound-fill"></i> נכנסת</span>';
+    if(d==='out'||d==='outbound')return '<span style="font-size:11px;font-weight:600;color:#5b8dee;"><i class="bi bi-telephone-outbound-fill"></i> יוצאת</span>';
+    return `<span style="font-size:11px;color:var(--text3);">${E(d)}</span>`;
+  };
+  const statLabel = s => {
+    if(s==='answer')             return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#22c55e;"><i class="bi bi-check-circle-fill"></i> ענה</span>';
+    if(s==='noanswer'||s==='no answer') return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-x-circle-fill"></i> לא ענה</span>';
+    if(s==='busy')               return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-dash-circle-fill"></i> תפוס</span>';
+    if(s==='cancel')             return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.08);color:#ef4444;"><i class="bi bi-slash-circle-fill"></i> בוטל</span>';
+    return `<span style="font-size:11px;color:var(--text3);">${E(s)}</span>`;
+  };
+  const TH = 'text-align:right;padding:6px 10px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;';
+  const TD = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2);font-size:12px;';
+  let h = `<table style="width:100%;border-collapse:collapse;"><tr>
+    <th style="${TH}">זמן</th>
+    <th style="${TH}">כיוון</th>
+    <th style="${TH}">נציג</th>
+    <th style="${TH}">משך</th>
+    <th style="${TH}">סטטוס</th>
+    ${CAN_REC ? `<th style="${TH}">הקלטה</th>` : ''}
+  </tr>`;
+  rows.forEach(row => {
+    const agentHtml = row.agent_name
+      ? `<div style="font-weight:600;">${E(row.agent_name)}</div>`
+      : `<span style="color:var(--text3);">${E(row.agent_line)||'—'}</span>`;
+    const recHtml = row.uniqueid
+      ? `<a href="https://app.mvoice.co.il/#/calls/cdrs/edit/?callid=${encodeURIComponent(row.uniqueid)}&customer=8113&cost_customer=scustomer&include_tax=1&archive=0&sort=start&descending=0&detail=leg" target="_blank" class="pbx-recbtn" style="font-size:11px;padding:3px 9px;text-decoration:none;"><i class="bi bi-play-circle-fill"></i> הקלטה</a>`
+      : '<span style="font-size:11px;color:var(--text3);">—</span>';
+    h += `<tr onmouseenter="this.querySelectorAll('td').forEach(t=>t.style.background='var(--bg3)')" onmouseleave="this.querySelectorAll('td').forEach(t=>t.style.background='')">
+      <td style="${TD}">${E(row.call_time)}</td>
+      <td style="${TD}">${dirLabel(row.direction)}</td>
+      <td style="${TD}">${agentHtml}</td>
+      <td style="${TD}">${E(row.duration)}</td>
+      <td style="${TD}">${statLabel(row.status)}</td>
+      ${CAN_REC ? `<td style="${TD}" id="pbxrec-${E(row.uniqueid)}">${recHtml}</td>` : ''}
+    </tr>`;
   });
-  el.querySelectorAll('[onclick*="getCallrecord"]').forEach(el2 => {
-    el2.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border:1px solid rgba(33,150,243,.35);border-radius:12px;background:rgba(33,150,243,.1);color:#2196f3;cursor:pointer;font-size:11px;font-weight:600;font-family:Assistant,sans-serif;';
-    el2.innerHTML = CAN_REC ? '<i class="bi bi-play-circle-fill"></i> האזן' : '<i class="bi bi-lock-fill"></i> נעול';
-    if (!CAN_REC) el2.style.cssText += 'border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.07);color:#ef4444;cursor:not-allowed;';
-  });
-  el.querySelectorAll('td').forEach(td => {
-    const t = (td.textContent || '').trim().toUpperCase();
-    if (t==='ANSWERED'||t==='ענה')       td.innerHTML='<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#22c55e;">✓ ענה</span>';
-    else if (t==='NO ANSWER'||t==='לא ענה'||t==='NOANSWER') td.innerHTML='<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;">✗ לא ענה</span>';
-    else if (t==='BUSY'||t==='תפוס')    td.innerHTML='<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;">תפוס</span>';
-  });
-  // Count rows excluding header
-  const rows = el.querySelectorAll('tr:not(:first-of-type)');
-  const n = rows.length;
-  cnt.textContent = n || '';
-  cnt.style.display = n ? 'inline' : 'none';
+  h += '</table>';
+  el.innerHTML = h;
+  cnt.textContent = rows.length;
+  cnt.style.display = 'inline';
+}
+
+// טעינת הקלטה lazy — גם אם pbx-search לא טעון
+if (typeof window.pbxLoadRec === 'undefined') {
+  window.pbxLoadRec = function(btn, uniqueid) {
+    var td = btn.closest('td'); if(!td) return;
+    td.innerHTML='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><div class="pbx-spin" style="width:13px;height:13px;"></div> טוען...</span>';
+    fetch('/api/crm/calls/recording?uniqueid='+encodeURIComponent(uniqueid),{credentials:'include'})
+    .then(r=>r.json())
+    .then(d=>{
+      td.innerHTML = d.ok && d.url
+        ? '<audio src="'+d.url+'" controls style="height:28px;max-width:200px;border-radius:6px;outline:none;display:block;"></audio>'
+        : '<span style="font-size:11px;color:var(--text3);">אין הקלטה</span>';
+    })
+    .catch(()=>{ td.innerHTML='<span style="font-size:11px;color:var(--danger);">שגיאה</span>'; });
+  };
 }
 
 function resetSections() {

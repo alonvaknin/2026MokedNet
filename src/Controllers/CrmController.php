@@ -58,9 +58,7 @@ class CrmController extends Controller
             $criticalNote = '';
         }
 
-        // שיחות מ-mvoice לפי callerid_internal (מספר המתקשר)
-        // mvoice: cnumber = מספר יעד (חנות), callerid_internal = מספר מתקשר
-        // אין פרמטר סינון לפי מתקשר — מביאים direction=in ומסננים בצד שלנו
+        // mvoice משתמש בסמיקולון כמפריד, ו-caller_number לחיפוש לפי מתקשר
         $now   = time();
         $range = $_GET['range'] ?? 'last1week';
         $start = match($range) {
@@ -69,63 +67,77 @@ class CrmController extends Controller
             '1YearOld'    => strtotime('-1 year'),
             default       => strtotime('-1 week'),
         };
-        $mvoice = CFG['mvoice'] ?? [];
-        $url   = self::MVOICE_BASE . '?' . http_build_query([
-            'auth_username' => $mvoice['user'] ?? '',
-            'auth_password' => $mvoice['pass'] ?? '',
-            'direction'     => 'in',
-            'start'         => $start,
-            'end'           => $now,
-            'status'        => 'queue_any',
-        ]);
+        $mvoice      = CFG['mvoice'] ?? [];
+        $phoneSearch = ltrim($phone, '0'); // mvoice מצפה ללא 0 מוביל
+        $auth        = 'auth_username='.$mvoice['user'].';auth_password='.$mvoice['pass'].';';
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-        $raw   = curl_exec($ch);
-        $errno = curl_errno($ch);
-        $errmsg = curl_error($ch);
-        curl_close($ch);
-        if ($raw === false || $errno) {
-            echo json_encode(['ok' => false, 'error' => 'curl error '.$errno.': '.$errmsg, 'url_debug' => $url, 'data' => [], 'caller_name' => $callerName, 'critical_note' => $criticalNote]);
+        // שיחות נכנסות (caller_number = המתקשר)
+        $inUrl  = self::MVOICE_BASE.'?'.$auth.'start='.$start.';end='.$now.';caller_number='.$phoneSearch;
+        // שיחות יוצאות (called_number = היעד שחייגו אליו)
+        $outUrl = self::MVOICE_BASE.'?'.$auth.'start='.$start.';end='.$now.';called_number='.$phoneSearch;
+
+        $fetch = function(string $url): array {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>15, CURLOPT_SSL_VERIFYPEER=>false]);
+            $raw = curl_exec($ch);
+            $err = curl_errno($ch);
+            curl_close($ch);
+            if ($err || $raw === false) return ['ok'=>false,'err'=>$err];
+            $j = json_decode($raw, true);
+            return ['ok'=>true,'data'=>$j['data']??[]];
+        };
+
+        $inRes  = $fetch($inUrl);
+        $outRes = $fetch($outUrl);
+
+        if (!$inRes['ok'] && !$outRes['ok']) {
+            echo json_encode(['ok'=>false,'error'=>'curl error','data'=>[],'caller_name'=>$callerName,'critical_note'=>$criticalNote]);
             return;
         }
 
-        $json = json_decode($raw, true);
-        if (!is_array($json)) {
-            echo json_encode(['ok' => false, 'error' => 'mvoice bad response', 'raw' => $raw, 'data' => [], 'caller_name' => $callerName]);
-            return;
-        }
-        $resp = $json['responses'][0] ?? [];
-        if (($resp['code'] ?? '') !== '200') {
-            echo json_encode(['ok' => false, 'error' => 'mvoice error', 'response' => $resp, 'data' => [], 'caller_name' => $callerName]);
-            return;
-        }
-        $allCalls = $json['data'] ?? [];
+        // מיזוג שיחות נכנסות ויוצאות
+        $allCalls = array_merge($inRes['data'] ?? [], $outRes['data'] ?? []);
+        usort($allCalls, fn($a, $b) => ($b['start'] ?? 0) <=> ($a['start'] ?? 0));
 
-        // סינון לפי מספר המתקשר — mvoice לא תומך בפרמטר סינון למתקשר
-        // callerid_internal או snumber = מספר המתקשר בתשובה
-        $phoneDigits = preg_replace('/\D/', '', $phone);
-        $last9 = substr($phoneDigits, -9);
-        $calls = array_filter($allCalls, function($c) use ($last9) {
-            foreach (['callerid_internal', 'snumber', 'callerid'] as $field) {
-                $val = preg_replace('/\D/', '', $c[$field] ?? '');
-                if ($val !== '' && str_ends_with($val, $last9)) return true;
+        // בניית מפה mvoice_id → שם נציג מטבלת users
+        $agentMap = [];
+        try {
+            $agentRows = DB::query("SELECT mvoice_id, CONCAT(first_name,' ',last_name) AS name FROM users WHERE mvoice_id IS NOT NULL AND mvoice_id != ''");
+            foreach ($agentRows as $ar) {
+                $agentMap[trim($ar['mvoice_id'])] = trim($ar['name']);
             }
-            return false;
-        });
+        } catch (\Throwable) {}
 
-        $rows = array_map(fn($c) => [
-            'call_time' => date('d/m/Y H:i', $c['start'] ?? 0),
-            'duration'  => gmdate('H:i:s', $c['totaltime'] ?? 0),
-            'agent'     => $c['callerid_internal'] ?? $c['snumber'] ?? '',
-            'dept'      => $c['dnumber'] ?? '',
-            'direction' => 'in',
-            'status'    => $c['status'] ?? '',
-        ], $calls);
+        $rows = array_map(function($c) use ($agentMap, $auth) {
+            $snumber  = $c['snumber']  ?? '';
+            $dnumber  = $c['dnumber']  ?? '';
+            $agentKey = $snumber ?: $dnumber;
+            // ניסיון 1: snumber_display מ-mvoice ישירות
+            $agentName = trim($c['snumber_display'] ?? $c['dnumber_display'] ?? '');
+            // ניסיון 2: צלב עם טבלת users לפי mvoice_id
+            if (!$agentName) {
+                $agentName = $agentMap[$agentKey] ?? $agentMap[ltrim($agentKey,'0')] ?? '';
+            }
+
+            // קישור הקלטה: אם יש uniqueid — בנה URL ישירות ל-mvoice
+            $uniqueid = $c['uniqueid'] ?? '';
+            $recUrl   = $c['recording_url'] ?? '';
+            if (!$recUrl && $uniqueid) {
+                $recUrl = "https://app.mvoice.co.il/api/json/cdrs/list/?{$auth}callid={$uniqueid};status=answer;dtype=phone";
+            }
+
+            return [
+                'call_time'     => date('d/m/Y H:i', $c['start'] ?? 0),
+                'duration'      => gmdate('H:i:s', $c['totaltime'] ?? 0),
+                'agent_line'    => $agentKey,
+                'agent_name'    => $agentName,
+                'dept'          => $dnumber,
+                'direction'     => $c['direction'] ?? '',
+                'status'        => $c['status'] ?? '',
+                'uniqueid'      => $uniqueid,
+                'recording_url' => $recUrl,
+            ];
+        }, $allCalls);
 
         echo json_encode([
             'ok'            => true,
@@ -133,6 +145,33 @@ class CrmController extends Controller
             'caller_name'   => $callerName,
             'critical_note' => $criticalNote,
         ]);
+    }
+
+    // ── GET /api/crm/calls/recording?uniqueid=XXX ───────────────────────────
+    public function apiCallRecording(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $uniqueid = trim($_GET['uniqueid'] ?? '');
+        if (!$uniqueid) {
+            echo json_encode(['ok'=>false,'error'=>'missing uniqueid']);
+            return;
+        }
+
+        $mvoice = CFG['mvoice'] ?? [];
+        $auth   = 'auth_username='.$mvoice['user'].';auth_password='.$mvoice['pass'].';';
+        $url    = self::MVOICE_BASE.'?'.$auth.'callid='.urlencode($uniqueid).';status=answer;dtype=phone';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>10, CURLOPT_SSL_VERIFYPEER=>false]);
+        $raw = curl_exec($ch);
+        curl_close($ch);
+
+        $j = json_decode($raw, true);
+        $recUrl = $j['data'][0]['recording_url'] ?? '';
+
+        echo json_encode(['ok'=>(bool)$recUrl, 'url'=>$recUrl]);
     }
 
     // ── GET /api/crm/service?phone=05XXXXXXXX ───────────────────────────────

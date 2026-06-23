@@ -188,7 +188,7 @@ class WizenetController extends Controller
             }
         } elseif ($isPhoneSearch) {
             // טלפון — מקסימום 360 ימים
-            if ($rangeDays > 360) {
+            if ($rangeDays > 730) {
                 $this->json([
                     'error' => 'חיפוש לפי טלפון מוגבל ל-360 ימים לכל היותר. צמצם את טווח התאריכים.',
                     'rangeDays' => $rangeDays,
@@ -196,7 +196,7 @@ class WizenetController extends Controller
             }
         } elseif ($isImeiSearch) {
             // IMEI — מקסימום 360 ימים (סביר)
-            if ($rangeDays > 360) {
+            if ($rangeDays > 730) {
                 $this->json([
                     'error' => 'חיפוש לפי IMEI מוגבל ל-360 ימים לכל היותר.',
                     'rangeDays' => $rangeDays,
