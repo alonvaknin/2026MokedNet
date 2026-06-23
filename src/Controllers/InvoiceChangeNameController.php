@@ -32,7 +32,7 @@ class InvoiceChangeNameController extends Controller
 
     public function create(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canUseInvoiceChangeName');
         $this->verifyCsrf();
 
         $invoiceNum   = trim($this->post('invoice_sap_number', ''));
@@ -157,8 +157,8 @@ class InvoiceChangeNameController extends Controller
         string $customerName, string $phone, string $mail,
         array $user
     ): void {
-        $replyTo = str_replace(["\r", "\n"], '', $user['email'] ?? '');
-        $subject = "[שינוי שם בחש] לחש: {$invoiceNum} נא לשנות לשם {$newName}";
+        $replyTo = preg_replace('/[\r\n\0]/', '', $user['email'] ?? '');
+        $subject = preg_replace('/[\r\n\0]/', '', "[שינוי שם בחש] לחש: {$invoiceNum} נא לשנות לשם {$newName}");
         $body    = $this->buildMailBody(
             'בקשה לשינוי שם',
             $invoiceNum, $newName, $note, $customerName, $phone, $mail
@@ -180,7 +180,7 @@ class InvoiceChangeNameController extends Controller
         ) ?? '';
 
         $to      = $openerMail;
-        $subject = "[שינוי שם בחש] לחש: {$row['invoice_sap_number']} בוצע";
+        $subject = preg_replace('/[\r\n]/', '', "[שינוי שם בחש] לחש: {$row['invoice_sap_number']} בוצע");
         $body    = $this->buildMailBody(
             'בוצעה בקשה לשינוי שם',
             $row['invoice_sap_number'], $row['new_name'], $row['invoice_note'],

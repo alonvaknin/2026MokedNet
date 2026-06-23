@@ -44,8 +44,11 @@ foreach ($phones as $phone) {
 
 function fetchPhoneLines(): string
 {
+    $user = CFG['mvoice']['user'];
+    $pass = CFG['mvoice']['pass'];
     return file_get_contents(
-        'https://app.mvoice.co.il/api/json/phones/list/panel/?auth_username=alonv@bug.co.il&auth_password=WFUN3CL6MM'
+        'https://app.mvoice.co.il/api/json/phones/list/panel/?'
+        . http_build_query(['auth_username' => $user, 'auth_password' => $pass])
     );
 }
 

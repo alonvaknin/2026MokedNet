@@ -205,6 +205,9 @@ class AutomationController extends Controller
                 'token'  => 'ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb',
                 'callid' => $callId,
             ]);
+            if (!str_starts_with($url, 'https://bug.wizenet.co.il/')) {
+                return null;
+            }
             $ctx = stream_context_create(['http'=>['timeout'=>10,'method'=>'GET']]);
             $raw = @file_get_contents($url, false, $ctx);
             if (!$raw) return null;

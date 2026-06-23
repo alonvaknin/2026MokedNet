@@ -99,7 +99,7 @@ foreach ($groups as $g) { $groupMap[$g['id']] = $g; }
         'ניהול מערכת'      => 'bi-gear-fill',
       ];
       foreach ($categories as $catName => $perms):
-        $catId = 'cat-' . md5($catName);
+        $catId = 'cat-' . preg_replace('/[^a-z0-9]/i', '-', $catName);
         $icon  = $catIcons[$catName] ?? 'bi-circle';
       ?>
       <div class="cat-section" id="<?= $catId ?>">

@@ -45,7 +45,7 @@ if (!function_exists('cleanHebrewText')) {
 }
 
 if ($chosenType === 'tehilim') {
-    $chapter = rand(1, 150);
+    $chapter = random_int(1, 150);
     $data    = fetchJson("https://www.sefaria.org/api/texts/Psalms.{$chapter}?context=0&pad=0&language=he");
     if ($data && !empty($data['he'])) {
         $verses        = array_slice($data['he'], 0, 3);

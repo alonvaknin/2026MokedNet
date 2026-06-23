@@ -21,6 +21,9 @@ class WizenetController extends Controller
 
     private static function fetch(string $url): ?array
     {
+        if (!str_starts_with($url, 'https://bug.wizenet.co.il/')) {
+            return null;
+        }
         $ctx = stream_context_create(['http' => [
             'timeout' => 12,
             'method'  => 'GET',
