@@ -261,36 +261,55 @@ function closePbxModal(){
 function pbxSearch(){
   if(!_pbxCanSearch) return;
   var phone = (document.getElementById('pbx-phone-input').value||'').trim();
-  var range  = document.getElementById('pbx-range').value;
-  var source = document.getElementById('pbx-source').value;
-  if(!phone || phone.replace(/\D/g,'').length < 9){
+  if(!phone || phone.replace(/\D/g,'').length < 7){
     var inp = document.getElementById('pbx-phone-input');
     inp.style.borderColor='var(--danger)'; inp.focus();
     setTimeout(function(){inp.style.borderColor='';}, 900);
-    pbxSetEmpty('נא להזין מספר טלפון תקין (לפחות 9 ספרות)');
+    pbxSetEmpty('נא להזין מספר טלפון תקין');
     return;
   }
   pbxSetLoading(true);
   document.getElementById('pbx-cnt').textContent='מחפש שיחות...';
-  fetch('/API/getPhoneCalls.api.php',{
-    method:'POST', credentials:'include',
-    headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},
-    body:'phoneQ='+encodeURIComponent(phone)+'&time-range='+encodeURIComponent(range)+'&source-select='+encodeURIComponent(source)+'&fromSearch=YES'
-  })
+  fetch('/api/crm/search-calls.php?phone='+encodeURIComponent(phone), {credentials:'include'})
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(function(data){
     pbxSetLoading(false);
-    var html = (data&&data.allcalls)?String(data.allcalls).trim():'';
-    if(!html){
+    if(!data.ok || !data.data || !data.data.length){
       pbxSetEmpty('לא נמצאו שיחות עבור '+phone);
       document.getElementById('pbx-cnt').textContent='אין תוצאות';
       return;
     }
+    var rows = data.data;
+    var E = function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+    var dirLabel = function(d){
+      if(d==='in'||d==='inbound')return'<span style="color:#22c55e;font-size:11px;">⬇ נכנסת</span>';
+      if(d==='out'||d==='outbound')return'<span style="color:#5b8dee;font-size:11px;">⬆ יוצאת</span>';
+      return'<span style="color:var(--text3);font-size:11px;">'+E(d)+'</span>';
+    };
+    var h='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    h+='<tr>';
+    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">זמן</th>';
+    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">כיוון</th>';
+    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">משך</th>';
+    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">נציג</th>';
+    h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">מחלקה</th>';
+    if(_pbxCanRec)h+='<th style="text-align:right;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);">הקלטה</th>';
+    h+='</tr>';
+    rows.forEach(function(row){
+      h+='<tr onmouseenter="this.querySelectorAll(\'td\').forEach(function(td){td.style.background=\'var(--bg3)\'})" onmouseleave="this.querySelectorAll(\'td\').forEach(function(td){td.style.background=\'\'})">';
+      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.call_time)+'</td>';
+      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);">'+dirLabel(row.direction)+'</td>';
+      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.duration)+'</td>';
+      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.agent)+'</td>';
+      h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2);">'+E(row.dept)+'</td>';
+      if(_pbxCanRec)h+='<td style="padding:9px 12px;border-bottom:1px solid var(--border);">'+(row.recording_url?'<audio src="'+E(row.recording_url)+'" controls style="height:28px;max-width:200px;"></audio>':'<span style="font-size:11px;color:var(--text3);">אין</span>')+'</td>';
+      h+='</tr>';
+    });
+    h+='</table>';
     var res = document.getElementById('pbx-res');
-    res.innerHTML='<div style="padding:8px 14px;">'+html+'</div>';
-    pbxStyleResults();
-    var rows = res.querySelectorAll('tr:not(:first-of-type)');
-    document.getElementById('pbx-cnt').textContent = rows.length ? rows.length+' שיחות' : 'נמצאו תוצאות';
+    res.innerHTML='<div style="padding:0 0 8px;">'+h+'</div>';
+    if(data.caller_name)res.insertAdjacentHTML('afterbegin','<div style="padding:8px 14px 4px;font-size:12px;color:#10b981;"><i class="bi bi-person-fill"></i> '+E(data.caller_name)+'</div>');
+    document.getElementById('pbx-cnt').textContent=rows.length+' שיחות';
   })
   .catch(function(err){
     pbxSetLoading(false);
