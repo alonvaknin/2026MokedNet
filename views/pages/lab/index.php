@@ -301,7 +301,7 @@ table.pvtTable tbody tr td{background:var(--bg2)!important;border:1px solid var(
 /* ── btn overrides ── */
 .btn{font-size:13px;font-family:inherit;}
 .btn-sm{font-size:12px!important;padding:.3rem .65rem!important;}
-.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:6px;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:6px;}
 .btn-ghost:hover{background:var(--bg3);color:var(--text);}
 
 /* ── users table: clamp width ── */

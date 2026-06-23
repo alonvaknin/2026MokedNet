@@ -7,12 +7,12 @@ class Router
 {
     private array $routes = [];
 
-    public function get(string $path, string $handler): void
+    public function get(string $path, string|callable $handler): void
     {
         $this->routes['GET'][$path] = $handler;
     }
 
-    public function post(string $path, string $handler): void
+    public function post(string $path, string|callable $handler): void
     {
         $this->routes['POST'][$path] = $handler;
     }
@@ -56,6 +56,11 @@ class Router
         if (!$handler) {
             http_response_code(404);
             echo '404 — עמוד לא נמצא (' . htmlspecialchars($uri) . ')';
+            return;
+        }
+
+        if (is_callable($handler)) {
+            $handler(...array_values($params));
             return;
         }
 

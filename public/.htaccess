@@ -9,3 +9,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 # אם גישה ישירה ל-index.php — נתב ל-/ (נקי)
 RewriteCond %{THE_REQUEST} ^GET.*index\.php [NC]
 RewriteRule ^index\.php$ / [R=301,L]
+
+# Redirect legacy PHP files
+RewriteCond %{THE_REQUEST} ^GET.*includes/lab_dashboard\.php [NC]
+RewriteRule ^includes/lab_dashboard\.php$ /lab [R=301,L]

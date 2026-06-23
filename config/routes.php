@@ -132,6 +132,7 @@ $router->get ('/api/duty/current',              'Controllers\\DutyController@api
 $router->get ('/duty/signage',                  'Controllers\\DutyController@signage');
 
 // Lab Inventory
+$router->get ('/includes/lab_dashboard.php', fn() => header('Location: /lab', true, 301));
 $router->get ('/lab',                        'Controllers\\LabController@index');
 $router->get ('/api/lab/inventory',          'Controllers\\LabController@apiInventory');
 $router->get ('/api/lab/history',            'Controllers\\LabController@apiHistory');
