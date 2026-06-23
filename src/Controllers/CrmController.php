@@ -79,10 +79,18 @@ class CrmController extends Controller
             'status'        => 'queue_any',
         ]);
 
-        $ctx = stream_context_create(['http' => ['timeout' => 12]]);
-        $raw = @file_get_contents($url, false, $ctx);
-        if ($raw === false) {
-            echo json_encode(['ok' => false, 'error' => 'שגיאת חיבור ל-mvoice', 'data' => [], 'caller_name' => $callerName, 'critical_note' => $criticalNote]);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $raw   = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $errmsg = curl_error($ch);
+        curl_close($ch);
+        if ($raw === false || $errno) {
+            echo json_encode(['ok' => false, 'error' => 'curl error '.$errno.': '.$errmsg, 'url_debug' => $url, 'data' => [], 'caller_name' => $callerName, 'critical_note' => $criticalNote]);
             return;
         }
 
