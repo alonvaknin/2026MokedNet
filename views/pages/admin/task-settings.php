@@ -89,7 +89,8 @@ $usersJson    = json_encode($users          ?? [], JSON_UNESCAPED_UNICODE);
         </td>
       </tr>
       <?php foreach ($types as $t):
-        $assigneeIds = json_decode($t['default_assignee_ids'] ?? '[]', true) ?: [];
+        $decoded = json_decode($t['default_assignee_ids'] ?? '[]', true);
+        $assigneeIds = is_array($decoded) ? $decoded : [];
       ?>
       <tr id="type-row-<?= (int)$t['id'] ?>">
         <td style="color:var(--text3);"><?= (int)$t['id'] ?></td>

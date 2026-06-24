@@ -134,13 +134,7 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 
       <td style="padding:10px 14px;color:var(--text2);font-size:13px;"><?= $created ?></td>
 
-      <td style="padding:10px 14px;">
-        <form method="POST" action="<?= $base ?>/tasks/<?= (int)$t['id'] ?>/close"
-              onsubmit="return confirm('לסגור משימה זו?')">
-          <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
-          <button type="submit" class="btn btn-ghost" style="padding:5px 10px;font-size:13px;">✓ סגור</button>
-        </form>
-      </td>
+      <td></td>
     </tr>
     <?php endforeach; ?>
     </tbody>
