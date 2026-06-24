@@ -120,19 +120,31 @@ if (!columnExists($pdo, 'tasks', 'source_id')) {
     echo "– ALTER tasks: add source_id (כבר קיים)\n";
 }
 
-// ── Foreign keys on tasks ────────────────────────────────────────────────────
-// task_type_id and status_id on tasks are INT (not UNSIGNED) — task_types.id and
-// task_statuses.id are both plain INT AUTO_INCREMENT, so no type mismatch here.
-// tasks.id is INT UNSIGNED but tasks.task_type_id / status_id are INT nullable columns
-// referencing the new tables (which use plain INT PRIMARY KEY) — this is fine.
-run($pdo, 'FK tasks.task_type_id', "
-    ALTER TABLE tasks ADD CONSTRAINT fk_tasks_type
-    FOREIGN KEY (task_type_id) REFERENCES task_types(id)
-");
-run($pdo, 'FK tasks.status_id', "
-    ALTER TABLE tasks ADD CONSTRAINT fk_tasks_status
-    FOREIGN KEY (status_id) REFERENCES task_statuses(id)
-");
+// ── Foreign keys on tasks (best-effort — skip if type mismatch) ─────────────
+// These FKs are optional — the app uses numeric lookups, not DB-enforced FK.
+// Detect actual column types on tasks to decide if FKs are safe to add.
+function getColType(PDO $pdo, string $table, string $col): string {
+    $r = $pdo->query("
+        SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{$table}' AND COLUMN_NAME='{$col}'
+        LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+    return $r ? strtoupper(trim($r['COLUMN_TYPE'])) : '';
+}
+$ttIdType  = getColType($pdo, 'task_types',    'id');
+$tsIdType  = getColType($pdo, 'task_statuses', 'id');
+$tTtColType = getColType($pdo, 'tasks', 'task_type_id');
+$tStColType = getColType($pdo, 'tasks', 'status_id');
+
+if ($ttIdType && $tTtColType && $ttIdType === $tTtColType) {
+    run($pdo, 'FK tasks.task_type_id', "ALTER TABLE tasks ADD CONSTRAINT fk_tasks_type FOREIGN KEY (task_type_id) REFERENCES task_types(id)");
+} else {
+    echo "– FK tasks.task_type_id (דילוג — type mismatch: tasks.task_type_id={$tTtColType} vs task_types.id={$ttIdType})\n";
+}
+if ($tsIdType && $tStColType && $tsIdType === $tStColType) {
+    run($pdo, 'FK tasks.status_id', "ALTER TABLE tasks ADD CONSTRAINT fk_tasks_status FOREIGN KEY (status_id) REFERENCES task_statuses(id)");
+} else {
+    echo "– FK tasks.status_id (דילוג — type mismatch: tasks.status_id={$tStColType} vs task_statuses.id={$tsIdType})\n";
+}
 
 // ── Create task_watchers ─────────────────────────────────────────────────────
 // task_id must match tasks.id type exactly
