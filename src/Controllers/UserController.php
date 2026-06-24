@@ -207,4 +207,14 @@ class UserController extends Controller
         if (mb_strlen($q) < 2) $this->json([]);
         $this->json(UserModel::search($q));
     }
+
+    public function apiActiveList(): void
+    {
+        $this->requireAuth();
+        $users = \Core\DB::query(
+            'SELECT id, CONCAT(first_name," ",last_name) AS name
+             FROM users WHERE is_active=1 ORDER BY first_name, last_name'
+        );
+        $this->json($users);
+    }
 }

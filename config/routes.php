@@ -28,6 +28,18 @@ $router->post('/tasks/{id}/close','Controllers\TaskController@close');
 $router->post('/tasks/{id}/status', 'Controllers\\TaskController@updateStatus');
 $router->post('/tasks/{id}/title',  'Controllers\\TaskController@updateTitle');
 
+// Task Settings (Admin)
+$router->get ('/admin/task-settings',                        'Controllers\\TaskSettingsController@index');
+$router->post('/admin/task-settings/types',                  'Controllers\\TaskSettingsController@createType');
+$router->post('/admin/task-settings/types/{id}',             'Controllers\\TaskSettingsController@updateType');
+$router->post('/admin/task-settings/types/{id}/delete',      'Controllers\\TaskSettingsController@deleteType');
+$router->post('/admin/task-settings/statuses',               'Controllers\\TaskSettingsController@createStatus');
+$router->post('/admin/task-settings/statuses/{id}',          'Controllers\\TaskSettingsController@updateStatus');
+$router->post('/admin/task-settings/statuses/{id}/delete',   'Controllers\\TaskSettingsController@deleteStatus');
+
+// Active users API (used by task-settings assignee picker)
+$router->get('/api/users/active', 'Controllers\\UserController@apiActiveList');
+
 $router->get ('/support',              'Controllers\SupportController@index');
 $router->get ('/support/cat/{id}',     'Controllers\SupportController@category');
 $router->get ('/support/issues',       'Controllers\SupportController@manageIssues');
