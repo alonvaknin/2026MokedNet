@@ -58,11 +58,25 @@ run($pdo, 'CREATE task_types', "
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
+// Detect task_types.id column type so task_statuses.task_type_id matches exactly
+$taskTypesIdType = 'INT';
+try {
+    $row2 = $pdo->query("
+        SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'task_types' AND COLUMN_NAME = 'id'
+        LIMIT 1
+    ")->fetch(PDO::FETCH_ASSOC);
+    if ($row2) {
+        $taskTypesIdType = strtoupper(trim($row2['COLUMN_TYPE']));
+        echo "ℹ task_types.id type: {$taskTypesIdType}\n";
+    }
+} catch (PDOException $e) {}
+
 // ── Create task_statuses ────────────────────────────────────────────────────
 run($pdo, 'CREATE task_statuses', "
     CREATE TABLE IF NOT EXISTS task_statuses (
         id           INT AUTO_INCREMENT PRIMARY KEY,
-        task_type_id INT          NOT NULL,
+        task_type_id {$taskTypesIdType} NOT NULL,
         name         VARCHAR(50)  NOT NULL,
         color        VARCHAR(20)  NOT NULL DEFAULT '#4f7fff',
         sort_order   INT          NOT NULL DEFAULT 0,
@@ -106,7 +120,11 @@ if (!columnExists($pdo, 'tasks', 'source_id')) {
     echo "– ALTER tasks: add source_id (כבר קיים)\n";
 }
 
-// ── Foreign keys on tasks (use same int type as tasks.id) ───────────────────
+// ── Foreign keys on tasks ────────────────────────────────────────────────────
+// task_type_id and status_id on tasks are INT (not UNSIGNED) — task_types.id and
+// task_statuses.id are both plain INT AUTO_INCREMENT, so no type mismatch here.
+// tasks.id is INT UNSIGNED but tasks.task_type_id / status_id are INT nullable columns
+// referencing the new tables (which use plain INT PRIMARY KEY) — this is fine.
 run($pdo, 'FK tasks.task_type_id', "
     ALTER TABLE tasks ADD CONSTRAINT fk_tasks_type
     FOREIGN KEY (task_type_id) REFERENCES task_types(id)
