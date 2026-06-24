@@ -22,7 +22,7 @@ class TaskController extends Controller
             $tid = (int)($t['task_type_id'] ?? 0);
             if ($tid && !isset($statusesByType[$tid])) {
                 $rows = \Core\DB::query(
-                    'SELECT id, name, color FROM task_statuses WHERE task_type_id = ? ORDER BY sort_order',
+                    'SELECT id, name, color, is_closed FROM task_statuses WHERE task_type_id = ? ORDER BY sort_order',
                     [$tid]
                 );
                 $statusesByType[$tid] = $rows;

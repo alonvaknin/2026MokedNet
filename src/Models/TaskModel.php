@@ -36,6 +36,52 @@ class TaskModel
         );
     }
 
+    public static function forQuery(
+        int  $userId,
+        bool $closed      = false,
+        bool $allUsers    = false,
+        bool $overdueOnly = false
+    ): array {
+        $conditions = ['t.is_active = ?'];
+        $params     = [$closed ? 0 : 1];
+
+        if (!$allUsers) {
+            $conditions[] = 't.assigned_user_id = ?';
+            $params[]     = $userId;
+        }
+
+        if ($overdueOnly) {
+            $conditions[] = 'DATE_ADD(t.created_at, INTERVAL t.sla_days DAY) < NOW()';
+        }
+
+        $where = 'WHERE ' . implode(' AND ', $conditions);
+
+        return DB::query(
+            "SELECT t.id, t.title, t.description, t.sla_days,
+                    t.created_at, t.status_changed_at, t.is_active,
+                    t.source_type, t.source_id,
+                    t.status_id, t.task_type_id,
+                    t.assigned_user_id, t.assigned_dept_id,
+                    t.status_changed_by,
+                    CONCAT(opener.first_name,' ',opener.last_name) AS opened_by_name,
+                    CONCAT(changer.first_name,' ',changer.last_name) AS changed_by_name,
+                    ts.name    AS status_name,
+                    ts.color   AS status_color,
+                    ts.is_closed AS status_is_closed,
+                    tt.name    AS type_name,
+                    dept.name_heb AS dept_name
+             FROM tasks t
+             LEFT JOIN users opener    ON opener.id  = t.open_by
+             LEFT JOIN users changer   ON changer.id = t.status_changed_by
+             LEFT JOIN task_statuses ts ON ts.id     = t.status_id
+             LEFT JOIN task_types    tt ON tt.id     = t.task_type_id
+             LEFT JOIN departments   dept ON dept.id = t.assigned_dept_id
+             {$where}
+             ORDER BY t.created_at DESC",
+            $params
+        );
+    }
+
     public static function create(array $data): int
     {
         return DB::insert(
@@ -136,10 +182,20 @@ class TaskModel
 
     public static function updateStatus(int $id, int $statusId, int $byUserId): bool
     {
+        // Check if the target status is a closing status
+        $isClosed = (int)DB::value(
+            'SELECT is_closed FROM task_statuses WHERE id = ?',
+            [$statusId]
+        );
+
         return DB::execute(
-            'UPDATE tasks SET status_id = ?, status_changed_at = NOW()
+            'UPDATE tasks
+             SET status_id          = ?,
+                 status_changed_by  = ?,
+                 status_changed_at  = NOW(),
+                 is_active          = ?
              WHERE id = ? AND (assigned_user_id = ? OR open_by = ?)',
-            [$statusId, $id, $byUserId, $byUserId]
+            [$statusId, $byUserId, $isClosed ? 0 : 1, $id, $byUserId, $byUserId]
         ) > 0;
     }
 
