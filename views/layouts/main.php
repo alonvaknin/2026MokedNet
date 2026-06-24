@@ -11,6 +11,15 @@ $initials  = mb_substr($parts[0] ?? 'U', 0, 1) . (isset($parts[1]) ? mb_substr($
 $deptName  = $user['dept_name']  ?? '';
 $groupName = $user['group_name'] ?? '';
 $canPbxSearch = \Core\Auth::can('pbxSearch');
+$overdueCount = 0;
+if (!empty($_SESSION['user_id'])) {
+    $overdueCount = (int)\Core\DB::value(
+        'SELECT COUNT(*) FROM tasks
+         WHERE assigned_user_id=? AND is_active=1
+           AND DATE_ADD(created_at, INTERVAL sla_days DAY) < NOW()',
+        [$_SESSION['user_id']]
+    );
+}
 ?>
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -19,7 +28,7 @@ $canPbxSearch = \Core\Auth::can('pbxSearch');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= View::e($appName) ?></title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b8dee'/%3E%3Cstop offset='1' stop-color='%237c5ce8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Ctext x='32' y='46' font-family='Arial,sans-serif' font-size='36' font-weight='700' fill='white' text-anchor='middle'%3E%D7%9E%3C/text%3E%3C/svg%3E">
-<script>window.__V2_BASE="<?= $base ?>";</script>
+<script>window.__V2_BASE="<?= $base ?>";window.__OVERDUE_COUNT=<?= (int)$overdueCount ?>;</script>
 <script src="<?= $base ?>/prefs-loader.js"></script>
 <link rel="dns-prefetch" href="https://fonts.googleapis.com">
 <link rel="dns-prefetch" href="https://fonts.gstatic.com">
@@ -173,6 +182,12 @@ body.nav-collapsed #main{margin-right:var(--sidebar-mini)}
 a[href^="tel:"],a[href^="mailto:"]{color:inherit;text-decoration:none;cursor:copy;border-bottom:1px dotted transparent;transition:border-color .15s,opacity .15s}
 a[href^="tel:"]:hover,a[href^="mailto:"]:hover{border-bottom-color:currentColor;opacity:.8}
 a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after{content:' ⎘';font-size:.75em;opacity:.45}
+.nav-sla-badge{display:inline-flex;align-items:center;justify-content:center;
+  min-width:18px;height:18px;padding:0 5px;background:var(--danger);color:#fff;
+  font-size:10px;font-weight:700;border-radius:9px;margin-right:auto;flex-shrink:0;
+  animation:sla-pulse 2s ease-in-out infinite;}
+@keyframes sla-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(239,68,68,.4)}
+  50%{opacity:.85;box-shadow:0 0 0 5px rgba(239,68,68,0)}}
 </style>
 </head>
 <body>
@@ -1023,7 +1038,24 @@ function renderNav(items){
   menu.innerHTML=html||'<div style="padding:10px;color:var(--text3);font-size:13px;">אין פריטים</div>';
   const match=items.find(i=>i.navLink&&(i.navLinkType||'url').toLowerCase()!=='jsfunction'&&cur.startsWith(i.navLink)&&i.navLink!=='/');
   if(match)document.getElementById('crumb-text').textContent=match.navNameHEB;
-
+  injectSlaBadge();
+}
+function injectSlaBadge(){
+  if(!window.__OVERDUE_COUNT)return;
+  const navLinks=document.querySelectorAll('#nav-menu .nav-item');
+  navLinks.forEach(el=>{
+    const href=el.getAttribute('href')||'';
+    if(href===window.__V2_BASE+'/tasks'||href==='/tasks'){
+      if(!el.querySelector('.nav-sla-badge')){
+        const badge=document.createElement('span');
+        badge.className='nav-sla-badge';
+        badge.textContent=window.__OVERDUE_COUNT;
+        badge.title=window.__OVERDUE_COUNT+' משימות שעברו SLA';
+        badge.onclick=function(e){e.stopPropagation();window.location.href=window.__V2_BASE+'/tasks?filter=overdue';};
+        el.appendChild(badge);
+      }
+    }
+  });
 }
 function toggleDrop(id){const el=document.getElementById(id);if(!el)return;document.querySelectorAll('.nav-dropdown.open').forEach(d=>{if(d.id!==id)d.classList.remove('open');});el.classList.toggle('open');}
 loadNav();
