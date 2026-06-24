@@ -57,7 +57,15 @@ if (!colExists($pdo, 'tasks', 'assigned_dept_id')) {
     echo "– tasks.assigned_dept_id (כבר קיים)\n";
 }
 
-// 4. task_comments table
+// 4. task_statuses.is_closed
+if (!colExists($pdo, 'task_statuses', 'is_closed')) {
+    run3($pdo, 'ADD task_statuses.is_closed',
+        "ALTER TABLE task_statuses ADD COLUMN is_closed TINYINT(1) NOT NULL DEFAULT 0 AFTER color");
+} else {
+    echo "– task_statuses.is_closed (כבר קיים)\n";
+}
+
+// 5. task_comments table
 run3($pdo, 'CREATE task_comments',
     "CREATE TABLE IF NOT EXISTS task_comments (
         id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -69,7 +77,7 @@ run3($pdo, 'CREATE task_comments',
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 );
 
-// 5. tasks.viewAll permission for admin groups
+// 6. tasks.viewAll permission for admin groups
 $adminGroups = $pdo->query(
     "SELECT id FROM permission_groups WHERE name_heb LIKE '%מנהל%'"
 )->fetchAll(PDO::FETCH_COLUMN);
