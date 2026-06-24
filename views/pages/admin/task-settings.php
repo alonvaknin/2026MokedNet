@@ -361,15 +361,22 @@ async function moveStatus(typeId, statusId, dir) {
   const swapIdx = idx + dir;
   if (swapIdx < 0 || swapIdx >= list.length) return;
 
-  // Swap sort_order values
   const a = list[idx], b = list[swapIdx];
+  const origA = a.sort_order, origB = b.sort_order;
   [a.sort_order, b.sort_order] = [b.sort_order, a.sort_order];
   list[idx] = b; list[swapIdx] = a;
 
-  await Promise.all([
+  const [ra, rb] = await Promise.all([
     tsPost(`${TS_BASE}/admin/task-settings/statuses/${a.id}`, {sort_order: a.sort_order}),
     tsPost(`${TS_BASE}/admin/task-settings/statuses/${b.id}`, {sort_order: b.sort_order}),
   ]);
+
+  if (ra.error || rb.error) {
+    // rollback local state
+    a.sort_order = origA; b.sort_order = origB;
+    list[idx] = a; list[swapIdx] = b;
+    v2Toast('שגיאה בשינוי סדר');
+  }
 
   renderStatuses(typeId);
 }
