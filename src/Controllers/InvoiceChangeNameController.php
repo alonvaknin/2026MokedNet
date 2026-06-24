@@ -7,6 +7,7 @@ use Core\Controller;
 use Core\Auth;
 use Core\ActivityLog;
 use Models\InvoiceChangeNameModel;
+use Models\TaskModel;
 use Models\UserModel;
 
 class InvoiceChangeNameController extends Controller
@@ -78,6 +79,17 @@ class InvoiceChangeNameController extends Controller
         $this->sendCreateMail($invoiceNum, $newName, $note, $customerName, $phone, $mail, $user);
 
         ActivityLog::create('invoice_change_name', $id, "חשבונית {$invoiceNum} → {$newName}");
+
+        $taskType = TaskModel::typeByName('שינוי שם בחשבונית');
+        if ($taskType) {
+            TaskModel::createFromSource(
+                (int)$taskType['id'],
+                'invoice_change_name',
+                $id,
+                (int)$user['id'],
+                "שינוי שם בחש' {$invoiceNum} → {$newName}"
+            );
+        }
 
         $this->json(['error' => false, 'msg' => 'בקשת שינוי שם נוספה בהצלחה', 'id' => $id]);
     }
