@@ -98,8 +98,9 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
         <?php if ($typeId && $statusId): ?>
           <span class="task-status-badge"
                 data-type-id="<?= $typeId ?>"
+                data-current-status="<?= $statusId ?>"
                 style="color:<?= View::e($statusColor) ?>;background:<?= View::e($statusColor) ?>22;border-color:<?= View::e($statusColor) ?>44;"
-                onclick="toggleStatusDropdown(event, <?= (int)$t['id'] ?>, <?= $typeId ?>, <?= $statusId ?>)">
+                onclick="toggleStatusDropdown(event, <?= (int)$t['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
             <span style="width:7px;height:7px;border-radius:50%;background:<?= View::e($statusColor) ?>;flex-shrink:0;"></span>
             <span id="status-label-<?= (int)$t['id'] ?>"><?= View::e($statusName) ?></span>
           </span>
@@ -232,6 +233,7 @@ async function setStatus(taskId, statusId, name, color) {
       badge.style.background = safeColor + '22';
       badge.style.borderColor = safeColor + '44';
       badge.querySelector('span').style.background = safeColor;
+      badge.dataset.currentStatus = statusId;
     }
   }
   v2Toast('סטטוס עודכן: ' + name);
