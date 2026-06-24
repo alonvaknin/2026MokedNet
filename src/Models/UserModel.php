@@ -54,6 +54,7 @@ class UserModel
             'canOrianorder'        => 'הזמנות אוריאן',
             'canViewLogs'          => 'צפייה בלוג פעולות',
             'task_settings.manage' => 'ניהול הגדרות משימות',
+            'tasks.viewAll'        => 'צפייה בכל המשימות (כל נציגים)',
         ],
     ];
 
@@ -90,6 +91,7 @@ class UserModel
         'canViewLogs'                  => 'צפייה בלוג פעולות',
         'canManageDuty'                => 'ניהול תורנות',
         'task_settings.manage'         => 'ניהול הגדרות משימות',
+        'tasks.viewAll'                => 'צפייה בכל המשימות (כל נציגים)',
     ];
 
     /* ══ CRUD ══════════════════════════════════════════════════════ */
