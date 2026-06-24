@@ -97,6 +97,7 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
       <td style="padding:10px 14px;position:relative;">
         <?php if ($typeId && $statusId): ?>
           <span class="task-status-badge"
+                data-type-id="<?= $typeId ?>"
                 style="color:<?= View::e($statusColor) ?>;background:<?= View::e($statusColor) ?>22;border-color:<?= View::e($statusColor) ?>44;"
                 onclick="toggleStatusDropdown(event, <?= (int)$t['id'] ?>, <?= $typeId ?>, <?= $statusId ?>)">
             <span style="width:7px;height:7px;border-radius:50%;background:<?= View::e($statusColor) ?>;flex-shrink:0;"></span>
@@ -186,9 +187,10 @@ function toggleStatusDropdown(e, taskId, typeId, currentStatusId) {
   let html = '';
   statuses.forEach(s => {
     const active = s.id == currentStatusId;
+    const safeColor = sanitizeColor(s.color);
     html += `<div class="status-option" onclick="setStatus(${taskId},${s.id},'${escJs(s.name)}','${escJs(s.color)}')"
-                  style="color:${s.color}${active?' font-weight:800;':''}">`
-          + `<span style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0;"></span>`
+                  style="color:${safeColor}${active?' font-weight:800;':''}">`
+          + `<span style="width:8px;height:8px;border-radius:50%;background:${safeColor};flex-shrink:0;"></span>`
           + `${esc(s.name)}`
           + (active ? ' <i class="bi bi-check2" style="margin-right:auto;"></i>' : '')
           + `</div>`;
@@ -225,12 +227,11 @@ async function setStatus(taskId, statusId, name, color) {
     label.textContent = name;
     const badge = label.closest('.task-status-badge');
     if (badge) {
-      badge.style.color = color;
-      badge.style.background = color + '22';
-      badge.style.borderColor = color + '44';
-      badge.querySelector('span').style.background = color;
-      badge.setAttribute('onclick',
-        `toggleStatusDropdown(event,${taskId},${badge.getAttribute('onclick').match(/,(\d+),/)[1]},${statusId})`);
+      const safeColor = sanitizeColor(color);
+      badge.style.color = safeColor;
+      badge.style.background = safeColor + '22';
+      badge.style.borderColor = safeColor + '44';
+      badge.querySelector('span').style.background = safeColor;
     }
   }
   v2Toast('סטטוס עודכן: ' + name);
@@ -274,4 +275,8 @@ function startTitleEdit(taskId, spanEl) {
 /* ── Helpers ─────────────────────────────────────────── */
 function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
 function escJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function sanitizeColor(s) {
+  return /^(#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]*\)|hsl[a]?\([^)]*\)|[a-zA-Z]+)$/.test(String(s).trim())
+    ? String(s).trim() : '#6b7280';
+}
 </script>
