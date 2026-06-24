@@ -43,15 +43,51 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 </div>
 <?php endif; ?>
 
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-  <div class="page-title" style="margin-bottom:0;">המשימות שלי</div>
-  <button class="btn btn-primary" onclick="document.getElementById('new-task-modal').style.display='flex'">
-    + משימה חדשה
-  </button>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+  <div class="page-title" style="margin-bottom:0;">
+    <?= $showClosed ? 'משימות סגורות' : 'משימות פתוחות' ?>
+    <?= $scopeAll ? '— כולם' : '— שלי' ?>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <!-- Open/Closed toggle -->
+    <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
+      <a href="?show=open&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
+         style="padding:6px 14px;text-decoration:none;<?= !$showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+        פתוחות
+      </a>
+      <a href="?show=closed&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
+         style="padding:6px 14px;text-decoration:none;<?= $showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+        סגורות
+      </a>
+    </div>
+
+    <?php if ($canViewAll): ?>
+    <!-- Mine/All toggle -->
+    <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
+      <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=mine"
+         style="padding:6px 14px;text-decoration:none;<?= !$scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+        שלי
+      </a>
+      <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=all"
+         style="padding:6px 14px;text-decoration:none;<?= $scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+        הכל
+      </a>
+    </div>
+    <?php endif; ?>
+
+    <?php if (!$showClosed): ?>
+    <button class="btn btn-primary" onclick="document.getElementById('new-task-modal').style.display='flex'">
+      + משימה חדשה
+    </button>
+    <?php endif; ?>
+  </div>
 </div>
 
 <?php if (empty($tasks)): ?>
-  <div class="alert alert-info">אין משימות פתוחות 🎉</div>
+  <div class="alert alert-info">
+    <?= $showClosed ? 'אין משימות סגורות' : 'אין משימות פתוחות 🎉' ?>
+  </div>
 <?php else: ?>
 <div class="card" style="padding:0;overflow:visible;">
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
@@ -63,6 +99,9 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
         <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
         <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">SLA</th>
         <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">נפתח</th>
+        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">עדכון סטטוס</th>
+        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">עודכן ע"י</th>
+        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">מחלקה</th>
         <th style="padding:10px 14px;border-bottom:1px solid var(--border);"></th>
       </tr>
     </thead>
@@ -134,7 +173,23 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 
       <td style="padding:10px 14px;color:var(--text2);font-size:13px;"><?= $created ?></td>
 
-      <td></td>
+      <td style="padding:10px 14px;color:var(--text2);font-size:12px;white-space:nowrap;">
+        <?= $t['status_changed_at'] ? date('d/m/Y H:i', strtotime($t['status_changed_at'])) : '—' ?>
+      </td>
+      <td style="padding:10px 14px;color:var(--text2);font-size:13px;">
+        <?= \Core\View::e($t['changed_by_name'] ?? '—') ?>
+      </td>
+      <td style="padding:10px 14px;color:var(--text2);font-size:13px;">
+        <?= \Core\View::e($t['dept_name'] ?? '—') ?>
+      </td>
+
+      <td style="padding:10px 14px;text-align:center;">
+        <button class="btn-icon" onclick="openComments(<?= (int)$t['id'] ?>, <?= \Core\View::e(json_encode($t['title'])) ?>)"
+                title="הערות פנימיות"
+                style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;transition:color .15s,background .15s;">
+          <i class="bi bi-chat-dots"></i>
+        </button>
+      </td>
     </tr>
     <?php endforeach; ?>
     </tbody>
