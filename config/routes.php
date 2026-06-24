@@ -25,6 +25,8 @@ $router->get('/crm',              'Controllers\CrmController@index');
 $router->get ('/tasks',           'Controllers\TaskController@index');
 $router->post('/tasks/create',    'Controllers\TaskController@create');
 $router->post('/tasks/{id}/close','Controllers\TaskController@close');
+$router->post('/tasks/{id}/status', 'Controllers\\TaskController@updateStatus');
+$router->post('/tasks/{id}/title',  'Controllers\\TaskController@updateTitle');
 
 $router->get ('/support',              'Controllers\SupportController@index');
 $router->get ('/support/cat/{id}',     'Controllers\SupportController@category');
@@ -34,7 +36,8 @@ $router->post('/support/issues',       'Controllers\SupportController@addIssue')
 $router->get ('/users',                  'Controllers\\UserController@index');
 $router->post('/users/save',             'Controllers\\UserController@save');
 $router->post('/users/toggle',           'Controllers\\UserController@toggle');
-$router->post('/users/send-reset-email', 'Controllers\\UserController@sendResetEmail');
+$router->post('/users/send-reset-email',  'Controllers\\UserController@sendResetEmail');
+$router->post('/users/set-temp-password', 'Controllers\\UserController@setTempPassword');
 $router->get ('/users/perm-groups',      'Controllers\\UserController@permGroups');
 $router->post('/users/perm-groups/save', 'Controllers\\UserController@savePermGroup');
 $router->get ('/users/{id}',             'Controllers\\UserController@show');
