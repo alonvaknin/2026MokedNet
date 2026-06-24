@@ -12,6 +12,7 @@ $pdoV1 = DB::v1();    // alon_db  — callStatus
 closeExpiredJobs($pdo);
 deactivateMaxRunJobs($pdo);
 processActiveJobs($pdo, $pdoV1);
+notifyOverdueTasks($pdo);
 
 // ── סגירת משימות שעבר תאריך תפוגתן ─────────────────────────────────────────
 
@@ -250,4 +251,56 @@ function sendMailExpired(array $job): bool
         . "<p>המשימה נסגרה אוטומטית — עבר תאריך התפוגה.</p>"
         . "<p>הודעה: <span style='font-size:15pt;'>{$job['msg_from_user']}</span></p>";
     return mail($to, $subject, bodyWrap($body), buildHeaders($job['cc_mail']));
+}
+
+// ── SLA Notifications ────────────────────────────────────────────────────────
+
+function notifyOverdueTasks(PDO $pdo): void
+{
+    $stmt = $pdo->query("
+        SELECT t.id, t.title, t.sla_days, t.created_at,
+               t.assigned_user_id,
+               u.email  AS assignee_email,
+               CONCAT(u.first_name,' ',u.last_name) AS assignee_name
+        FROM tasks t
+        JOIN users u ON u.id = t.assigned_user_id
+        WHERE t.is_active = 1
+          AND t.sla_notified_at IS NULL
+          AND DATE_ADD(t.created_at, INTERVAL t.sla_days DAY) < NOW()
+    ");
+    $tasks = $stmt->fetchAll();
+
+    if (empty($tasks)) return;
+
+    $appUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : 'https://moked-net.co.il';
+
+    foreach ($tasks as $task) {
+        $taskId   = (int)$task['id'];
+        $title    = $task['title'];
+        $slaDays  = (int)$task['sla_days'];
+        $created  = date('d/m/Y', strtotime($task['created_at']));
+
+        // Collect watcher emails
+        $watchers = $pdo->prepare("
+            SELECT u.email FROM task_watchers tw
+            JOIN users u ON u.id = tw.user_id
+            WHERE tw.task_id = ? AND u.is_active = 1 AND u.email != ''
+        ");
+        $watchers->execute([$taskId]);
+        $watcherEmails = $watchers->fetchAll(PDO::FETCH_COLUMN);
+
+        $subject = "[SLA] משימה #{$taskId} עברה את מועד הטיפול";
+        $body    = "<p>שלום <b>{$task['assignee_name']}</b>,</p>"
+                 . "<p>המשימה <b>\"" . htmlspecialchars($title, ENT_QUOTES) . "\"</b>"
+                 . " עברה את יעד ה-SLA ({$slaDays} ימים).</p>"
+                 . "<p>נפתחה ב: {$created}</p>"
+                 . "<p><a href=\"{$appUrl}/tasks?filter=overdue\" style=\"color:#5b8dee;\">לצפייה ולטיפול במשימות שעברו SLA</a></p>";
+
+        $ccList = implode(',', array_unique(array_filter($watcherEmails)));
+        mail($task['assignee_email'], $subject, bodyWrap($body), buildHeaders($ccList));
+
+        $pdo->prepare("UPDATE tasks SET sla_notified_at=NOW() WHERE id=?")->execute([$taskId]);
+    }
+
+    echo "✓ SLA notifications sent: " . count($tasks) . "\n";
 }
