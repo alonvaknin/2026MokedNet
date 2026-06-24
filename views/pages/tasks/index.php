@@ -14,6 +14,12 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
   transition:filter .15s,transform .12s;user-select:none;
 }
 .task-status-badge:hover{filter:brightness(1.2);transform:scale(1.04);}
+@keyframes badge-flip {
+  0%   { transform: scaleY(1);   opacity:1; }
+  40%  { transform: scaleY(0);   opacity:0; }
+  100% { transform: scaleY(1);   opacity:1; }
+}
+.badge-flip { animation: badge-flip 0.22s ease; }
 .status-dropdown{
   position:absolute;z-index:50;background:var(--bg2);border:1px solid var(--border2);
   border-radius:var(--radius);box-shadow:var(--shadow);min-width:130px;overflow:hidden;
@@ -249,9 +255,11 @@ function toggleStatusDropdown(e, taskId, typeId, currentStatusId) {
   const statuses = STATUSES_BY_TYPE[typeId] || [];
   let html = '';
   statuses.forEach(s => {
-    const active = s.id == currentStatusId;
-    const safeColor = sanitizeColor(s.color);
-    html += `<div class="status-option" onclick="setStatus(${taskId},${s.id},'${escJs(s.name)}','${escJs(s.color)}')"
+    const active     = s.id == currentStatusId;
+    const safeColor  = sanitizeColor(s.color);
+    const isClosed   = s.is_closed == 1;
+    html += `<div class="status-option"
+                  onclick="setStatus(${taskId},${s.id},'${escJs(s.name)}','${escJs(s.color)}',${isClosed ? 'true' : 'false'})"
                   style="color:${safeColor}${active?' font-weight:800;':''}">`
           + `<span style="width:8px;height:8px;border-radius:50%;background:${safeColor};flex-shrink:0;"></span>`
           + `${esc(s.name)}`
@@ -272,7 +280,7 @@ document.addEventListener('click', () => {
   _ddOpenTaskId = null;
 });
 
-async function setStatus(taskId, statusId, name, color) {
+async function setStatus(taskId, statusId, name, color, isClosed) {
   document.getElementById('status-dd').style.display = 'none';
   _ddOpenTaskId = null;
 
@@ -280,25 +288,52 @@ async function setStatus(taskId, statusId, name, color) {
   fd.append('_csrf', TASK_CSRF);
   fd.append('status_id', statusId);
 
-  const res = await fetch(`${TASK_BASE}/tasks/${taskId}/status`, {method:'POST', body:fd});
+  const res  = await fetch(`${TASK_BASE}/tasks/${taskId}/status`, {method:'POST', body:fd});
   const data = await res.json();
   if (data.error) { v2Toast('שגיאה: ' + data.msg); return; }
 
-  // Update badge in-place
+  // Update badge in-place with flip animation
   const label = document.getElementById(`status-label-${taskId}`);
   if (label) {
-    label.textContent = name;
     const badge = label.closest('.task-status-badge');
     if (badge) {
+      badge.classList.remove('badge-flip');
+      void badge.offsetWidth; // force reflow to restart animation
+      badge.classList.add('badge-flip');
+      badge.addEventListener('animationend', () => badge.classList.remove('badge-flip'), { once: true });
+
       const safeColor = sanitizeColor(color);
-      badge.style.color = safeColor;
-      badge.style.background = safeColor + '22';
+      badge.style.color       = safeColor;
+      badge.style.background  = safeColor + '22';
       badge.style.borderColor = safeColor + '44';
       badge.querySelector('span').style.background = safeColor;
       badge.dataset.currentStatus = statusId;
+      label.textContent = name;
+
+      if (isClosed) {
+        loadConfettiAndFire(badge);
+      }
     }
   }
   v2Toast('סטטוס עודכן: ' + name);
+}
+
+function loadConfettiAndFire(originEl) {
+  if (window.confetti) {
+    fireConfetti(originEl);
+    return;
+  }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+  s.onload = () => fireConfetti(originEl);
+  document.head.appendChild(s);
+}
+
+function fireConfetti(originEl) {
+  const rect = originEl.getBoundingClientRect();
+  const x = (rect.left + rect.width / 2) / window.innerWidth;
+  const y = (rect.top  + rect.height / 2) / window.innerHeight;
+  confetti({ particleCount: 100, spread: 80, origin: { x, y }, zIndex: 9999 });
 }
 
 /* ── Inline title edit ───────────────────────────────── */
