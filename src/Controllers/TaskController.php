@@ -6,15 +6,25 @@ namespace Controllers;
 use Core\Controller;
 use Core\ActivityLog;
 use Models\TaskModel;
+use Models\TaskCommentModel;
 
 class TaskController extends Controller
 {
     public function index(): void
     {
         $this->requireAuth();
-        $userId = $_SESSION['user_id'];
-        $filter = $this->get('filter', '');
-        $tasks  = TaskModel::forUser($userId, false, $filter === 'overdue');
+        $userId     = $_SESSION['user_id'];
+        $canViewAll = \Core\Auth::can('tasks.viewAll');
+
+        $show  = $this->get('show', 'open');   // 'open' | 'closed'
+        $scope = $this->get('scope', 'mine');  // 'mine' | 'all'
+        $filter = $this->get('filter', '');    // 'overdue' (legacy)
+
+        $showClosed  = ($show === 'closed');
+        $scopeAll    = ($scope === 'all') && $canViewAll;
+        $overdueOnly = ($filter === 'overdue');
+
+        $tasks = TaskModel::forQuery($userId, $showClosed, $scopeAll, $overdueOnly);
 
         // Build status lists indexed by task_type_id for the JS dropdown
         $statusesByType = [];
@@ -29,7 +39,10 @@ class TaskController extends Controller
             }
         }
 
-        $this->view('pages/tasks/index', compact('tasks', 'statusesByType', 'filter'));
+        $this->view('pages/tasks/index', compact(
+            'tasks', 'statusesByType', 'filter',
+            'showClosed', 'scopeAll', 'canViewAll'
+        ));
     }
 
     public function create(): void
@@ -98,5 +111,48 @@ class TaskController extends Controller
         }
 
         $this->json(['error' => false, 'msg' => 'כותרת עודכנה']);
+    }
+
+    public function getComments(string $id): void
+    {
+        $this->requireAuth();
+        $taskId  = (int)$id;
+        $userId  = $_SESSION['user_id'];
+        $canAll  = \Core\Auth::can('tasks.viewAll');
+
+        if (!TaskCommentModel::canAccess($taskId, $userId, $canAll)) {
+            $this->json(['error' => true, 'msg' => 'אין הרשאה'], 403);
+            return;
+        }
+
+        $this->json(\Models\TaskCommentModel::forTask($taskId));
+    }
+
+    public function addComment(string $id): void
+    {
+        $this->requireAuth();
+        $this->verifyCsrf();
+
+        $taskId = (int)$id;
+        $userId = $_SESSION['user_id'];
+        $canAll = \Core\Auth::can('tasks.viewAll');
+
+        if (!TaskCommentModel::canAccess($taskId, $userId, $canAll)) {
+            $this->json(['error' => true, 'msg' => 'אין הרשאה'], 403);
+            return;
+        }
+
+        $body = trim($this->post('body', ''));
+        if ($body === '') {
+            $this->json(['error' => true, 'msg' => 'תוכן לא יכול להיות ריק'], 422);
+            return;
+        }
+        if (mb_strlen($body) > 2000) {
+            $this->json(['error' => true, 'msg' => 'תוכן ארוך מדי (מקס 2000 תווים)'], 422);
+            return;
+        }
+
+        $comment = \Models\TaskCommentModel::add($taskId, $userId, $body);
+        $this->json(['ok' => true, 'comment' => $comment]);
     }
 }

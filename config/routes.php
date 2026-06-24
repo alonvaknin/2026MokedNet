@@ -27,6 +27,8 @@ $router->post('/tasks/create',    'Controllers\TaskController@create');
 $router->post('/tasks/{id}/close','Controllers\TaskController@close');
 $router->post('/tasks/{id}/status', 'Controllers\\TaskController@updateStatus');
 $router->post('/tasks/{id}/title',  'Controllers\\TaskController@updateTitle');
+$router->get ('/tasks/{id}/comments',  'Controllers\\TaskController@getComments');
+$router->post('/tasks/{id}/comments',  'Controllers\\TaskController@addComment');
 
 // Task Settings (Admin)
 $router->get ('/admin/task-settings',                        'Controllers\\TaskSettingsController@index');
