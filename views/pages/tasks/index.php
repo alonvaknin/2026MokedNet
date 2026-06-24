@@ -235,6 +235,44 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
   </div>
 </div>
 
+<!-- Comment Drawer -->
+<div id="comment-drawer"
+     style="position:fixed;top:0;right:-400px;width:370px;height:100vh;
+            background:var(--bg2);border-left:1px solid var(--border2);
+            box-shadow:var(--shadow);z-index:400;
+            transition:right .25s ease;
+            display:flex;flex-direction:column;padding:0;">
+
+  <!-- Header -->
+  <div style="padding:16px 18px;border-bottom:1px solid var(--border);
+              display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <div id="comment-drawer-title" style="font-size:15px;font-weight:700;color:var(--text);
+         max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    <button onclick="closeCommentDrawer()"
+            style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+  </div>
+
+  <!-- Comment list (scrollable) -->
+  <div id="comment-list"
+       style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px;">
+    <div id="comment-loading" style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">טוען...</div>
+  </div>
+
+  <!-- Input area -->
+  <div style="padding:14px 18px;border-top:1px solid var(--border);flex-shrink:0;">
+    <textarea id="comment-body" rows="3" placeholder="כתוב עדכון פנימי..."
+              style="width:100%;background:var(--bg3);border:1px solid var(--border);
+                     border-radius:var(--radius);color:var(--text);font-size:13px;
+                     font-family:inherit;padding:9px 12px;outline:none;
+                     resize:vertical;box-sizing:border-box;"></textarea>
+    <button onclick="submitComment()" class="btn btn-primary"
+            style="width:100%;margin-top:8px;">שלח עדכון</button>
+  </div>
+</div>
+<div id="comment-overlay"
+     onclick="closeCommentDrawer()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:399;"></div>
+
 <script>
 const TASK_CSRF   = <?= json_encode($csrf) ?>;
 const TASK_BASE   = <?= json_encode($base) ?>;
@@ -377,5 +415,95 @@ function escJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function sanitizeColor(s) {
   return /^(#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]*\)|hsl[a]?\([^)]*\)|[a-zA-Z]+)$/.test(String(s).trim())
     ? String(s).trim() : '#6b7280';
+}
+
+/* ── Comment Drawer ──────────────────────────────────── */
+let _commentTaskId = null;
+
+function openComments(taskId, taskTitle) {
+  _commentTaskId = taskId;
+  document.getElementById('comment-drawer-title').textContent = taskTitle;
+  document.getElementById('comment-list').innerHTML =
+    '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">טוען...</div>';
+  document.getElementById('comment-body').value = '';
+
+  // Slide open
+  document.getElementById('comment-drawer').style.right  = '0';
+  document.getElementById('comment-overlay').style.display = 'block';
+
+  // Load comments
+  fetch(`${TASK_BASE}/tasks/${taskId}/comments`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        document.getElementById('comment-list').innerHTML =
+          `<div style="color:var(--danger);font-size:13px;">${esc(data.msg)}</div>`;
+        return;
+      }
+      renderComments(data);
+    })
+    .catch(() => {
+      document.getElementById('comment-list').innerHTML =
+        '<div style="color:var(--danger);font-size:13px;">שגיאה בטעינת הערות</div>';
+    });
+}
+
+function renderComments(list) {
+  const container = document.getElementById('comment-list');
+  if (!list.length) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">אין הערות עדיין</div>';
+    return;
+  }
+  container.innerHTML = list.map(c => {
+    const dt = c.created_at ? c.created_at.slice(0,16).replace('T',' ') : '';
+    return `<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">
+        <i class="bi bi-person-fill"></i> ${esc(c.user_name)} &nbsp;·&nbsp; ${esc(dt)}
+      </div>
+      <div style="font-size:13px;color:var(--text);white-space:pre-wrap;">${esc(c.body)}</div>
+    </div>`;
+  }).join('');
+  // scroll to bottom
+  container.scrollTop = container.scrollHeight;
+}
+
+async function submitComment() {
+  if (!_commentTaskId) return;
+  const body = document.getElementById('comment-body').value.trim();
+  if (!body) { v2Toast('כתוב משהו תחילה'); return; }
+  if (body.length > 2000) { v2Toast('הערה ארוכה מדי (מקס 2000 תווים)'); return; }
+
+  const fd = new FormData();
+  fd.append('_csrf', TASK_CSRF);
+  fd.append('body', body);
+
+  const res  = await fetch(`${TASK_BASE}/tasks/${_commentTaskId}/comments`, {method:'POST', body:fd});
+  const data = await res.json();
+  if (data.error || !data.ok) { v2Toast('שגיאה: ' + (data.msg || 'לא ידוע')); return; }
+
+  document.getElementById('comment-body').value = '';
+
+  // Append new comment to list
+  const container = document.getElementById('comment-list');
+  const emptyMsg  = container.querySelector('div[style*="text-align:center"]');
+  if (emptyMsg) emptyMsg.remove();
+
+  const c   = data.comment;
+  const dt  = (c.created_at || '').slice(0,16).replace('T',' ');
+  const div = document.createElement('div');
+  div.style.cssText = 'background:var(--bg3);border-radius:8px;padding:10px 12px;';
+  div.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:5px;">
+      <i class="bi bi-person-fill"></i> ${esc(c.user_name)} &nbsp;·&nbsp; ${esc(dt)}
+    </div>
+    <div style="font-size:13px;color:var(--text);white-space:pre-wrap;">${esc(c.body)}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  v2Toast('הערה נשמרה');
+}
+
+function closeCommentDrawer() {
+  document.getElementById('comment-drawer').style.right  = '-400px';
+  document.getElementById('comment-overlay').style.display = 'none';
+  _commentTaskId = null;
 }
 </script>
