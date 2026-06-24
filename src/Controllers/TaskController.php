@@ -140,7 +140,7 @@ class TaskController extends Controller
             return;
         }
 
-        $this->json(\Models\TaskCommentModel::forTask($taskId));
+        $this->json(TaskCommentModel::forTask($taskId));
     }
 
     public function addComment(string $id): void
@@ -167,7 +167,7 @@ class TaskController extends Controller
             return;
         }
 
-        $comment = \Models\TaskCommentModel::add($taskId, $userId, $body);
+        $comment = TaskCommentModel::add($taskId, $userId, $body);
         $this->json(['ok' => true, 'comment' => $comment]);
     }
 }

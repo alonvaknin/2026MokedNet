@@ -64,7 +64,7 @@ class TaskCommentModel
     {
         if ($canViewAll) {
             $value = DB::value(
-                'SELECT 1 FROM tasks WHERE id = ? AND id > 0',
+                'SELECT 1 FROM tasks WHERE id = ?',
                 [$taskId]
             );
         } else {

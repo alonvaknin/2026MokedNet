@@ -451,7 +451,7 @@ function openComments(taskId, taskTitle) {
 function renderComments(list) {
   const container = document.getElementById('comment-list');
   if (!list.length) {
-    container.innerHTML = '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">אין הערות עדיין</div>';
+    container.innerHTML = '<div id="comment-empty" style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">אין הערות עדיין</div>';
     return;
   }
   container.innerHTML = list.map(c => {
@@ -485,7 +485,7 @@ async function submitComment() {
 
   // Append new comment to list
   const container = document.getElementById('comment-list');
-  const emptyMsg  = container.querySelector('div[style*="text-align:center"]');
+  const emptyMsg  = container.querySelector('#comment-empty');
   if (emptyMsg) emptyMsg.remove();
 
   const c   = data.comment;
