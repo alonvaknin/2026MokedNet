@@ -105,6 +105,7 @@ class TaskSettingsController extends Controller
             $this->json(['error' => true, 'msg' => "לא ניתן למחוק — קיימות {$openCount} משימות פתוחות לסוג זה"], 409);
         }
 
+        DB::execute('DELETE FROM task_statuses WHERE task_type_id=?', [(int)$id]);
         DB::execute('DELETE FROM task_types WHERE id=?', [(int)$id]);
         $this->json(['error' => false, 'msg' => 'נמחק']);
     }

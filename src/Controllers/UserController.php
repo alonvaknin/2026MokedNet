@@ -210,7 +210,7 @@ class UserController extends Controller
 
     public function apiActiveList(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('task_settings.manage');
         $users = \Core\DB::query(
             'SELECT id, CONCAT(first_name," ",last_name) AS name
              FROM users WHERE is_active=1 ORDER BY first_name, last_name'

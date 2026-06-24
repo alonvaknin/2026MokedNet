@@ -11,7 +11,7 @@ $cfg = require ROOT . '/config/config.php';
 
 $db  = $cfg['db'];
 $pdo = new PDO(
-    "mysql:host={$db['host']};port={$db['port']};dbname=alon_db2;charset=utf8mb4",
+    "mysql:host={$db['host']};port={$db['port']};dbname={$db['name']};charset=utf8mb4",
     $db['user'], $db['pass'],
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
