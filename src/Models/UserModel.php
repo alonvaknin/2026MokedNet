@@ -46,13 +46,14 @@ class UserModel
             'canUseInvoiceChangeName'=> 'שינוי שם חשבונית',
         ],
         'ניהול מערכת' => [
-            'canAddUsers'        => 'הוספת משתמשים',
-            'canEditDB'          => 'עריכת DB / Nav',
-            'canAddAutomation'   => 'הוספת אוטומציה',
-            'automation.viewAll' => 'צפייה בכל האוטומציות (כל נציגים)',
-            'canFormatter'       => 'עריכת פורמטור',
-            'canOrianorder'      => 'הזמנות אוריאן',
-            'canViewLogs'        => 'צפייה בלוג פעולות',
+            'canAddUsers'          => 'הוספת משתמשים',
+            'canEditDB'            => 'עריכת DB / Nav',
+            'canAddAutomation'     => 'הוספת אוטומציה',
+            'automation.viewAll'   => 'צפייה בכל האוטומציות (כל נציגים)',
+            'canFormatter'         => 'עריכת פורמטור',
+            'canOrianorder'        => 'הזמנות אוריאן',
+            'canViewLogs'          => 'צפייה בלוג פעולות',
+            'task_settings.manage' => 'ניהול הגדרות משימות',
         ],
     ];
 
@@ -88,6 +89,7 @@ class UserModel
         'canOrianorder'                => 'הזמנות אוריאן',
         'canViewLogs'                  => 'צפייה בלוג פעולות',
         'canManageDuty'                => 'ניהול תורנות',
+        'task_settings.manage'         => 'ניהול הגדרות משימות',
     ];
 
     /* ══ CRUD ══════════════════════════════════════════════════════ */
