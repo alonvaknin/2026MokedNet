@@ -2,6 +2,8 @@
 use Core\View;
 $base = rtrim(CFG['app']['url'], '/');
 $csrf = $_SESSION['csrf_token'] ?? '';
+$filter = $filter ?? '';
+$isOverdueFilter = $filter === 'overdue';
 // JSON-encode statusesByType for JS
 $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 ?>
@@ -30,6 +32,16 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
   padding:3px 8px;outline:none;width:100%;
 }
 </style>
+
+<?php if ($isOverdueFilter): ?>
+<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,.1);
+            border:1px solid rgba(239,68,68,.3);border-radius:var(--radius);
+            padding:10px 16px;margin-bottom:16px;color:var(--danger);font-size:13px;font-weight:600;">
+  <i class="bi bi-exclamation-triangle-fill"></i>
+  מציג משימות שעברו SLA בלבד —
+  <a href="<?= $base ?>/tasks" style="color:var(--accent);text-decoration:none;margin-right:4px;">הצג הכל</a>
+</div>
+<?php endif; ?>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
   <div class="page-title" style="margin-bottom:0;">המשימות שלי</div>
@@ -67,7 +79,8 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
       $typeId      = (int)($t['task_type_id'] ?? 0);
       $statusId    = (int)($t['status_id']    ?? 0);
     ?>
-    <tr style="border-bottom:1px solid var(--border);" id="task-row-<?= (int)$t['id'] ?>">
+    <tr style="border-bottom:1px solid var(--border);<?= $overdue ? 'border-right:3px solid var(--danger);background:rgba(239,68,68,.05);' : '' ?>"
+        id="task-row-<?= (int)$t['id'] ?>">
       <td style="padding:10px 14px;color:var(--text3);"><?= (int)$t['id'] ?></td>
 
       <!-- Title: double-click to edit -->

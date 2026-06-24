@@ -7,13 +7,20 @@ use Core\DB;
 
 class TaskModel
 {
-    public static function forUser(int $userId, bool $closed = false): array
+    public static function forUser(int $userId, bool $closed = false, bool $overdueOnly = false): array
     {
+        $where = 'WHERE t.assigned_user_id = ? AND t.is_active = ?';
+        $params = [$userId, $closed ? 0 : 1];
+
+        if ($overdueOnly) {
+            $where .= ' AND DATE_ADD(t.created_at, INTERVAL t.sla_days DAY) < NOW()';
+        }
+
         return DB::query(
-            'SELECT t.id, t.title, t.description, t.sla_days,
+            "SELECT t.id, t.title, t.description, t.sla_days,
                     t.created_at, t.status_changed_at, t.is_active,
                     t.source_type, t.source_id,
-                    CONCAT(u.first_name," ",u.last_name) AS opened_by_name,
+                    CONCAT(u.first_name,\" \",u.last_name) AS opened_by_name,
                     ts.name  AS status_name,
                     ts.color AS status_color,
                     tt.name  AS type_name,
@@ -23,9 +30,9 @@ class TaskModel
              LEFT JOIN users u         ON u.id  = t.open_by
              LEFT JOIN task_statuses ts ON ts.id = t.status_id
              LEFT JOIN task_types    tt ON tt.id = t.task_type_id
-             WHERE t.assigned_user_id = ? AND t.is_active = ?
-             ORDER BY t.created_at DESC',
-            [$userId, $closed ? 0 : 1]
+             {$where}
+             ORDER BY t.created_at DESC",
+            $params
         );
     }
 

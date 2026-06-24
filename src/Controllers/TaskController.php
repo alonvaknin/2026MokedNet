@@ -13,7 +13,8 @@ class TaskController extends Controller
     {
         $this->requireAuth();
         $userId = $_SESSION['user_id'];
-        $tasks  = TaskModel::forUser($userId, false);
+        $filter = $this->get('filter', '');
+        $tasks  = TaskModel::forUser($userId, false, $filter === 'overdue');
 
         // Build status lists indexed by task_type_id for the JS dropdown
         $statusesByType = [];
@@ -28,7 +29,7 @@ class TaskController extends Controller
             }
         }
 
-        $this->view('pages/tasks/index', compact('tasks', 'statusesByType'));
+        $this->view('pages/tasks/index', compact('tasks', 'statusesByType', 'filter'));
     }
 
     public function create(): void
