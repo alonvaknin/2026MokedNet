@@ -84,13 +84,18 @@ run($pdo, 'CREATE task_watchers', "
 // Insert task type "שינוי שם בחשבונית"
 // default_assignee_ids: replace USER_ID_EYAL with the real user id from the users table
 // default_watcher_ids:  [0] means "self" (the user who opened the request)
-$pdo->exec("
-    INSERT IGNORE INTO task_types (id, name, sla_days, default_assignee_ids, default_watcher_ids)
-    VALUES (1, 'שינוי שם בחשבונית', 3,
-            (SELECT JSON_ARRAY(id) FROM users WHERE CONCAT(first_name,' ',last_name) LIKE '%אייל גואטה%' LIMIT 1),
-            JSON_ARRAY(0))
-");
-echo "✓ Seeded task_type id=1 (שינוי שם בחשבונית)\n";
+// Find Eyal Guata's user ID
+$eyalRow = $pdo->query("SELECT id FROM users WHERE CONCAT(first_name,' ',last_name) LIKE '%אייל גואטה%' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+$eyalId  = $eyalRow ? (int)$eyalRow['id'] : 0;
+$assigneeJson = json_encode($eyalId > 0 ? [$eyalId] : [], JSON_UNESCAPED_UNICODE);
+
+$stmt = $pdo->prepare("INSERT IGNORE INTO task_types (id, name, sla_days, default_assignee_ids, default_watcher_ids) VALUES (1, 'שינוי שם בחשבונית', 3, ?, JSON_ARRAY(0))");
+$stmt->execute([$assigneeJson]);
+if ($eyalId > 0) {
+    echo "✓ Seeded task_type id=1 (שינוי שם בחשבונית), assignee=user#{$eyalId}\n";
+} else {
+    echo "⚠ Seeded task_type id=1 — אייל גואטה לא נמצא, עדכן ידנית: UPDATE task_types SET default_assignee_ids='[ID]' WHERE id=1\n";
+}
 
 // Insert statuses for type 1
 $statuses = [
