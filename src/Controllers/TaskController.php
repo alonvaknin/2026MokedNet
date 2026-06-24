@@ -50,13 +50,28 @@ class TaskController extends Controller
         $this->requireAuth();
         $this->verifyCsrf();
 
+        $assignedUserId = (int)$this->post('for_user', $_SESSION['user_id']);
+        $openBy         = $_SESSION['user_id'];
+
+        // Resolve department: assigned user's dept, else opener's dept
+        $assignedDept = \Core\DB::value(
+            'SELECT department_id FROM users WHERE id = ?',
+            [$assignedUserId]
+        );
+        if (!$assignedDept) {
+            $assignedDept = \Core\DB::value(
+                'SELECT department_id FROM users WHERE id = ?',
+                [$openBy]
+            );
+        }
+
         $newId = TaskModel::create([
-            'open_by'          => $_SESSION['user_id'],
-            'assigned_user_id' => (int)$this->post('for_user', $_SESSION['user_id']),
+            'open_by'          => $openBy,
+            'assigned_user_id' => $assignedUserId,
             'title'            => trim($this->post('title', '')),
             'description'      => trim($this->post('description', '')),
             'sla_days'         => (int)$this->post('sla_days', 3),
-            'assigned_dept_id' => (int)$this->post('depart_id', 0) ?: null,
+            'assigned_dept_id' => $assignedDept ?: null,
         ]);
 
         ActivityLog::create('task', $newId, trim($this->post('title', '')));
