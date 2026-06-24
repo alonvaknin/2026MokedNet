@@ -59,7 +59,7 @@ body::before { content: ''; position: fixed; inset: 0;
   <div class="brand">
     <div class="brand-icon">מ</div>
     <div class="brand-name"><?= View::e($appName) ?></div>
-    <div class="brand-sub">קביעת סיסמא</div>
+    <div class="brand-sub"><?= !empty($forcedChange) ? 'נדרש שינוי סיסמא' : 'קביעת סיסמא' ?></div>
   </div>
 
   <?php if (!empty($success)): ?>
@@ -68,9 +68,16 @@ body::before { content: ''; position: fixed; inset: 0;
 
   <?php elseif (!empty($error)): ?>
     <div class="alert alert-err">⚠ <?= View::e($error) ?></div>
+    <?php if (empty($forcedChange)): ?>
     <a href="<?= $base ?>/login" style="display:block;text-align:center;font-size:13px;color:var(--text2);margin-top:8px;text-decoration:none;">חזרה לדף הכניסה</a>
+    <?php endif; ?>
 
   <?php else: ?>
+    <?php if (!empty($forcedChange)): ?>
+    <div class="alert" style="background:rgba(79,127,255,.1);border:1px solid rgba(79,127,255,.25);color:#91b4ff;margin-bottom:20px;">
+      🔐 המנהל קבע עבורך סיסמא זמנית. יש לבחור סיסמא אישית כעת.
+    </div>
+    <?php endif; ?>
     <form method="POST" action="<?= $base ?>/set-password">
       <input type="hidden" name="token" value="<?= View::e($token ?? '') ?>">
       <div class="field">

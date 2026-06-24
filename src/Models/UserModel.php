@@ -97,13 +97,14 @@ class UserModel
         return DB::query(
             'SELECT u.id, u.first_name, u.last_name, u.email,
                     u.phone, u.department_id, u.is_active, u.last_login,
+                    u.created_at, u.must_change_password,
                     u.permission_group_id,
                     d.name_heb  AS dept_name,
                     pg.name_heb AS group_name
              FROM users u
              LEFT JOIN departments       d  ON d.id  = u.department_id
              LEFT JOIN permission_groups pg ON pg.id = u.permission_group_id
-             ORDER BY u.last_login DESC, u.is_active DESC, u.first_name ASC'
+             ORDER BY u.created_at DESC, u.last_login DESC'
         );
     }
 
@@ -134,6 +135,14 @@ class UserModel
         );
     }
 
+    public static function setTempPassword(int $id, string $password): void
+    {
+        DB::execute(
+            'UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?',
+            [password_hash($password, PASSWORD_BCRYPT), $id]
+        );
+    }
+
     public static function save(array $d): void
     {
         if ($d['id']) {
@@ -156,7 +165,7 @@ class UserModel
                 ]
             );
         } else {
-            $hash = password_hash($d['password'], PASSWORD_BCRYPT);
+            $hash = password_hash($d['password'] ?? bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
             DB::execute(
                 'INSERT INTO users
                     (first_name, last_name, email, phone, department_id,
@@ -176,7 +185,7 @@ class UserModel
     public static function resetPassword(int $id, string $newPass): void
     {
         DB::execute(
-            'UPDATE users SET password_hash = ? WHERE id = ?',
+            'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',
             [password_hash($newPass, PASSWORD_BCRYPT), $id]
         );
     }

@@ -11,7 +11,7 @@ class Auth
     {
         $user = DB::row(
             'SELECT id, first_name, last_name, password_hash, auth_token,
-                    permission_group_id, department_id, is_active
+                    permission_group_id, department_id, is_active, must_change_password
              FROM users
              WHERE (email = ? OR id = ?)
              AND is_active = 1
@@ -48,11 +48,12 @@ class Auth
         );
 
         session_regenerate_id(true);
-        $_SESSION['user_id']       = $user['id'];
-        $_SESSION['auth_token']    = $token;
-        $_SESSION['perm_group']    = $user['permission_group_id'];
-        $_SESSION['department_id'] = $user['department_id'];
-        $_SESSION['full_name']     = $user['first_name'] . ' ' . $user['last_name'];
+        $_SESSION['user_id']            = $user['id'];
+        $_SESSION['auth_token']         = $token;
+        $_SESSION['perm_group']         = $user['permission_group_id'];
+        $_SESSION['department_id']      = $user['department_id'];
+        $_SESSION['full_name']          = $user['first_name'] . ' ' . $user['last_name'];
+        $_SESSION['must_change_password'] = !empty($user['must_change_password']);
         self::loadAllPerms();
 
         ActivityLog::login($user['id'], $identifier, true);

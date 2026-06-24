@@ -32,6 +32,18 @@ abstract class Controller
         }
         // מוודא שה-CSRF token קיים בsession לכל דף מוגן
         $this->csrfToken();
+
+        // כפיית שינוי סיסמא זמנית — מותר רק ל-/set-password ול-/logout
+        if (!empty($_SESSION['must_change_password'])) {
+            $uri = strtok($_SERVER['REQUEST_URI'], '?');
+            $base = parse_url(CFG['app']['url'], PHP_URL_PATH) ?? '';
+            if ($base) $uri = substr($uri, strlen($base));
+            $uri = '/' . trim($uri, '/');
+            $allowed = ['/set-password', '/logout', '/login'];
+            if (!in_array($uri, $allowed, true)) {
+                $this->redirect('/set-password?reason=must_change');
+            }
+        }
     }
 
     protected function requirePermission(string $key): void

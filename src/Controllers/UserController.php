@@ -62,7 +62,14 @@ class UserController extends Controller
             $this->json(['error' => 'אימייל חובה למשתמש חדש'], 400);
         }
 
-        UserModel::save($data);
+        try {
+            UserModel::save($data);
+        } catch (\PDOException $e) {
+            if ($e->getCode() === '23000' && str_contains($e->getMessage(), 'uq_email')) {
+                $this->json(['error' => 'כתובת האימייל כבר קיימת במערכת'], 409);
+            }
+            throw $e;
+        }
         $label = trim($data['first_name'] . ' ' . $data['last_name']);
 
         if ($id) {
@@ -135,6 +142,31 @@ class UserController extends Controller
         $url  = $base . '/set-password?token=' . $token;
 
         return Mailer::sendPasswordReset($email, $firstName, $url, $isNew);
+    }
+
+    public function setTempPassword(): void
+    {
+        $this->requirePermission('canAddUsers');
+        $this->verifyCsrf();
+
+        $id   = (int)$this->post('id');
+        $pass = $this->post('password', '');
+
+        if (strlen($pass) < 6) {
+            $this->json(['error' => 'הסיסמא חייבת להכיל לפחות 6 תווים'], 400);
+        }
+
+        $user = UserModel::byId($id);
+        if (!$user) {
+            $this->json(['error' => 'משתמש לא נמצא'], 404);
+        }
+
+        UserModel::setTempPassword($id, $pass);
+
+        $label = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+        ActivityLog::log('user.temp_password_set', 'user', $id, $label);
+
+        $this->json(['ok' => true]);
     }
 
     public function permGroups(): void
