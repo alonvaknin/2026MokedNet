@@ -20,7 +20,7 @@ class StoreModel
         return DB::query(
             "SELECT id,store_num,name,type,city,address,phone_main,phone_cell,email,
                     mvoice_queue,telephone_line_num,alert_note,alert_updated_at,
-                    manager_name,manager_cell,is_active,tags,note,work_hours
+                    manager_name,manager_cell,is_active,tags,note,work_hours,created_at
              FROM stores WHERE is_active=1 AND type='סניף באג' ORDER BY CAST(store_num AS UNSIGNED) ASC"
         );
     }
@@ -30,7 +30,7 @@ class StoreModel
         return DB::query(
             "SELECT id,store_num,name,type,city,address,phone_main,phone_cell,email,
                     mvoice_queue,telephone_line_num,alert_note,alert_updated_at,
-                    manager_name,manager_cell,is_active,tags,note,work_hours
+                    manager_name,manager_cell,is_active,tags,note,work_hours,created_at
              FROM stores WHERE is_active=1 AND type='נקודת מודן' ORDER BY name ASC"
         );
     }

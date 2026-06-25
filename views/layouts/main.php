@@ -214,7 +214,7 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
         <div class="sidebar-name-text"><?= View::e($fullName) ?></div>
         <div class="sidebar-name-sub"><?= View::e($groupName) ?></div>
       </div>
-      <i class="bi bi-sliders" style="color:var(--text3);font-size:14px;flex-shrink:0;"></i>
+      <!-- <i class="bi bi-sliders" style="color:var(--text3);font-size:14px;flex-shrink:0;"></i> -->
     </a>
   </div>
 </aside>

@@ -10,6 +10,8 @@ $base       = rtrim(CFG['app']['url'], '/');
 $csrf       = $_SESSION['csrf_token'] ?? '';
 $canEdit    = Auth::can('canEditStore');
 $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
+$newBugCount   = count(array_filter($stores,      fn($s) => !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days')));
+$newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days')));
 
 ?>
 
@@ -23,7 +25,22 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
     </div>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
-    <div class="stat-pill"><i class="bi bi-shop" style="color:var(--accent);"></i><span id="stat-count"><?= count($stores) ?> סניפים</span></div>
+    <div class="stat-pill">
+      <i class="bi bi-bug-fill" style="color:var(--accent);"></i>
+      <span id="stat-count"><?= count($stores) ?> סניפי באג</span>
+      <?php if ($newBugCount > 0): ?>
+        <span class="stat-new-badge"><?= $newBugCount ?> חדש<?= $newBugCount > 1 ? 'ים' : '' ?></span>
+      <?php endif; ?>
+    </div>
+    <?php if (!empty($modanStores)): ?>
+    <div class="stat-pill" id="stat-modan-pill" style="display:none;">
+      <i class="bi bi-building" style="color:#8b5cf6;"></i>
+      <span id="stat-modan-count"><?= count($modanStores) ?> נקודות מודן</span>
+      <?php if ($newModanCount > 0): ?>
+        <span class="stat-new-badge modan"><?= $newModanCount ?> חדש<?= $newModanCount > 1 ? 'ות' : '' ?></span>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
     <?php if ($stats['stores_alert']>0): ?>
     <div class="stat-pill" style="border-color:rgba(245,158,11,.3);color:var(--warning);">
       <i class="bi bi-exclamation-triangle-fill"></i><span><?= (int)$stats['stores_alert'] ?> התראות</span></div>
@@ -100,8 +117,9 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
     <div id="stores-grid" class="stores-grid">
     <?php foreach ($stores as $s):
       $hasAlert = !empty($s['alert_note']);
+      $isNew = !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days');
     ?>
-    <div class="store-card c-bug<?= $hasAlert?' has-alert':'' ?>"
+    <div class="store-card c-bug<?= $hasAlert?' has-alert':'' ?><?= $isNew?' is-new':'' ?>"
          data-id="<?= (int)$s['id'] ?>"
          data-num="<?= View::e($s['store_num']??'') ?>"
          data-name="<?= strtolower(View::e($s['name'])) ?>"
@@ -118,7 +136,7 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
       <span class="card-type-icon card-type-bug" title="סניף באג"><i class="bi bi-bug-fill"></i></span>
       <div class="card-content">
         <div class="sc-num num-bug"><?= View::e($s['store_num']??'') ?></div>
-        <div class="sc-name"><?= View::e($s['name']) ?></div>
+        <div class="sc-name"><?= View::e($s['name']) ?><?php if ($isNew): ?><span class="new-badge">חדש</span><?php endif; ?></div>
         <?php if ($s['city']): ?>
           <div class="sc-city"><i class="bi bi-geo-alt-fill" style="color:var(--accent);font-size:11px;"></i><?= View::e($s['city']) ?></div>
         <?php endif; ?>
@@ -151,8 +169,9 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
       <div id="stores-grid-modan" class="stores-grid">
       <?php foreach ($modanStores as $s):
         $hasAlert = !empty($s['alert_note']);
+        $isNew = !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days');
       ?>
-      <div class="store-card c-modan is-modan<?= $hasAlert?' has-alert':'' ?>"
+      <div class="store-card c-modan is-modan<?= $hasAlert?' has-alert':'' ?><?= $isNew?' is-new':'' ?>"
            data-id="<?= (int)$s['id'] ?>"
            data-num="<?= View::e($s['store_num']??'') ?>"
            data-name="<?= strtolower(View::e($s['name'])) ?>"
@@ -169,7 +188,7 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
         <span class="card-type-icon card-type-modan" title="נקודת מודן">M</span>
         <div class="card-content">
           <?php if (!empty($s['store_num']) && $s['store_num'] !== '0'): ?><div class="sc-num num-modan"><?= View::e($s['store_num']) ?></div><?php endif; ?>
-          <div class="sc-name"><?= View::e($s['name']) ?></div>
+          <div class="sc-name"><?= View::e($s['name']) ?><?php if ($isNew): ?><span class="new-badge">חדש</span><?php endif; ?></div>
           <?php if ($s['city']): ?>
             <div class="sc-city"><i class="bi bi-geo-alt-fill" style="color:#8b5cf6;font-size:11px;"></i><?= View::e($s['city']) ?></div>
           <?php endif; ?>
@@ -219,8 +238,9 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
         <tbody id="bug-tbody">
         <?php foreach ($stores as $s):
           $hasAlert = !empty($s['alert_note']);
+          $isNew = !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days');
         ?>
-        <tr class="s-row"
+        <tr class="s-row<?= $isNew?' is-new':'' ?>"
             data-id="<?= (int)$s['id'] ?>"
             data-num="<?= View::e($s['store_num']??'') ?>"
             data-name="<?= strtolower(View::e($s['name'])) ?>"
@@ -232,6 +252,7 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
           <td class="td" style="font-weight:800;font-size:17px;color:var(--accent);"><?= View::e($s['store_num']??'—') ?></td>
           <td class="td" style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
             <?= View::e($s['name']) ?>
+            <?php if ($isNew): ?><span class="new-badge">חדש</span><?php endif; ?>
             <?php if ($hasAlert): ?>
               <i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:11px;margin-right:4px;" title="<?= View::e($s['alert_note']) ?>"></i>
             <?php endif; ?>
@@ -304,8 +325,9 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
           </tr>
         <?php foreach ($modanStores as $s):
           $hasAlert = !empty($s['alert_note']);
+          $isNew = !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days');
         ?>
-        <tr class="s-row is-modan"
+        <tr class="s-row is-modan<?= $isNew?' is-new':'' ?>"
             data-id="<?= (int)$s['id'] ?>"
             data-num="<?= View::e($s['store_num']??'') ?>"
             data-name="<?= strtolower(View::e($s['name'])) ?>"
@@ -317,6 +339,7 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
           <td class="td" style="font-weight:700;font-size:12px;color:#8b5cf6;white-space:nowrap;"><i class="bi bi-building" style="opacity:.6;font-size:10px;"></i> מודן</td>
           <td class="td" style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
             <?= View::e($s['name']) ?>
+            <?php if ($isNew): ?><span class="new-badge">חדש</span><?php endif; ?>
             <?php if ($hasAlert): ?>
               <i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:11px;margin-right:4px;" title="<?= View::e($s['alert_note']) ?>"></i>
             <?php endif; ?>
@@ -436,6 +459,8 @@ $storeTypes = ['סניף באג','נקודת מודן','מחסן','אחר'];
 
 <style>
 .stat-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:500;background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+.stat-new-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;letter-spacing:.03em;animation:new-pulse 2.5s ease-in-out infinite;}
+.stat-new-badge.modan{background:linear-gradient(135deg,#8b5cf6,#7c3aed);}
 .collapse-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)}
 .collapse-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;user-select:none;transition:background .13s}
 .collapse-header:hover{background:var(--bg3)}
@@ -543,6 +568,20 @@ body.edit-mode .edit-col,body.edit-mode .th.edit-col{display:table-cell}
 @media(max-width:600px){.stores-grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}}
 .am-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(91,141,238,.15);color:var(--accent);border:1px solid rgba(91,141,238,.3);cursor:pointer;margin:1px 2px;transition:background .13s;}
 .am-badge:hover{background:rgba(91,141,238,.28);}
+/* New-store badge */
+.new-badge{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 5px;border-radius:4px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;margin-right:5px;vertical-align:middle;box-shadow:0 0 0 0 rgba(16,185,129,.5);animation:new-pulse 2.5s ease-in-out infinite;}
+@keyframes new-pulse{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.45);}50%{box-shadow:0 0 0 5px rgba(16,185,129,0);}}
+.is-new{border-top:2px solid #10b981 !important;overflow:hidden;}
+.c-bug.is-new{background:linear-gradient(145deg,var(--bg3) 60%,rgba(16,185,129,.08)) !important;}
+.c-modan.is-new{background:linear-gradient(145deg,var(--bg3) 60%,rgba(16,185,129,.08)) !important;}
+body.grid-compact .new-badge{display:none;}
+/* confetti particles inside is-new grid cards */
+.confetti-dot{position:absolute;top:0;pointer-events:none;opacity:0;animation:cdrop var(--dur,2.4s) ease-in var(--delay,0s) infinite;}
+@keyframes cdrop{0%{transform:translateY(-10px) rotate(0deg) scale(1);opacity:.95;}60%{opacity:.6;}100%{transform:translateY(calc(var(--h,100px) + 12px)) rotate(400deg) scale(.7);opacity:0;}}
+/* table row highlight for new stores */
+#bug-tbody tr.s-row.is-new,#modan-tbody tr.s-row.is-new{background:linear-gradient(270deg,rgba(16,185,129,.07) 0%,transparent 55%) !important;}
+#bug-tbody tr.s-row.is-new:hover,#modan-tbody tr.s-row.is-new:hover{background:linear-gradient(270deg,rgba(16,185,129,.13) 0%,var(--bg3) 55%) !important;}
+#bug-tbody tr.s-row.is-new td:last-of-type,#modan-tbody tr.s-row.is-new td:last-of-type{border-right:3px solid #10b981;}
 </style>
 
 <script>
@@ -603,6 +642,26 @@ function setView(v){
   document.body.classList.toggle('grid-compact',v==='compact');
 }
 setView(cv);
+
+/* ── confetti in is-new grid cards ── */
+(function(){
+  const COLORS=['#10b981','#34d399','#6ee7b7','#f59e0b','#fbbf24','#60a5fa','#a78bfa'];
+  document.querySelectorAll('.stores-grid .store-card.is-new').forEach(card=>{
+    const h=card.offsetHeight||120;
+    for(let i=0;i<9;i++){
+      const dot=document.createElement('span');
+      dot.className='confetti-dot';
+      const x=8+Math.random()*84;
+      dot.style.cssText=`left:${x}%;background:${COLORS[i%COLORS.length]};`+
+        `--dur:${(2+Math.random()*2).toFixed(2)}s;`+
+        `--delay:${(Math.random()*2.5).toFixed(2)}s;`+
+        `--h:${h}px;`+
+        `width:${3+Math.random()*4}px;height:${3+Math.random()*4}px;`+
+        (Math.random()>.5?'border-radius:2px;':'');
+      card.appendChild(dot);
+    }
+  });
+})();
 
 /* ── sort ── */
 let sc=getPref('sort','num'),sd=getPref('sortDir','asc');
@@ -688,9 +747,13 @@ function renderFiltered(){
 
   const total=visBug.size+(modan?[...ALL_MODAN].filter(matches).length:0);
   const poolSize=ALL_BUG.length+(modan?ALL_MODAN.length:0);
-  document.getElementById('result-count').textContent=total<poolSize?`מציג ${total} מתוך ${poolSize}`:`${poolSize} סניפים`;
+  document.getElementById('result-count').textContent=total<poolSize?`מציג ${total} מתוך ${poolSize}`:poolSize+' סניפים';
   document.getElementById('section-count').textContent=total;
-  document.getElementById('stat-count').textContent=poolSize+' סניפים';
+  document.getElementById('stat-count').textContent=visBug.size+' סניפי באג';
+  const modanPill=document.getElementById('stat-modan-pill');
+  if(modanPill)modanPill.style.display=modan?'inline-flex':'none';
+  const modanCountEl=document.getElementById('stat-modan-count');
+  if(modanCountEl&&modan)modanCountEl.textContent=(modan?[...ALL_MODAN].filter(matches).length:0)+' נקודות מודן';
   document.getElementById('no-results').style.display=total===0?'block':'none';
 }
 

@@ -1,9 +1,9 @@
 <?php
 use Core\View;
-$base = rtrim(CFG['app']['url'], '/');
+$base     = rtrim(CFG['app']['url'], '/');
+$showCron = $showCron ?? false;
+$filters  = $filters ?? [];
 
-$filters = $filters ?? [];
-// action color map
 function actionColor(string $action): array {
     if (str_contains($action, 'login_ok') || str_contains($action, 'create'))  return ['#10b981','rgba(16,185,129,.12)'];
     if (str_contains($action, 'login_fail') || str_contains($action, 'delete')) return ['#ef4444','rgba(239,68,68,.1)'];
@@ -12,6 +12,14 @@ function actionColor(string $action): array {
     if (str_contains($action, 'logout'))   return ['#7c829c','rgba(124,130,156,.1)'];
     if (str_contains($action, 'cancel'))   return ['#f97316','rgba(249,115,22,.1)'];
     return ['#7c829c','rgba(124,130,156,.1)'];
+}
+function cronStatusColor(string $status): array {
+    return match($status) {
+        'ok'      => ['#10b981','rgba(16,185,129,.12)'],
+        'warning' => ['#f59e0b','rgba(245,158,11,.1)'],
+        'error'   => ['#ef4444','rgba(239,68,68,.1)'],
+        default   => ['#7c829c','rgba(124,130,156,.1)'],
+    };
 }
 function actionIcon(string $action): string {
     if (str_contains($action, 'login_ok'))   return 'bi-box-arrow-in-right';
@@ -28,11 +36,133 @@ function actionIcon(string $action): string {
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
   <div>
-    <div class="page-title" style="margin-bottom:4px;"><i class="bi bi-clock-history" style="color:var(--accent);"></i> לוג פעולות</div>
+    <div class="page-title" style="margin-bottom:4px;">
+      <i class="bi <?= $showCron ? 'bi-clock-fill' : 'bi-clock-history' ?>" style="color:var(--accent);"></i>
+      <?= $showCron ? 'לוג CRON' : 'לוג פעולות' ?>
+    </div>
     <div style="font-size:13px;color:var(--text3);"><?= number_format($total ?? 0) ?> רשומות</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <a href="<?= $base ?>/activity-log<?= $showCron ? '' : '?cron=1' ?>"
+       style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;
+              border:1px solid <?= $showCron ? 'var(--accent)' : 'var(--border)' ?>;
+              background:<?= $showCron ? 'var(--accent)' : 'var(--bg3)' ?>;
+              color:<?= $showCron ? '#fff' : 'var(--text2)' ?>;">
+      <i class="bi bi-clock-fill"></i> CRON
+    </a>
   </div>
 </div>
 
+<?php if ($showCron): ?>
+<!-- ── CRON Filters ── -->
+<div class="card" style="padding:14px;margin-bottom:16px;">
+  <form method="GET" action="<?= $base ?>/activity-log" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+    <input type="hidden" name="cron" value="1">
+    <select name="cron_name" class="log-sel">
+      <option value="">כל הכרונים</option>
+      <?php foreach ($cronNames ?? [] as $cn): ?>
+        <option value="<?= View::e($cn['cron_name']) ?>" <?= ($filters['cron_name']??'')===$cn['cron_name']?'selected':'' ?>>
+          <?= View::e($cn['cron_name']) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <select name="action" class="log-sel">
+      <option value="">כל הפעולות</option>
+      <?php foreach ($cronActions ?? [] as $a): ?>
+        <option value="<?= View::e($a['action']) ?>" <?= ($filters['action']??'')===$a['action']?'selected':'' ?>>
+          <?= View::e($a['action']) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <select name="status" class="log-sel">
+      <option value="">כל הסטטוסים</option>
+      <option value="ok"      <?= ($filters['status']??'')==='ok'?'selected':''      ?>>ok</option>
+      <option value="warning" <?= ($filters['status']??'')==='warning'?'selected':'' ?>>warning</option>
+      <option value="error"   <?= ($filters['status']??'')==='error'?'selected':''   ?>>error</option>
+    </select>
+    <input type="datetime-local" name="from" class="log-sel"
+           value="<?= View::e($filters['from'] ?? '') ?>" title="מתאריך">
+    <input type="datetime-local" name="to" class="log-sel"
+           value="<?= View::e($filters['to'] ?? '') ?>" title="עד תאריך">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> סנן</button>
+    <?php if (array_filter($filters)): ?>
+      <a href="<?= $base ?>/activity-log?cron=1" class="btn btn-ghost"><i class="bi bi-x"></i> נקה</a>
+    <?php endif; ?>
+  </form>
+</div>
+
+<!-- ── CRON table ── -->
+<div class="card" style="padding:0;overflow:hidden;">
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="background:var(--bg3);">
+          <th class="lth">זמן</th>
+          <th class="lth">כרון</th>
+          <th class="lth">פעולה</th>
+          <th class="lth">סטטוס</th>
+          <th class="lth">פרטים</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php if (empty($logs)): ?>
+        <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text3);">
+          <i class="bi bi-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3;"></i>
+          אין רשומות
+        </td></tr>
+      <?php else: ?>
+      <?php foreach ($logs as $log):
+        [$sColor, $sBg] = cronStatusColor($log['status']);
+      ?>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td class="ltd" style="white-space:nowrap;font-size:12px;color:var(--text3);">
+          <?= date('d/m/Y', strtotime($log['created_at'])) ?><br>
+          <span style="font-size:11px;"><?= date('H:i:s', strtotime($log['created_at'])) ?></span>
+        </td>
+        <td class="ltd">
+          <span style="font-family:monospace;font-size:12px;color:var(--accent);"><?= View::e($log['cron_name']) ?></span>
+        </td>
+        <td class="ltd" style="font-size:12px;color:var(--text2);"><?= View::e($log['action']) ?></td>
+        <td class="ltd">
+          <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;
+                       background:<?= $sBg ?>;color:<?= $sColor ?>;font-size:11px;font-weight:700;">
+            <i class="bi <?= $log['status']==='ok' ? 'bi-check-circle-fill' : ($log['status']==='error' ? 'bi-x-circle-fill' : 'bi-exclamation-triangle-fill') ?>"></i>
+            <?= View::e($log['status']) ?>
+          </span>
+        </td>
+        <td class="ltd" style="font-size:12px;color:var(--text2);"><?= View::e($log['details'] ?? '') ?></td>
+      </tr>
+      <?php endforeach; ?>
+      <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination CRON -->
+  <?php if (isset($pages) && $pages > 1): ?>
+  <div style="display:flex;align-items:center;gap:6px;padding:12px 16px;border-top:1px solid var(--border);flex-wrap:wrap;">
+    <?php
+    $currentPage = $page ?? 1;
+    $qs = http_build_query(array_merge($filters ?? [], ['cron' => '1', 'page' => 0]));
+    for ($p = 1; $p <= min($pages, 20); $p++):
+      $qp = str_replace('page=0', 'page='.$p, $qs);
+    ?>
+      <a href="<?= $base ?>/activity-log?<?= $qp ?>"
+         style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:13px;text-decoration:none;
+                background:<?= $p===$currentPage?'var(--accent)':'var(--bg3)' ?>;
+                color:<?= $p===$currentPage?'#fff':'var(--text2)' ?>;
+                border:1px solid <?= $p===$currentPage?'var(--accent)':'var(--border)' ?>;">
+        <?= $p ?>
+      </a>
+    <?php endfor; ?>
+    <span style="font-size:12px;color:var(--text3);margin-right:auto;">
+      עמוד <?= $currentPage ?> מתוך <?= $pages ?> (<?= number_format($total ?? 0) ?> רשומות)
+    </span>
+  </div>
+  <?php endif; ?>
+</div>
+
+<?php else: ?>
 <!-- ── Filters ── -->
 <div class="card" style="padding:14px;margin-bottom:16px;">
   <form method="GET" action="<?= $base ?>/activity-log" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
@@ -229,7 +359,8 @@ function actionIcon(string $action): string {
   <div style="display:flex;align-items:center;gap:6px;padding:12px 16px;border-top:1px solid var(--border);flex-wrap:wrap;">
     <?php
     $currentPage = $page ?? 1;
-    $qs = http_build_query(array_merge($filters ?? [], ['page' => 0]));
+    $baseFilters = array_merge($filters ?? [], $showCron ? ['cron' => '1'] : []);
+    $qs = http_build_query(array_merge($baseFilters, ['page' => 0]));
     for ($p = 1; $p <= min($pages, 20); $p++):
       $qp = str_replace('page=0', 'page='.$p, $qs);
     ?>
@@ -247,6 +378,7 @@ function actionIcon(string $action): string {
   </div>
   <?php endif; ?>
 </div>
+<?php endif; ?>
 
 <style>
 .log-srch{display:flex;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:0 10px;flex:1;min-width:200px;max-width:300px;}

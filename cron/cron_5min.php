@@ -6,7 +6,8 @@ require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
 
-$pdo = DB::v1();
+$pdo    = DB::v1();
+$pdoLog = DB::get(); // alon_db2 — cron_log
 
 $stmt = $pdo->prepare(
     "SELECT logValue FROM logger
@@ -31,7 +32,9 @@ $stmt = $pdo->prepare(
 $stmt->execute([':last_check' => $last_check_time, ':new_check' => $new_check_time]);
 $result = $stmt->fetchAll();
 
-if (count($result) > 0) {
+$changeCount = count($result);
+
+if ($changeCount > 0) {
     $temp = '';
     foreach ($result as $row) {
         $val        = explode("@!", $row['logValue']);
@@ -58,13 +61,21 @@ if (count($result) > 0) {
     $headers .= 'MIME-Version: 1.0' . "\r\n";
     $headers .= 'Content-type: text/html; charset=utf-8' . "\r\n";
 
-    mail($to, $subject, $message, $headers);
+    $sent = mail($to, $subject, $message, $headers);
+    cron_log($pdoLog, 'run', $sent ? 'ok' : 'error', "שינויי חנות: {$changeCount}" . ($sent ? '' : ' | שליחת מייל נכשלה'));
 }
 
 $pdo->prepare(
     "INSERT INTO logger (logAction, logValue, userId, userName, logWhereChange, SEVERITY)
      VALUES ('LAST_READ_CRON_CHANGE', :logval, 0, 'cron', 'system', 'INFO')"
 )->execute([':logval' => $new_check_time]);
+
+function cron_log(PDO $pdo, string $action, string $status = 'ok', string $details = ''): void
+{
+    $pdo->prepare(
+        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_5min', ?, ?, ?)"
+    )->execute([$action, $status, $details]);
+}
 
 function get_store_name(PDO $pdo, string $sNum): string
 {

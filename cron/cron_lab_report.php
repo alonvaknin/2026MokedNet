@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use Core\DB;
+
+$pdo = DB::get();
+
 $toDate   = date('d/m/Y');
 $fromDate = date('d/m/Y', strtotime('-1 week'));
 $url      = "https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&dateFrom={$fromDate}&dateTo={$toDate}&Pmakat=123456&token=ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb";
@@ -11,6 +15,7 @@ $url      = "https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&dateFrom
 $data = json_decode(file_get_contents($url), true);
 
 if (empty($data)) {
+    cron_log($pdo, 'run', 'error', 'לא התקבלו נתונים מה-API');
     mail('gild@bug.co.il', 'לא מצליח לשלוח LAB CRON ' . date('d/m/y'), '', '');
     exit(json_encode(['mail_send' => false, 'calls_count' => 0]));
 }
@@ -36,15 +41,24 @@ foreach ($data as $call) {
 $table = '<table><thead><tr><th>פתיחה</th><th>קריאה</th><th>הערות</th><th>פותח</th></tr></thead>'
     . "<tbody>{$rows}</tbody></table>";
 
-$sent = sendReport($table, count($data));
-exit(json_encode(['mail_send' => $sent, 'calls_count' => count($data)]));
+$callsCount = count($data);
+$sent = sendReport($table, $callsCount);
+cron_log($pdo, 'run', $sent ? 'ok' : 'error', "קריאות: {$callsCount}" . ($sent ? '' : ' | שליחת מייל נכשלה'));
+exit(json_encode(['mail_send' => $sent, 'calls_count' => $callsCount]));
+
+function cron_log(PDO $pdo, string $action, string $status = 'ok', string $details = ''): void
+{
+    $pdo->prepare(
+        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_lab_report', ?, ?, ?)"
+    )->execute([$action, $status, $details]);
+}
 
 function strip(string $val): string
 {
     return str_replace(['\\', '/', '"'], '', $val);
 }
 
-function sendReport(string $tableHtml, int $count): bool
+function sendReport(string $tableHtml, int $callsCount): bool
 {
     $css = '<style>
         table { direction:RTL; font-family:Tahoma,Arial; border-collapse:collapse; width:100%; }

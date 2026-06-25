@@ -6,6 +6,12 @@ $filter = $filter ?? '';
 $isOverdueFilter = $filter === 'overdue';
 // JSON-encode statusesByType for JS
 $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
+$usersJson    = json_encode($users ?? [], JSON_UNESCAPED_UNICODE);
+$users        = $users ?? [];
+$showClosed   = $showClosed ?? false;
+$canViewAll  = $canViewAll ?? false;
+$scopeAll   = $scopeAll ?? false;
+
 ?>
 <style>
 .task-status-badge{
@@ -39,55 +45,54 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 }
 </style>
 
-<?php if ($isOverdueFilter): ?>
-<div style="display:flex;align-items:center;gap:10px;background:rgba(239,68,68,.1);
-            border:1px solid rgba(239,68,68,.3);border-radius:var(--radius);
-            padding:10px 16px;margin-bottom:16px;color:var(--danger);font-size:13px;font-weight:600;">
-  <i class="bi bi-exclamation-triangle-fill"></i>
-  מציג משימות שעברו SLA בלבד —
-  <a href="<?= $base ?>/tasks" style="color:var(--accent);text-decoration:none;margin-right:4px;">הצג הכל</a>
-</div>
-<?php endif; ?>
-
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-  <div class="page-title" style="margin-bottom:0;">
-    <?= $showClosed ? 'משימות סגורות' : 'משימות פתוחות' ?>
-    <?= $scopeAll ? '— כולם' : '— שלי' ?>
+  <div class="page-title" style="margin-bottom:0;">משימות</div>
+  <?php if (!$showClosed): ?>
+  <button class="btn btn-primary" onclick="openNewTaskModal()">
+    + משימה חדשה
+  </button>
+  <?php endif; ?>
+</div>
+
+<!-- Filters bar -->
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+
+  <?php if ($isOverdueFilter): ?>
+  <div style="display:flex;align-items:center;gap:8px;background:rgba(239,68,68,.1);
+              border:1px solid rgba(239,68,68,.3);border-radius:var(--radius);
+              padding:7px 14px;color:var(--danger);font-size:13px;font-weight:600;">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    חריגות SLA בלבד —
+    <a href="<?= $base ?>/tasks" style="color:var(--accent);text-decoration:none;">הצג הכל</a>
+  </div>
+  <?php endif; ?>
+
+  <!-- Open/Closed toggle -->
+  <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
+    <a href="?show=open&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
+       style="padding:6px 14px;text-decoration:none;<?= !$showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+      פתוחות
+    </a>
+    <a href="?show=closed&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
+       style="padding:6px 14px;text-decoration:none;<?= $showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+      סגורות
+    </a>
   </div>
 
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <!-- Open/Closed toggle -->
-    <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
-      <a href="?show=open&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
-         style="padding:6px 14px;text-decoration:none;<?= !$showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
-        פתוחות
-      </a>
-      <a href="?show=closed&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
-         style="padding:6px 14px;text-decoration:none;<?= $showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
-        סגורות
-      </a>
-    </div>
-
-    <?php if ($canViewAll): ?>
-    <!-- Mine/All toggle -->
-    <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
-      <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=mine"
-         style="padding:6px 14px;text-decoration:none;<?= !$scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
-        שלי
-      </a>
-      <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=all"
-         style="padding:6px 14px;text-decoration:none;<?= $scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
-        הכל
-      </a>
-    </div>
-    <?php endif; ?>
-
-    <?php if (!$showClosed): ?>
-    <button class="btn btn-primary" onclick="document.getElementById('new-task-modal').style.display='flex'">
-      + משימה חדשה
-    </button>
-    <?php endif; ?>
+  <?php if ($canViewAll): ?>
+  <!-- Mine/All toggle -->
+  <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
+    <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=mine"
+       style="padding:6px 14px;text-decoration:none;<?= !$scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+      שלי
+    </a>
+    <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=all"
+       style="padding:6px 14px;text-decoration:none;<?= $scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
+      הכל
+    </a>
   </div>
+  <?php endif; ?>
+
 </div>
 
 <?php if (empty($tasks)): ?>
@@ -209,26 +214,45 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 <!-- New task modal -->
 <div id="new-task-modal"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:480px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;">
     <button onclick="document.getElementById('new-task-modal').style.display='none'"
             style="float:left;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button>
     <div style="font-size:17px;font-weight:600;margin-bottom:20px;">משימה חדשה</div>
     <form method="POST" action="<?= $base ?>/tasks/create">
       <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+      <input type="hidden" name="for_user" id="new-task-for-user" value="<?= (int)($_SESSION['user_id'] ?? 0) ?>">
+
+      <!-- Assign to user -->
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">שייך למשתמש</label>
+        <div style="position:relative;">
+          <input type="text" id="user-search-input" autocomplete="off" placeholder="חיפוש משתמש..."
+                 style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+                        padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;"
+                 oninput="filterUsers(this.value)" onfocus="showUserDD()" onblur="hideUserDD()">
+          <div id="user-dd"
+               style="display:none;position:absolute;top:100%;right:0;left:0;z-index:300;
+                      background:var(--bg2);border:1px solid var(--border2);border-radius:8px;
+                      box-shadow:var(--shadow);max-height:200px;overflow-y:auto;margin-top:2px;">
+          </div>
+        </div>
+        <div id="user-selected-label" style="font-size:12px;color:var(--accent);margin-top:5px;"></div>
+      </div>
+
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">כותרת *</label>
         <input type="text" name="title" required
-               style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;">
+               style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
       </div>
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">תיאור</label>
         <textarea name="description" rows="3"
-                  style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+                  style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
       </div>
       <div style="margin-bottom:20px;">
         <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">SLA (ימים)</label>
         <input type="number" name="sla_days" value="3" min="1" max="30"
-               style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;">
+               style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;">צור משימה</button>
     </form>
@@ -277,6 +301,69 @@ $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 const TASK_CSRF   = <?= json_encode($csrf) ?>;
 const TASK_BASE   = <?= json_encode($base) ?>;
 const STATUSES_BY_TYPE = <?= $statusesJson ?>;
+const TASK_USERS  = <?= $usersJson ?>;
+
+/* ── User search in new-task modal ── */
+let _selectedUserId = <?= (int)($_SESSION['user_id'] ?? 0) ?>;
+let _userDDBlurTimer = null;
+
+function filterUsers(q) {
+  const dd = document.getElementById('user-dd');
+  const filtered = q.trim()
+    ? TASK_USERS.filter(u => u.name.includes(q.trim()))
+    : TASK_USERS;
+  renderUserDD(filtered);
+  dd.style.display = 'block';
+}
+
+function showUserDD() {
+  clearTimeout(_userDDBlurTimer);
+  renderUserDD(TASK_USERS);
+  document.getElementById('user-dd').style.display = 'block';
+}
+
+function hideUserDD() {
+  _userDDBlurTimer = setTimeout(() => {
+    document.getElementById('user-dd').style.display = 'none';
+  }, 200);
+}
+
+function renderUserDD(list) {
+  const dd = document.getElementById('user-dd');
+  if (!dd) return;
+  dd.innerHTML = list.map(u => {
+    const active = u.id == _selectedUserId;
+    return `<div onmousedown="selectUser(${u.id}, ${JSON.stringify(u.name)})"
+                 style="padding:8px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;
+                        background:${active ? 'var(--accent-dim)' : 'transparent'};
+                        color:${active ? 'var(--accent)' : 'var(--text)'};
+                        ${active ? 'font-weight:600;' : ''}
+                        transition:background .1s;"
+                 onmouseover="this.style.background='var(--bg3)'"
+                 onmouseout="this.style.background='${active ? 'var(--accent-dim)' : 'transparent'}'">
+              <i class="bi bi-person" style="opacity:.5;"></i>
+              ${esc(u.name)}
+              ${active ? '<i class="bi bi-check2" style="margin-right:auto;"></i>' : ''}
+            </div>`;
+  }).join('') || '<div style="padding:10px 14px;color:var(--text3);font-size:13px;">לא נמצאו משתמשים</div>';
+}
+
+function selectUser(id, name) {
+  clearTimeout(_userDDBlurTimer);
+  _selectedUserId = id;
+  document.getElementById('new-task-for-user').value = id;
+  document.getElementById('user-search-input').value = name;
+  document.getElementById('user-dd').style.display = 'none';
+}
+
+function openNewTaskModal() {
+  _selectedUserId = <?= (int)($_SESSION['user_id'] ?? 0) ?>;
+  document.getElementById('new-task-for-user').value = _selectedUserId;
+  const me = TASK_USERS.find(u => u.id == _selectedUserId);
+  const inp = document.getElementById('user-search-input');
+  if (inp) inp.value = me ? me.name : '';
+  document.getElementById('new-task-modal').style.display = 'flex';
+}
 
 /* ── Status dropdown ──────────────────────────────────── */
 let _ddOpenTaskId = null;

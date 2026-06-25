@@ -39,9 +39,14 @@ class TaskController extends Controller
             }
         }
 
+        $users = \Core\DB::query(
+            'SELECT id, name, last_login FROM users WHERE is_active = 1 ORDER BY last_login IS NULL, last_login DESC',
+            []
+        );
+
         $this->view('pages/tasks/index', compact(
             'tasks', 'statusesByType', 'filter',
-            'showClosed', 'scopeAll', 'canViewAll'
+            'showClosed', 'scopeAll', 'canViewAll', 'users'
         ));
     }
 

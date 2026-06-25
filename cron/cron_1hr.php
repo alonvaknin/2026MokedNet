@@ -9,14 +9,20 @@ use Core\DB;
 $pdo   = DB::get();   // alon_db2 — טבלת automations
 $pdoV1 = DB::v1();    // alon_db  — callStatus
 
-closeExpiredJobs($pdo);
-deactivateMaxRunJobs($pdo);
-processActiveJobs($pdo, $pdoV1);
-notifyOverdueTasks($pdo);
+$runLog = [];
+
+closeExpiredJobs($pdo, $runLog);
+deactivateMaxRunJobs($pdo, $runLog);
+processActiveJobs($pdo, $pdoV1, $runLog);
+notifyOverdueTasks($pdo, $runLog);
+
+if (!empty($runLog)) {
+    cronLog($pdo, 'run', 'ok', implode(' | ', $runLog));
+}
 
 // ── סגירת משימות שעבר תאריך תפוגתן ─────────────────────────────────────────
 
-function closeExpiredJobs(PDO $pdo): void
+function closeExpiredJobs(PDO $pdo, array &$runLog): void
 {
     $stmt = $pdo->prepare(
         "SELECT id, user_name, user_mail, mailto, cc_mail, msg_from_user,
@@ -27,6 +33,7 @@ function closeExpiredJobs(PDO $pdo): void
     $stmt->execute();
     $rows = $stmt->fetchAll();
 
+    $closed = 0;
     foreach ($rows as $row) {
         $pdo->prepare(
             "UPDATE automations
@@ -36,23 +43,26 @@ function closeExpiredJobs(PDO $pdo): void
         )->execute([$row['id']]);
 
         sendMailExpired($row);
+        $closed++;
     }
+    if ($closed > 0) $runLog[] = "פג תוקף: {$closed}";
 }
 
 // ── סגירת משימות שהגיעו ל-maxRun ────────────────────────────────────────────
 
-function deactivateMaxRunJobs(PDO $pdo): void
+function deactivateMaxRunJobs(PDO $pdo, array &$runLog): void
 {
-    $pdo->exec(
+    $affected = $pdo->exec(
         "UPDATE automations
          SET is_active = 0, status_of_job = 'נסגר לאחר ביצוע', status_change_time = NOW()
          WHERE count_run >= max_run AND is_active = 1"
     );
+    if ($affected > 0) $runLog[] = "maxRun: {$affected}";
 }
 
 // ── עיבוד משימות פעילות ──────────────────────────────────────────────────────
 
-function processActiveJobs(PDO $pdo, PDO $pdoV1): void
+function processActiveJobs(PDO $pdo, PDO $pdoV1, array &$runLog): void
 {
     $stmt = $pdo->prepare(
         "SELECT id, user_name, user_mail, mailto, cc_mail, msg_from_user,
@@ -64,31 +74,31 @@ function processActiveJobs(PDO $pdo, PDO $pdoV1): void
     $stmt->execute();
     $jobs = $stmt->fetchAll();
 
+    $sent = 0; $errors = 0;
+
     foreach ($jobs as $job) {
         switch ($job['type_of_job']) {
 
             case 'notifyOnChangeTo':
                 $currentStatus = getCallStatus($job['value_of_type']);
-                if ($currentStatus === false) {
-                    break;
-                }
+                if ($currentStatus === false) break;
                 if ((int) $job['run_even_diff'] === 1) {
-                    // התרעה על כל שינוי סטטוס
                     if ($job['current_save_value'] !== $currentStatus) {
                         $savedLabel   = translateStatus($pdoV1, (string) $job['current_save_value']);
                         $currentLabel = translateStatus($pdoV1, $currentStatus);
                         if (sendMailNotifyOnChange($job, $savedLabel, $currentLabel)) {
                             incrementRunCount($pdo, $job['id']);
                             updateSavedValue($pdo, $job['id'], $currentStatus);
-                        }
+                            $sent++;
+                        } else { $errors++; }
                     }
                 } else {
-                    // התרעה כשמגיע לסטטוס ספציפי
                     if ($job['condition_of_type'] === $currentStatus) {
                         if (sendMailNotifyOnChange($job, '', translateStatus($pdoV1, $currentStatus))) {
                             incrementRunCount($pdo, $job['id']);
                             setJobDone($pdo, $job['id']);
-                        }
+                            $sent++;
+                        } else { $errors++; }
                     }
                 }
                 break;
@@ -96,10 +106,10 @@ function processActiveJobs(PDO $pdo, PDO $pdoV1): void
             case 'openCaseByPhone':
                 $calls = getCallsByPhone($job['value_of_type'], $job['created_at']);
                 if ($calls !== false) {
-                    $callsList = implode(', ', array_keys($calls));
-                    if (sendMailOpenByPhone($job, $callsList)) {
+                    if (sendMailOpenByPhone($job, implode(', ', array_keys($calls)))) {
                         incrementRunCount($pdo, $job['id']);
-                    }
+                        $sent++;
+                    } else { $errors++; }
                 }
                 break;
 
@@ -109,13 +119,17 @@ function processActiveJobs(PDO $pdo, PDO $pdoV1): void
                     if (sendMailTechCare($job, $techAnswer)) {
                         incrementRunCount($pdo, $job['id']);
                         setJobDone($pdo, $job['id']);
-                    }
+                        $sent++;
+                    } else { $errors++; }
                 }
                 break;
 
             // chechOrderNote — לא פעיל, API לא תקין
         }
     }
+
+    if ($sent > 0)   $runLog[] = "מיילים: {$sent}";
+    if ($errors > 0) $runLog[] = "שגיאות שליחה: {$errors}";
 }
 
 // ── Wizenet API ──────────────────────────────────────────────────────────────
@@ -135,6 +149,9 @@ function getTechCare(string $callId): string|false
         return false;
     }
     $techCare = json_decode(str_replace('\\', '-', $data[0]['CallSubjectList']));
+    if (!is_array($techCare) && !is_object($techCare)) {
+        return false;
+    }
     foreach ($techCare as $row) {
         if (!empty($row->CSLdesc)) {
             return $row->CSLdesc;
@@ -159,11 +176,20 @@ function getCallsByPhone(string $phone, string $since): array|false
     return $result;
 }
 
+// ── cron_log ─────────────────────────────────────────────────────────────────
+
+function cronLog(PDO $pdo, string $action, string $status = 'ok', string $details = ''): void
+{
+    $pdo->prepare(
+        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_1hr', ?, ?, ?)"
+    )->execute([$action, $status, $details]);
+}
+
 // ── DB helpers ───────────────────────────────────────────────────────────────
 
 function incrementRunCount(PDO $pdo, int $id): void
 {
-    $pdo->prepare('UPDATE automations SET run_count = run_count + 1 WHERE id = ?')->execute([$id]);
+    $pdo->prepare('UPDATE automations SET count_run = count_run + 1 WHERE id = ?')->execute([$id]);
 }
 
 function setJobDone(PDO $pdo, int $id): void
@@ -187,7 +213,7 @@ function translateStatus(PDO $pdoV1, string $statusId): string
 
 // ── שליחת מיילים ─────────────────────────────────────────────────────────────
 
-function buildHeaders(string $cc = ''): string
+function buildHeaders(?string $cc = ''): string
 {
     $h  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
     $h .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
@@ -255,7 +281,7 @@ function sendMailExpired(array $job): bool
 
 // ── SLA Notifications ────────────────────────────────────────────────────────
 
-function notifyOverdueTasks(PDO $pdo): void
+function notifyOverdueTasks(PDO $pdo, array &$runLog): void
 {
     $stmt = $pdo->query("
         SELECT t.id, t.title, t.sla_days, t.created_at,
@@ -302,5 +328,6 @@ function notifyOverdueTasks(PDO $pdo): void
         $pdo->prepare("UPDATE tasks SET sla_notified_at=NOW() WHERE id=?")->execute([$taskId]);
     }
 
+    $runLog[] = "SLA: " . count($tasks);
     echo "✓ SLA notifications sent: " . count($tasks) . "\n";
 }

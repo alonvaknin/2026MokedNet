@@ -5,6 +5,8 @@ $csrf = $_SESSION['csrf_token'] ?? '';
 $typesJson    = json_encode($types         ?? [], JSON_UNESCAPED_UNICODE);
 $statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
 $usersJson    = json_encode($users          ?? [], JSON_UNESCAPED_UNICODE);
+$types = $types ?? [];
+$users = $users ?? [];
 ?>
 <style>
 /* ── Tabs ── */
