@@ -60,27 +60,47 @@ function strip(string $val): string
 
 function sendReport(string $tableHtml, int $callsCount): bool
 {
-    $css = '<style>
-        table { direction:RTL; font-family:Tahoma,Arial; border-collapse:collapse; width:100%; }
-        th, td { border:1px solid #ddd; text-align:right; padding:8px; }
-        th { background-color:#f2f2f2; }
-        .opener { font-size:8px; }
-    </style>';
+    $subject = '[דוח אוטומטי] מקט 123456 — ' . date('d/m/y H:i') . ' — שבוע אחרון';
 
-    $message  = "<html lang='HE' dir='rtl'><head>{$css}</head><body style='text-align:right;direction:rtl;'>";
-    $message .= '<p>מציג דוח למקט 123456 ב-7 ימים האחרונים</p>';
-    $message .= $tableHtml;
-    $message .= '</body></html>';
+    $css = '<style>'
+        . 'table.data-tbl { direction:RTL; border-collapse:collapse; width:100%; }'
+        . 'table.data-tbl th { background:#1e2435; color:#b0b3c6; font-size:12px; font-weight:600; text-align:right; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.1); }'
+        . 'table.data-tbl td { font-size:13px; color:#e8eaf0; text-align:right; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.05); }'
+        . 'table.data-tbl td a { color:#4f7fff; text-decoration:none; }'
+        . 'table.data-tbl .opener { font-size:11px; }'
+        . '</style>';
 
-    $headers  = 'MIME-Version: 1.0' . "\r\n";
-    $headers .= 'Content-type: text/html; charset=UTF-8' . "\r\n";
-    $headers .= 'From: מוקד-נט <no_reply@bug.co.il>' . "\r\n";
-    $headers .= 'Reply-To: no_reply@bug.co.il' . "\r\n";
+    $body  = $css;
+    $body .= '<p style="font-size:16px;font-weight:700;color:#e8eaf0;margin:0 0 8px;">דוח מקט 123456</p>';
+    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 20px;">נמצאו <b>' . $callsCount . '</b> קריאות ב-7 ימים האחרונים.</p>';
+    $body .= str_replace('<table>', '<table class="data-tbl">', $tableHtml);
 
-    return mail(
-        'gild@bug.co.il, chaim@modan.co.il',
-        '[דוח אוטומטי] מקט 123456 ' . date('d/m/y H:i') . ' בשבוע האחרון',
-        $message,
-        $headers
-    );
+    $message = mailWrap($subject, $body);
+
+    $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
+    $headers .= "Reply-To: no_reply@bug.co.il\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=utf-8\r\n";
+
+    return mail('gild@bug.co.il, chaim@modan.co.il', $subject, $message, $headers);
+}
+
+function mailWrap(string $title, string $body): string
+{
+    return '<!DOCTYPE html>'
+        . '<html lang="he" dir="rtl">'
+        . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
+        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#0f1117;color:#e8eaf0;direction:rtl;text-align:right;margin:0;padding:0;">'
+        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:32px 0;">'
+        . '<tr><td align="center">'
+        . '<table width="600" cellpadding="0" cellspacing="0" style="background:#181b23;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;">'
+        . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
+        . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
+        . '<span style="font-size:14px;color:rgba(255,255,255,.75);margin-right:12px;">דוח אוטומטי</span>'
+        . '</td></tr>'
+        . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
+        . '<tr><td style="background:#13161e;padding:16px 32px;text-align:right;">'
+        . '<span style="font-size:12px;color:#5a5e78;">מופעל באמצעות מערכת מוקד-נט</span>'
+        . '</td></tr>'
+        . '</table></td></tr></table></body></html>';
 }

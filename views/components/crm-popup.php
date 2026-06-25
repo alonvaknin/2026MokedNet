@@ -1248,10 +1248,22 @@ function renderPbxCalls(data) {
   };
   const statLabel = s => {
     if(s==='answer')             return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#22c55e;"><i class="bi bi-check-circle-fill"></i> ענה</span>';
+    if(s==='ivr')                return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-hourglass-split"></i> המתנה</span>';
     if(s==='noanswer'||s==='no answer') return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-x-circle-fill"></i> לא ענה</span>';
-    if(s==='busy')               return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-dash-circle-fill"></i> תפוס</span>';
+    if(s==='busy')               return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-dash-circle-fill"></i> תפוס</span>';
     if(s==='cancel')             return '<span style="padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.08);color:#ef4444;"><i class="bi bi-slash-circle-fill"></i> בוטל</span>';
     return `<span style="font-size:11px;color:var(--text3);">${E(s)}</span>`;
+  };
+  const fmtDuration = (dur, secs) => {
+    if(!secs || secs < 1) return '<span style="color:var(--text3);font-size:11px;">—</span>';
+    const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60), s=secs%60;
+    let label = '';
+    if(h) label += h + '<span style="font-size:10px;font-weight:500;opacity:.7;">שע׳</span> ';
+    if(m||h) label += m + '<span style="font-size:10px;font-weight:500;opacity:.7;">ד׳</span> ';
+    label += s + '<span style="font-size:10px;font-weight:500;opacity:.7;">ש׳</span>';
+    const color = secs>=120?'#22c55e':secs>=30?'#f59e0b':'var(--text3)';
+    const bg    = secs>=120?'rgba(34,197,94,.08)':secs>=30?'rgba(245,158,11,.08)':'transparent';
+    return `<span style="font-size:20px;font-weight:800;color:${color};font-variant-numeric:tabular-nums;background:${bg};padding:2px 7px;border-radius:6px;display:inline-block;line-height:1.3;">${label}</span>`;
   };
   const TH = 'text-align:right;padding:6px 10px;background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;';
   const TD = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2);font-size:12px;';
@@ -1274,7 +1286,7 @@ function renderPbxCalls(data) {
       <td style="${TD}">${E(row.call_time)}</td>
       <td style="${TD}">${dirLabel(row.direction)}</td>
       <td style="${TD}">${agentHtml}</td>
-      <td style="${TD}">${E(row.duration)}</td>
+      <td style="${TD}">${fmtDuration(row.duration, row.duration_sec)}</td>
       <td style="${TD}">${statLabel(row.status)}</td>
       ${CAN_REC ? `<td style="${TD}" id="pbxrec-${E(row.uniqueid)}">${recHtml}</td>` : ''}
     </tr>`;

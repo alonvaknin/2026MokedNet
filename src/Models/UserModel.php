@@ -128,12 +128,16 @@ class UserModel
     {
         $like = '%' . trim($q) . '%';
         return DB::query(
-            "SELECT id, first_name, last_name, phone, email
-             FROM users
-             WHERE is_active=1
-               AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?
-                    OR CONCAT(first_name,' ',last_name) LIKE ?)
-             ORDER BY first_name ASC, last_name ASC
+            "SELECT u.id, u.first_name, u.last_name, u.phone, u.email,
+                    d.name_heb  AS dept_name,
+                    pg.name_heb AS group_name
+             FROM users u
+             LEFT JOIN departments       d  ON d.id  = u.department_id
+             LEFT JOIN permission_groups pg ON pg.id = u.permission_group_id
+             WHERE u.is_active=1
+               AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?
+                    OR CONCAT(u.first_name,' ',u.last_name) LIKE ?)
+             ORDER BY u.first_name ASC, u.last_name ASC
              LIMIT 30",
             [$like, $like, $like, $like, $like]
         );

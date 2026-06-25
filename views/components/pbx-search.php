@@ -292,10 +292,23 @@ function pbxSearch(){
     };
     var statLabel = function(s){
       if(s==='answer')   return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,197,94,.12);color:#22c55e;"><i class="bi bi-check-circle-fill"></i> ענה</span>';
+      if(s==='ivr')      return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-hourglass-split"></i> המתנה</span>';
       if(s==='noanswer'||s==='no answer') return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-x-circle-fill"></i> לא ענה</span>';
-      if(s==='busy')     return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(245,158,11,.12);color:#f59e0b;"><i class="bi bi-dash-circle-fill"></i> תפוס</span>';
+      if(s==='busy')     return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#ef4444;"><i class="bi bi-dash-circle-fill"></i> תפוס</span>';
       if(s==='cancel')   return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(239,68,68,.08);color:#ef4444;"><i class="bi bi-slash-circle-fill"></i> בוטל</span>';
       return '<span style="font-size:11px;color:var(--text3);">'+E(s)+'</span>';
+    };
+    var fmtDuration = function(secs){
+      secs = parseInt(secs)||0;
+      if(!secs) return '<span style="color:var(--text3);font-size:11px;">—</span>';
+      var h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60), s=secs%60;
+      var label='';
+      if(h) label+=h+'<span style="font-size:10px;font-weight:500;opacity:.7;">שע׳</span> ';
+      if(m||h) label+=m+'<span style="font-size:10px;font-weight:500;opacity:.7;">ד׳</span> ';
+      label+=s+'<span style="font-size:10px;font-weight:500;opacity:.7;">ש׳</span>';
+      var color=secs>=120?'#22c55e':secs>=30?'#f59e0b':'var(--text3)';
+      var bg=secs>=120?'rgba(34,197,94,.08)':secs>=30?'rgba(245,158,11,.08)':'transparent';
+      return '<span style="font-size:15px;font-weight:800;color:'+color+';font-variant-numeric:tabular-nums;background:'+bg+';padding:2px 7px;border-radius:6px;display:inline-block;line-height:1.3;">'+label+'</span>';
     };
     var agentCell = function(row){
       if(row.agent_name) return '<div style="font-weight:600;font-size:13px;color:var(--text);">'+E(row.agent_name)+'</div>';
@@ -317,9 +330,9 @@ function pbxSearch(){
     if(_pbxCanRec)h+='<th style="'+TH+'">הקלטה</th>';
     h+='</tr>';
     rows.forEach(function(row){
-      var hov='onmouseenter="this.querySelectorAll(\'td\').forEach(function(t){t.style.background=\'var(--bg3)\'})" onmouseleave="this.querySelectorAll(\'td\').forEach(function(t){t.style.background:\'\'})"';
+      var hov='onmouseenter="this.querySelectorAll(\'td\').forEach(function(t){t.style.background=\'var(--bg3)\'})" onmouseleave="this.querySelectorAll(\'td\').forEach(function(t){t.style.background=\'\';})"';
       h+='<tr '+hov+'>';
-      h+='<td style="'+TD+'color:var(--text2);"><div style="font-size:13px;">'+E(row.call_time)+'</div><div style="font-size:11px;color:var(--text3);">'+E(row.duration)+'</div></td>';
+      h+='<td style="'+TD+'color:var(--text2);"><div style="font-size:13px;margin-bottom:4px;">'+E(row.call_time)+'</div>'+fmtDuration(row.duration_sec)+'</td>';
       h+='<td style="'+TD+'">'+dirLabel(row.direction)+'</td>';
       h+='<td style="'+TD+'">'+agentCell(row)+'</td>';
       h+='<td style="'+TD+'">'+statLabel(row.status)+'</td>';

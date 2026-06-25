@@ -108,32 +108,68 @@ class CrmController extends Controller
             }
         } catch (\Throwable) {}
 
-        $rows = array_map(function($c) use ($agentMap, $auth) {
+        // מנקה שם נציג ממספר מוביל (mvoice מחזיר "123 שם" או רק "123")
+        $cleanAgent = function(string $raw): string {
+            $raw = trim($raw);
+            if ($raw === '' || preg_match('/^\d+$/', $raw)) return '';
+            return trim(preg_replace('/^\d+\s*/', '', $raw));
+        };
+
+        $rows = array_map(function($c) use ($agentMap, $auth, $fetch, $cleanAgent) {
+            $uniqueid = $c['uniqueid'] ?? '';
             $snumber  = $c['snumber']  ?? '';
             $dnumber  = $c['dnumber']  ?? '';
-            $agentKey = $snumber ?: $dnumber;
-            // ניסיון 1: snumber_display מ-mvoice ישירות
-            $agentName = trim($c['snumber_display'] ?? $c['dnumber_display'] ?? '');
-            // ניסיון 2: צלב עם טבלת users לפי mvoice_id
-            if (!$agentName) {
-                $agentName = $agentMap[$agentKey] ?? $agentMap[ltrim($agentKey,'0')] ?? '';
+            $status   = $c['status']   ?? '';
+
+            // כיוון: uniqueid מכיל "out" לשיחות יוצאות, "in" לנכנסות
+            if (str_contains($uniqueid, 'out')) {
+                $direction    = 'out';
+                $agentKey     = $snumber;
+                $agentDisplay = $cleanAgent($c['snumber_display'] ?? '');
+            } else {
+                $direction    = 'in';
+                $agentKey     = $dnumber;
+                $agentDisplay = $cleanAgent($c['dnumber_display'] ?? $c['snumber_display'] ?? '');
+
+                // לשיחה נכנסת שנענתה — שלוף cnumber_display (הנציג שבפועל ענה)
+                $answeredByAgent = false;
+                if ($status === 'answer' && $uniqueid) {
+                    $legUrl = self::MVOICE_BASE.'?'.$auth.'callid='.urlencode($uniqueid).';status=answer;dtype=phone';
+                    $legs   = $fetch($legUrl);
+                    $cn = $cleanAgent(($legs['data'][0] ?? [])['cnumber_display'] ?? '');
+                    if ($cn) {
+                        $agentDisplay    = $cn;
+                        $agentKey        = ($legs['data'][0]['cnumber'] ?? '') ?: $agentKey;
+                        $answeredByAgent = true;
+                    }
+                }
+                // ענה IVR/תור אבל לא נציג
+                if ($status === 'answer' && !$answeredByAgent) {
+                    $status = 'ivr';
+                }
             }
 
-            // קישור הקלטה: אם יש uniqueid — בנה URL ישירות ל-mvoice
-            $uniqueid = $c['uniqueid'] ?? '';
-            $recUrl   = $c['recording_url'] ?? '';
+            // צלב עם טבלת users לפי mvoice_id אם אין שם תצוגה ישיר
+            if (!$agentDisplay) {
+                $agentDisplay = $agentMap[$agentKey] ?? $agentMap[ltrim($agentKey, '0')] ?? '';
+            }
+
+            // קישור הקלטה
+            $recUrl = $c['recording_url'] ?? '';
             if (!$recUrl && $uniqueid) {
-                $recUrl = "https://app.mvoice.co.il/api/json/cdrs/list/?{$auth}callid={$uniqueid};status=answer;dtype=phone";
+                $recUrl = self::MVOICE_BASE.'?'.$auth.'callid='.urlencode($uniqueid).';status=answer;dtype=phone';
             }
 
+            $totaltime = (int)($c['totaltime'] ?? 0);
             return [
                 'call_time'     => date('d/m/Y H:i', $c['start'] ?? 0),
-                'duration'      => gmdate('H:i:s', $c['totaltime'] ?? 0),
+                'duration'      => gmdate('H:i:s', $totaltime),
+                'duration_sec'  => $totaltime,
                 'agent_line'    => $agentKey,
-                'agent_name'    => $agentName,
+                'agent_name'    => $agentDisplay,
                 'dept'          => $dnumber,
-                'direction'     => $c['direction'] ?? '',
-                'status'        => $c['status'] ?? '',
+                'direction'     => $direction,
+                'status'        => $status,
                 'uniqueid'      => $uniqueid,
                 'recording_url' => $recUrl,
             ];

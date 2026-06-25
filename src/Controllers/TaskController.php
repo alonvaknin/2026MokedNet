@@ -40,7 +40,7 @@ class TaskController extends Controller
         }
 
         $users = \Core\DB::query(
-            'SELECT id, name, last_login FROM users WHERE is_active = 1 ORDER BY last_login IS NULL, last_login DESC',
+            "SELECT id, CONCAT(first_name,' ',last_name) AS name, last_login FROM users WHERE is_active = 1 ORDER BY last_login IS NULL, last_login DESC",
             []
         );
 

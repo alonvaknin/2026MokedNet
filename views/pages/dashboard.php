@@ -764,6 +764,7 @@ function renderFiltered(){
 /* ── store view modal — לפי id ── */
 let _svId=null;
 async function openStoreView(id){
+  if(typeof gsClose==='function') gsClose();
   if(document.body.classList.contains('edit-mode')&&CAN_EDIT){
     openStoreForm(ALL_STORES_MAP[id]||null);return;
   }

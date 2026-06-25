@@ -363,9 +363,8 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
     </div>
     <!-- Scope pills -->
     <div style="display:flex;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--bg3);">
-      <button class="gs-scope gs-scope-active" data-scope="stores"   onclick="gsSetScope('stores')"><i class="bi bi-shop"></i> חנויות</button>
+      <button class="gs-scope gs-scope-active" data-scope="stores"   onclick="gsSetScope('stores')"><i class="bi bi-shop"></i> חנויות ואנשי קשר</button>
       <button class="gs-scope"                 data-scope="calls"    onclick="gsSetScope('calls')"><i class="bi bi-headset"></i> קריאות שירות</button>
-      <button class="gs-scope"                 data-scope="contacts" onclick="gsSetScope('contacts')"><i class="bi bi-people-fill"></i> אנשי קשר</button>
       <button class="gs-scope"                 data-scope="products" onclick="gsSetScope('products')"><i class="bi bi-box-seam"></i> מוצרים</button>
       <?php if (!empty($canPbxSearch)): ?><button class="gs-scope" data-scope="pbx" onclick="gsSetScope('pbx')"><i class="bi bi-telephone-outbound"></i> שיחות מרכזיה</button><?php else: ?><button class="gs-scope gs-scope-soon" data-scope="pbx" disabled title="ללא הרשאה"><i class="bi bi-telephone-outbound"></i> שיחות מרכזיה</button><?php endif; ?>
     </div>
@@ -374,10 +373,10 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
   </div>
 </div>
 <style>
-.gs-scope{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;font-family:var(--font);border:1px solid var(--border);background:var(--bg4);color:var(--text2);cursor:pointer;transition:all .13s}
-.gs-scope:hover:not(:disabled){background:var(--accent-dim);color:var(--accent);border-color:rgba(91,141,238,.4)}
-.gs-scope.gs-scope-active{background:var(--accent-dim);color:var(--accent);border-color:rgba(91,141,238,.4)}
-.gs-scope.gs-scope-soon{opacity:.45;cursor:default}
+.gs-scope{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:20px;font-size:13px;font-weight:700;font-family:var(--font);border:2px solid var(--border2);background:var(--bg4);color:var(--text2);cursor:pointer;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.gs-scope:hover:not(:disabled){background:var(--accent-dim);color:var(--accent);border-color:var(--accent);box-shadow:0 2px 8px rgba(91,141,238,.2)}
+.gs-scope.gs-scope-active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 10px rgba(91,141,238,.4)}
+.gs-scope.gs-scope-soon{opacity:.4;cursor:default}
 .gs-row{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
 .gs-row:last-child{border-bottom:none}
 .gs-row:hover{background:var(--bg3)}
@@ -935,25 +934,71 @@ function renderWizCall(container,d,append,searchQuery){
     h+='</div>';
   }
 
-  /* COMMENTS */
+  /* CUSTOMER COMPLAINT (was: comments) */
   if(d.comments&&d.comments.trim()){
-    h+='<div style="padding:10px 16px;border-top:1px solid var(--border);background:rgba(245,158,11,.04);">';
-    h+='<div style="font-size:10px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">'
-      +'<i class="bi bi-chat-square-text" style="font-size:12px;margin-left:4px;"></i>הערות</div>';
-    h+='<p style="font-size:13px;color:var(--text2);margin:0;line-height:1.6;">'+esc(d.comments)+'</p>';
+    h+='<div style="padding:12px 16px;border-top:2px solid rgba(239,68,68,.3);background:rgba(239,68,68,.04);">';
+    h+='<div style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;display:flex;align-items:center;gap:5px;">'
+      +'<i class="bi bi-person-exclamation" style="font-size:13px;"></i>טענת לקוח</div>';
+    h+='<p style="font-size:13px;color:var(--text);margin:0;line-height:1.6;background:rgba(239,68,68,.06);border-right:3px solid #ef4444;padding:8px 12px;border-radius:0 6px 6px 0;">'+esc(d.comments)+'</p>';
     h+='</div>';
   }
 
-  /* RESOLUTION */
+  /* RESOLUTION — parse structured fields and display as timeline */
   if(cleanRes.length){
-    h+='<div style="border-top:1px solid var(--border);">';
-    h+='<button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display===\'none\'?\'block\':\'none\';" '
-      +'style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg3);border:none;cursor:pointer;color:var(--text2);font-size:12px;font-family:var(--font);">'
-      +'<span style="display:flex;align-items:center;gap:6px;"><i class="bi bi-clock-history"></i> היסטוריית עדכונים ('+cleanRes.length+')</span>'
+    /* Parse each entry: "ת.עדכון: DATE, טכנאי: NAME, תיקונים: FIX, תשובה: ANSWER, עבודה: MINS דקות, ..." */
+    function parseResEntry(r){
+      const get=(key)=>{
+        const re=new RegExp(key+':\\s*([^,;]+?)(?=,\\s*(?:טכנאי|תיקונים|תשובה|עבודה|תעוד)|[;]|$)');
+        const m=r.match(re);
+        return m?m[1].trim():'';
+      };
+      return {
+        date:   get('ת\\.עדכון'),
+        tech:   get('טכנאי'),
+        fix:    get('תיקונים'),
+        answer: get('תשובה'),
+        work:   get('עבודה'),
+        damage: get('תעוד נזק פיזי בנק'),
+      };
+    }
+    h+='<div style="border-top:2px solid rgba(16,185,129,.3);">';
+    h+='<button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display===\'none\'?\'flex\':\'none\';" '
+      +'style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(16,185,129,.06);border:none;cursor:pointer;color:#10b981;font-size:12px;font-family:var(--font);font-weight:700;">'
+      +'<span style="display:flex;align-items:center;gap:6px;"><i class="bi bi-wrench-adjustable" style="font-size:13px;"></i> תשובת טכנאי ('+cleanRes.length+')</span>'
       +'<i class="bi bi-chevron-down" style="font-size:12px;"></i></button>';
-    h+='<div style="display:none;padding:10px 16px;">';
-    cleanRes.forEach(r=>{
-      h+='<div style="border-right:3px solid var(--border2);padding:5px 10px;margin-bottom:6px;font-size:12px;color:var(--text2);line-height:1.5;">'+esc(r)+'</div>';
+    h+='<div style="display:flex;padding:12px 16px;flex-direction:column;gap:8px;">';
+    cleanRes.forEach((r,i)=>{
+      const p=parseResEntry(r);
+      const hasContent=p.answer||p.fix||p.tech||p.work;
+      const answer=(p.answer||'').trim();
+      const fix=(p.fix||'').trim();
+      const tech=(p.tech||'').trim();
+      const work=(p.work||'').replace(/\s*דקות.*$/,'').trim();
+      const date=(p.date||'').trim();
+      const isLast=i===cleanRes.length-1;
+      h+='<div style="display:flex;gap:10px;">';
+      /* timeline dot */
+      h+='<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">';
+      h+='<div style="width:10px;height:10px;border-radius:50%;background:'+(isLast?'#10b981':'var(--border2)')+';border:2px solid '+(isLast?'#10b981':'var(--text3)')+';margin-top:3px;"></div>';
+      if(!isLast)h+='<div style="width:2px;flex:1;background:var(--border);margin-top:3px;"></div>';
+      h+='</div>';
+      /* entry content */
+      h+='<div style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:'+(isLast?'0':'0')+'px;">';
+      /* date + tech row */
+      h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:'+(answer||fix?'7':'0')+'px;">';
+      if(date)h+='<span style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:3px;"><i class="bi bi-calendar2-check" style="font-size:11px;"></i>'+esc(date)+'</span>';
+      if(tech)h+='<span style="font-size:11px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:3px;background:var(--accent-dim);padding:1px 7px;border-radius:10px;"><i class="bi bi-person-gear" style="font-size:11px;"></i>'+esc(tech)+'</span>';
+      if(work&&work!=='0')h+='<span style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:3px;"><i class="bi bi-clock" style="font-size:11px;"></i>'+esc(work)+' דקות</span>';
+      h+='</div>';
+      if(answer){
+        h+='<div style="font-size:13px;color:var(--text);line-height:1.6;border-right:3px solid #10b981;padding-right:8px;">'+esc(answer)+'</div>';
+      } else if(fix){
+        h+='<div style="font-size:13px;color:var(--text2);line-height:1.6;border-right:3px solid var(--border2);padding-right:8px;">'+esc(fix)+'</div>';
+      } else if(!date&&!tech){
+        h+='<div style="font-size:12px;color:var(--text3);font-style:italic;">ללא תוכן</div>';
+      }
+      h+='</div>';
+      h+='</div>';
     });
     h+='</div>';
     h+='</div>';
@@ -1083,14 +1128,14 @@ function gsClose(){
   document.getElementById('gs-results').innerHTML='';
 }
 function gsEmpty(){
-  const hints={stores:'שם, מספר, עיר או טלפון',calls:'מספר קריאה, טלפון, IMEI או שם לקוח',contacts:'שם, טלפון או חברה',products:'שם מוצר, מקט או ברקוד',pbx:'מספר טלפון לחיפוש שיחות מרכזיה'};
+  const hints={stores:'שם חנות, מספר, עיר, טלפון, שם איש קשר או חברה',calls:'מספר קריאה, טלפון, IMEI או שם לקוח',products:'שם מוצר, מקט או ברקוד',pbx:'מספר טלפון לחיפוש שיחות מרכזיה'};
   document.getElementById('gs-results').innerHTML=
     '<div class="gs-empty"><i class="bi bi-search"></i>'+
     '<div>הקלד ולחץ <kbd style="background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:1px 6px;font-size:11px;font-family:var(--font);">Enter</kbd> לחיפוש</div>'+
     (hints[_gsScope]?'<div style="font-size:11px;margin-top:5px;opacity:.55;">'+hints[_gsScope]+'</div>':'')+
     '</div>';
 }
-const _gsScopes=['stores','calls','contacts','products'<?= !empty($canPbxSearch)?",'pbx'":'' ?>];
+const _gsScopes=['stores','calls','products'<?= !empty($canPbxSearch)?",'pbx'":'' ?>];
 function gsSetScope(scope){
   _gsScope=scope;
   document.querySelectorAll('.gs-scope').forEach(b=>b.classList.toggle('gs-scope-active',b.dataset.scope===scope));
@@ -1120,7 +1165,7 @@ function gsRenderStores(stores,q){
     const num=E(s.id||'');
     const onclick=typeof openStoreView!=='undefined'
       ?'openStoreView(\''+num+'\')'
-      :'window.location.href=BASE+\'/stores/\'+encodeURIComponent(\''+num+'\')';
+      :'window.location.href=BASE+\'/stores/id/\'+encodeURIComponent(\''+num+'\')';
     h+='<div class="gs-row" onclick="'+onclick+'">';
     h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+gsHl(s.store_num,q)+'</span>';
     h+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:14px;">'+gsHl(s.name,q)+'</div>';
@@ -1219,7 +1264,7 @@ async function gsAutoSearch(q){
   const res=document.getElementById('gs-results');
   const E=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   res.innerHTML='<div class="gs-empty"><i class="bi bi-hourglass-split"></i>מחפש...</div>';
-  const[contacts,stores]=await Promise.all([
+  const[contacts,stores,users]=await Promise.all([
     fetch(BASE+'/api/contacts?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]),
     (()=>{
       const pool=[...(window.ALL_BUG||[]),...(window.ALL_MODAN||[])];
@@ -1233,19 +1278,41 @@ async function gsAutoSearch(q){
         ).slice(0,10));
       }
       return fetch(BASE+'/api/stores?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]);
-    })()
+    })(),
+    fetch(BASE+'/api/users/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[])
   ]);
   const cArr=Array.isArray(contacts)?contacts:[];
   const sArr=Array.isArray(stores)?stores:[];
-  if(!cArr.length&&!sArr.length){
+  const uArr=Array.isArray(users)?users:[];
+  if(!cArr.length&&!sArr.length&&!uArr.length){
     res.innerHTML='<div class="gs-empty"><i class="bi bi-search"></i>לא נמצאו תוצאות עבור "'+E(q)+'"</div>';
     return;
   }
   const typeCol={'נותן שירות':'#10b981','פנים ארגוני':'#5b8dee','ספק':'#f59e0b','תמיכה טכנית':'#06b6d4','איש קשר':'#8b5cf6','אחר':'#7c829c'};
   const avatarColors=['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f97316'];
   let h='<div>';
+  if(uArr.length){
+    h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);"><i class="bi bi-person-badge-fill" style="margin-left:4px;"></i>משתמשים</div>';
+    uArr.forEach(u=>{
+      const fullName=((u.first_name||'')+' '+(u.last_name||'')).trim();
+      const hash=fullName.split('').reduce((a,ch)=>Math.imul(31,a)+ch.charCodeAt(0)|0,0);
+      const acolor=avatarColors[Math.abs(hash)%avatarColors.length];
+      h+='<div class="gs-row" tabindex="-1" onclick="window.location.href=BASE+\'/users/\'+'+u.id+'">';
+      h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">'+E((u.first_name||'?').charAt(0))+'</div>';
+      h+='<div style="flex:1;min-width:0;">';
+      h+='<div style="font-weight:600;">'+gsHl(fullName,q)+'</div>';
+      const meta=[];
+      if(u.dept_name)meta.push('<i class="bi bi-building" style="font-size:10px;margin-left:2px;"></i>'+E(u.dept_name));
+      if(u.group_name)meta.push('<i class="bi bi-shield-fill" style="font-size:10px;margin-left:2px;"></i>'+E(u.group_name));
+      if(meta.length)h+='<div style="font-size:11px;color:var(--text3);display:flex;gap:10px;">'+meta.join('')+'</div>';
+      if(u.phone)h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-telephone-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(u.phone,q)+'</div>';
+      h+='</div>';
+      if(u.email)h+='<div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;">'+gsHl(u.email,q)+'</div>';
+      h+='</div>';
+    });
+  }
   if(cArr.length){
-    h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);"><i class="bi bi-people-fill" style="margin-left:4px;"></i>אנשי קשר</div>';
+    h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+(uArr.length?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-people-fill" style="margin-left:4px;"></i>אנשי קשר</div>';
     _gsContacts=cArr;
     cArr.forEach((c,i)=>{
       const fullName=((c.first_name||'')+' '+(c.last_name||'')).trim();
@@ -1264,13 +1331,13 @@ async function gsAutoSearch(q){
     });
   }
   if(sArr.length){
-    h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+(cArr.length?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-shop" style="margin-left:4px;"></i>חנויות</div>';
+    h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+((uArr.length||cArr.length)?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-shop" style="margin-left:4px;"></i>חנויות</div>';
     sArr.forEach(s=>{
       const col=(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
       const num=E(s.id||'');
       const onclick=typeof openStoreView!=='undefined'
         ?'openStoreView(\''+num+'\')'
-        :'window.location.href=BASE+\'/stores/\'+encodeURIComponent(\''+num+'\')';
+        :'window.location.href=BASE+\'/stores/id/\'+encodeURIComponent(\''+num+'\')';
       h+='<div class="gs-row" tabindex="-1" onclick="'+onclick+'">';
       h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+gsHl(s.store_num,q)+'</span>';
       h+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:14px;">'+gsHl(s.name,q)+'</div>';
@@ -1290,25 +1357,12 @@ async function gsSearch(){
   const res=document.getElementById('gs-results');
   const E=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   if(_gsScope==='stores'){
-    const pool=[...(window.ALL_BUG||[]),...(window.ALL_MODAN||[])];
-    if(pool.length){
-      const ql=q.toLowerCase();
-      const matches=pool.filter(s=>(s.name||'').toLowerCase().includes(ql)||(s.store_num||'').includes(ql)||(s.phone_main||'').includes(ql)||(s.city||'').toLowerCase().includes(ql)).slice(0,15);
-      gsRenderStores(matches,q);
-    }else{
-      res.innerHTML='<div class="gs-empty"><i class="bi bi-hourglass-split"></i>טוען...</div>';
-      try{const r=await fetch(BASE+'/api/stores?q='+encodeURIComponent(q));const data=await r.json();gsRenderStores(Array.isArray(data)?data:[],q);}
-      catch(e){res.innerHTML='<div style="padding:14px;"><div class="alert alert-error"><i class="bi bi-wifi-off"></i> שגיאת תקשורת</div></div>';}
-    }
+    await gsAutoSearch(q);
   }else if(_gsScope==='calls'){
     gsClose();
     openWizModal();
     document.getElementById('wiz-input').value=q;
     doWizSearch();
-  }else if(_gsScope==='contacts'){
-    res.innerHTML='<div class="gs-empty"><i class="bi bi-hourglass-split"></i>טוען...</div>';
-    try{const r=await fetch(BASE+'/api/contacts?q='+encodeURIComponent(q));const data=await r.json();gsRenderContacts(Array.isArray(data)?data:[],q);}
-    catch(e){res.innerHTML='<div style="padding:14px;"><div class="alert alert-error"><i class="bi bi-wifi-off"></i> שגיאת תקשורת</div></div>';}
   }else if(_gsScope==='products'){
     res.innerHTML='<div class="gs-empty"><i class="bi bi-hourglass-split"></i>מחפש מוצרים...</div>';
     try{const r=await fetch(BASE+'/api/products?query='+encodeURIComponent(q));const data=await r.json();gsRenderProducts(Array.isArray(data)?data:[],q);}
@@ -1332,7 +1386,7 @@ _gsInput.addEventListener('input',e=>{
   si.value=e.target.value;
   _gsHighlightIdx=-1;
   const q=e.target.value.trim();
-  if(q.length>2) gsAutoSearch(q);
+  if(q.length>=2) gsAutoSearch(q);
   else gsEmpty();
 });
 
@@ -1350,9 +1404,6 @@ _gsInput.addEventListener('keydown',e=>{
     }
     gsSearch();
   }
-  // Arrow keys navigate scopes (RTL: Right=prev, Left=next)
-  else if(e.key==='ArrowRight'){e.preventDefault();gsNavScope(-1);}
-  else if(e.key==='ArrowLeft') {e.preventDefault();gsNavScope(1);}
 });
 
 _gsModal.addEventListener('click',e=>{if(e.target===_gsModal)gsClose();});
