@@ -578,6 +578,10 @@ body.grid-compact .new-badge{display:none;}
 /* confetti particles inside is-new grid cards */
 .confetti-dot{position:absolute;top:0;pointer-events:none;opacity:0;animation:cdrop var(--dur,2.4s) ease-in var(--delay,0s) infinite;}
 @keyframes cdrop{0%{transform:translateY(-10px) rotate(0deg) scale(1);opacity:.95;}60%{opacity:.6;}100%{transform:translateY(calc(var(--h,100px) + 12px)) rotate(400deg) scale(.7);opacity:0;}}
+/* confetti inside store-view modal */
+#sv-inner{position:relative;overflow:hidden;}
+.sv-confetti-dot{position:absolute;top:0;pointer-events:none;opacity:0;animation:svcdrop var(--dur,2.2s) ease-in var(--delay,0s) 3;}
+@keyframes svcdrop{0%{transform:translateY(-10px) rotate(0deg) scale(1);opacity:.9;}65%{opacity:.55;}100%{transform:translateY(var(--fall,200px)) rotate(380deg) scale(.65);opacity:0;}}
 /* table row highlight for new stores */
 #bug-tbody tr.s-row.is-new,#modan-tbody tr.s-row.is-new{background:linear-gradient(270deg,rgba(16,185,129,.07) 0%,transparent 55%) !important;}
 #bug-tbody tr.s-row.is-new:hover,#modan-tbody tr.s-row.is-new:hover{background:linear-gradient(270deg,rgba(16,185,129,.13) 0%,var(--bg3) 55%) !important;}
@@ -868,6 +872,27 @@ async function openStoreView(id){
 
   document.getElementById('sv-body').innerHTML=html;
   document.getElementById('sv-modal').style.display='flex';
+
+  // Confetti burst for new stores
+  const isNewStore=!!(s.created_at && (Date.now()-new Date(s.created_at).getTime()) < 7*24*3600*1000);
+  const svInner=document.getElementById('sv-inner');
+  svInner.querySelectorAll('.sv-confetti-dot').forEach(el=>el.remove());
+  if(isNewStore){
+    const COLS=['#10b981','#34d399','#6ee7b7','#f59e0b','#fbbf24','#60a5fa','#a78bfa','#f472b6'];
+    for(let i=0;i<18;i++){
+      const d=document.createElement('span');
+      d.className='sv-confetti-dot';
+      const x=4+Math.random()*92;
+      const size=3+Math.random()*5;
+      d.style.cssText=`left:${x}%;background:${COLS[i%COLS.length]};`+
+        `width:${size}px;height:${size}px;`+
+        `--dur:${(1.8+Math.random()*2.2).toFixed(2)}s;`+
+        `--delay:${(Math.random()*1.5).toFixed(2)}s;`+
+        `--fall:${220+Math.floor(Math.random()*120)}px;`+
+        (Math.random()>.5?'border-radius:2px;':'border-radius:50%;');
+      svInner.appendChild(d);
+    }
+  }
 
   // Area managers — async
   try{
