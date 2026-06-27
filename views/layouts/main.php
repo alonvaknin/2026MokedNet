@@ -598,13 +598,30 @@ async function doWizSearch(){
   const queries=[...new Set(raw.split(',').map(s=>s.trim()).filter(Boolean))].slice(0,10);
   const isMulti=queries.length>1;
 
-  resultsEl.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3);"><i class="bi bi-hourglass-split" style="font-size:28px;display:block;margin-bottom:10px;animation:wiz-spin 1s linear infinite;"></i>מחפש'+(isMulti?' '+queries.length+' קריאות...':'...')+'</div>';
+  const skelCount=isMulti?Math.min(queries.length,3):1;
+  let skelHtml='';
+  for(let _s=0;_s<skelCount;_s++){
+    skelHtml+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;padding:16px;">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+        <div class="wiz-skel" style="width:70px;height:22px;"></div>
+        <div class="wiz-skel" style="width:54px;height:18px;border-radius:10px;"></div>
+        <div style="flex:1"></div>
+        <div class="wiz-skel" style="width:80px;height:18px;"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="wiz-skel" style="width:55%;height:13px;"></div>
+        <div class="wiz-skel" style="width:40%;height:13px;"></div>
+        <div class="wiz-skel" style="width:65%;height:13px;"></div>
+        <div class="wiz-skel" style="width:30%;height:13px;"></div>
+      </div>
+    </div>`;
+  }
+  resultsEl.innerHTML=skelHtml;
   btn.disabled=true;
 
   try{
     if(isMulti){
       // Parallel fetch for all queries (callid only)
-      resultsEl.innerHTML='';
       let found=0;
       const fetchOne=async(q)=>{
         const clean=q.replace(/\D/g,'');
@@ -614,11 +631,13 @@ async function doWizSearch(){
           const res=await fetch(url);const data=await res.json();
           if(data.ok){
             found++;
+            if(found===1)resultsEl.innerHTML='';
             renderWizCall(resultsEl,data,true,q);
             const phone=data.contactCell||data.companyPhone||'';
             if(phone)showPhoneQuick(phone);
             wizHistAdd({q,type:'call',sub:buildHistSub(data)});
           }else{
+            if(found===0)resultsEl.innerHTML='';
             resultsEl.insertAdjacentHTML('beforeend',
               '<div style="font-size:12px;color:var(--text3);padding:6px 0;border-bottom:1px solid var(--border);">קריאה #'+esc(q)+' — לא נמצאה</div>');
           }
@@ -753,7 +772,29 @@ function renderWizCall(container,d,append,searchQuery){
     subjectsData=[{name:d.sla,desc:''}];
 
   /* ── resolution cleanup ── */
-  const cleanRes=(d.resolution||[]).filter(r=>r.replace(/[\s:;,]/g,'').length>5);
+  function parseResEntry(r){
+    const get=(key)=>{
+      const re=new RegExp(key+':\\s*(.*?)(?=,?\\s*(?:טכנאי|תיקונים|תשובה|עבודה|תעוד)[^:]*:|[;#]|$)');
+      const m=r.match(re);
+      return m?m[1].trim():'';
+    };
+    return {
+      date:   get('ת\\.עדכון'),
+      tech:   get('טכנאי'),
+      fix:    get('תיקונים'),
+      answer: get('תשובה'),
+      work:   get('עבודה'),
+      damage: get('תעוד נזק פיזי בנק'),
+    };
+  }
+  const cleanRes=(d.resolution||[]).filter(r=>{
+    const p=parseResEntry(r);
+    const answer=(p.answer||'').trim();
+    const fix=(p.fix||'').trim();
+    const tech=(p.tech||'').trim();
+    const work=(p.work||'').replace(/\s*דקות.*$/,'').trim();
+    return answer||fix||tech||(work&&work!=='0');
+  });
 
   /* ── build card ── */
   let h='';
@@ -945,22 +986,6 @@ function renderWizCall(container,d,append,searchQuery){
 
   /* RESOLUTION — parse structured fields and display as timeline */
   if(cleanRes.length){
-    /* Parse each entry: "ת.עדכון: DATE, טכנאי: NAME, תיקונים: FIX, תשובה: ANSWER, עבודה: MINS דקות, ..." */
-    function parseResEntry(r){
-      const get=(key)=>{
-        const re=new RegExp(key+':\\s*([^,;]+?)(?=,\\s*(?:טכנאי|תיקונים|תשובה|עבודה|תעוד)|[;]|$)');
-        const m=r.match(re);
-        return m?m[1].trim():'';
-      };
-      return {
-        date:   get('ת\\.עדכון'),
-        tech:   get('טכנאי'),
-        fix:    get('תיקונים'),
-        answer: get('תשובה'),
-        work:   get('עבודה'),
-        damage: get('תעוד נזק פיזי בנק'),
-      };
-    }
     h+='<div style="border-top:2px solid rgba(16,185,129,.3);">';
     h+='<button onclick="var nx=this.nextElementSibling;nx.style.display=nx.style.display===\'none\'?\'flex\':\'none\';" '
       +'style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(16,185,129,.06);border:none;cursor:pointer;color:#10b981;font-size:12px;font-family:var(--font);font-weight:700;">'
@@ -969,12 +994,12 @@ function renderWizCall(container,d,append,searchQuery){
     h+='<div style="display:flex;padding:12px 16px;flex-direction:column;gap:8px;">';
     cleanRes.forEach((r,i)=>{
       const p=parseResEntry(r);
-      const hasContent=p.answer||p.fix||p.tech||p.work;
       const answer=(p.answer||'').trim();
       const fix=(p.fix||'').trim();
       const tech=(p.tech||'').trim();
       const work=(p.work||'').replace(/\s*דקות.*$/,'').trim();
       const date=(p.date||'').trim();
+      if(!answer&&!fix&&!tech&&(!work||work==='0')) return;
       const isLast=i===cleanRes.length-1;
       h+='<div style="display:flex;gap:10px;">';
       /* timeline dot */
@@ -994,8 +1019,6 @@ function renderWizCall(container,d,append,searchQuery){
         h+='<div style="font-size:13px;color:var(--text);line-height:1.6;border-right:3px solid #10b981;padding-right:8px;">'+esc(answer)+'</div>';
       } else if(fix){
         h+='<div style="font-size:13px;color:var(--text2);line-height:1.6;border-right:3px solid var(--border2);padding-right:8px;">'+esc(fix)+'</div>';
-      } else if(!date&&!tech){
-        h+='<div style="font-size:12px;color:var(--text3);font-style:italic;">ללא תוכן</div>';
       }
       h+='</div>';
       h+='</div>';
@@ -1509,7 +1532,11 @@ function gsOpenContactView(c){
 function closeGcv(){document.getElementById('gcv-modal').style.display='none';}
 document.getElementById('gcv-modal')?.addEventListener('click',e=>{if(e.target===document.getElementById('gcv-modal'))closeGcv();});
 </script>
-<style>@keyframes wiz-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+<style>
+@keyframes wiz-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes wiz-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.wiz-skel{background:linear-gradient(90deg,var(--bg3) 25%,var(--border) 50%,var(--bg3) 75%);background-size:200% 100%;animation:wiz-shimmer 1.4s ease infinite;border-radius:6px;}
+</style>
 <?php
 $fmtComponent = __DIR__ . '/../components/formatter-modal.php';
 if (file_exists($fmtComponent)) include $fmtComponent;

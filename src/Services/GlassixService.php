@@ -13,7 +13,8 @@ use Core\DB;
  */
 class GlassixService
 {
-    private const BASE_URL = 'https://bug-multisystem.glassix.com/api/v1.2';
+    private const BASE_URL      = 'https://bug-multisystem.glassix.com/api/v1.2';
+    private const FALLBACK_EMAIL = 'alon@leonai.io';
 
     // API keys לפי slug מה-dropdown (support / service / sales)
     private const DEPT_KEYS = [
@@ -34,6 +35,106 @@ class GlassixService
         $this->deptSlug  = $deptSlug;
         $this->userEmail = $userEmail;
         $this->userId    = $userId;
+    }
+
+    /**
+     * מחזיר tickets שנפתחו/עודכנו ב-12 ימים האחרונים עבור מספר טלפון.
+     * מחזיר ['ok' => true, 'data' => [...]] או ['ok' => false, 'error' => '...']
+     */
+    public function getTicketsByPhone(string $phone): array
+    {
+        $phone = $this->normalizePhone($phone);
+        if (!$phone) {
+            return ['ok' => false, 'error' => 'מספר טלפון לא תקין'];
+        }
+
+        [$token, $tokenErr] = $this->getToken();
+        if (!$token) {
+            return ['ok' => false, 'error' => 'לא ניתן לקבל token', 'debug' => $tokenErr];
+        }
+
+        $since = date('Y-m-d\TH:i:s', strtotime('-12 days'));
+        $res = $this->curl('GET', '/tickets/all?' . http_build_query([
+            'phoneNumber' => $phone,
+            'sinceDate'   => $since,
+            'pageSize'    => 50,
+        ]), [], $token);
+
+        if (!is_array($res)) {
+            return ['ok' => false, 'error' => 'תגובה לא תקינה מ-Glassix'];
+        }
+
+        $tickets = $res['data'] ?? $res ?? [];
+        if (!is_array($tickets)) {
+            $tickets = [];
+        }
+
+        $result = [];
+        foreach ($tickets as $t) {
+            $agent = '';
+            $dept  = '';
+            foreach ($t['participants'] ?? [] as $p) {
+                if (($p['type'] ?? '') === 'Agent') {
+                    $agent = $p['name'] ?? '';
+                }
+                if (($p['type'] ?? '') === 'Department') {
+                    $dept = $p['name'] ?? '';
+                }
+            }
+            if (!is_array($t)) continue;
+            $ticketId = $t['id'] ?? $t['uniqueId'] ?? $t['ticketId'] ?? $t['ticket_id'] ?? '';
+            $result[] = [
+                'id'         => $ticketId,
+                '_raw_keys'  => array_keys($t),
+                'subject'    => $t['field1'] ?? $t['subject'] ?? '',
+                'state'      => $t['state'] ?? '',
+                'created_at' => isset($t['dateCreated']) ? date('d/m/Y H:i', strtotime($t['dateCreated'])) : '',
+                'updated_at' => isset($t['dateModified']) ? date('d/m/Y H:i', strtotime($t['dateModified'])) : '',
+                'agent'      => $agent,
+                'dept'       => $dept,
+                'channel'    => $t['protocolType'] ?? '',
+            ];
+        }
+
+        usort($result, fn($a, $b) => strcmp($b['updated_at'], $a['updated_at']));
+        return ['ok' => true, 'data' => $result];
+    }
+
+    /**
+     * מחזיר הודעות של ticket ספציפי.
+     */
+    public function getTicketMessages(string|int $ticketId): array
+    {
+        [$token, $tokenErr] = $this->getToken();
+        if (!$token) {
+            return ['ok' => false, 'error' => 'לא ניתן לקבל token', 'debug' => $tokenErr];
+        }
+
+        $res = $this->curl('GET', "/tickets/{$ticketId}/messages", [], $token);
+
+        if (!is_array($res)) {
+            return ['ok' => false, 'error' => 'תגובה לא תקינה'];
+        }
+
+        $messages = $res['data'] ?? $res ?? [];
+        if (!is_array($messages)) {
+            $messages = [];
+        }
+
+        $result = [];
+        foreach ($messages as $m) {
+            $result[] = [
+                'id'        => $m['id'] ?? '',
+                'type'      => $m['type'] ?? 'text',
+                'text'      => $m['text'] ?? $m['html'] ?? '',
+                'sender'    => $m['participantName'] ?? '',
+                'sender_type' => $m['participantType'] ?? '',
+                'time'      => isset($m['dateCreated']) ? date('d/m/Y H:i', strtotime($m['dateCreated'])) : '',
+                'media_url' => $m['fileUrl'] ?? '',
+            ];
+        }
+
+        return ['ok' => true, 'data' => $result];
     }
 
     /**
@@ -101,18 +202,27 @@ class GlassixService
         // נסה DB קודם — cache לפי user+dept
         $row = DB::row(
             'SELECT token FROM glassix_token
-             WHERE user_mail = ? AND dept_slug = ? AND expires_in > NOW() LIMIT 1',
-            [$this->userEmail, $this->deptSlug]
+             WHERE dept_slug = ? AND expires_in > NOW() LIMIT 1',
+            [$this->deptSlug]
         );
         if ($row) return [$row['token'], null];
 
-        // קבל token חדש מ-Glassix
+        // קבל token חדש מ-Glassix עם המייל הנוכחי
         $creds = self::DEPT_KEYS[$this->deptSlug] ?? self::DEPT_KEYS['service'];
         $res   = $this->curl('POST', '/token/get', [
             'apiKey'    => $creds['key'],
             'apiSecret' => $creds['secret'],
             'userName'  => $this->userEmail,
         ]);
+
+        // אם נכשל — נסה עם fallback email
+        if (!isset($res['access_token']) && $this->userEmail !== self::FALLBACK_EMAIL) {
+            $res = $this->curl('POST', '/token/get', [
+                'apiKey'    => $creds['key'],
+                'apiSecret' => $creds['secret'],
+                'userName'  => self::FALLBACK_EMAIL,
+            ]);
+        }
 
         if (!isset($res['access_token'])) {
             return [null, ['slug' => $this->deptSlug, 'email' => $this->userEmail, 'response' => $res]];
@@ -121,7 +231,6 @@ class GlassixService
         $token   = $res['access_token'];
         $expires = date('Y-m-d H:i:s', time() + (int)($res['expires_in'] ?? 3600));
 
-        // שמור ב-DB — unique לפי user+dept
         DB::execute(
             'INSERT INTO glassix_token (user_id, user_mail, dept_slug, token, expires_in)
              VALUES (?, ?, ?, ?, ?)

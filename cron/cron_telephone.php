@@ -68,12 +68,13 @@ if ($debug) {
     exit;
 }
 
+$totalLines = count($phones);
 if (!empty($failLines)) {
-    $details = "קווים כשלו: " . implode(', ', $failLines);
+    $details = "נבדקו: {$totalLines} | כשלו: " . implode(', ', $failLines);
     if ($mailErrors > 0) $details .= " | שגיאות שליחה: {$mailErrors}";
     cronLog($pdoLog, 'run', $mailErrors > 0 ? 'error' : 'ok', $details);
 } else {
-    cronLog($pdoLog, 'run', 'ok', 'כל הקווים תקינים');
+    cronLog($pdoLog, 'run', 'ok', "נבדקו: {$totalLines} | כל הקווים תקינים");
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────

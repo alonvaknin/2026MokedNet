@@ -57,6 +57,15 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
         </option>
       <?php endforeach; ?>
     </select>
+    <?php if ($canEdit): ?>
+    <button id="ct-show-inactive" onclick="ctToggleInactive()"
+            style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
+                   background:var(--bg3);border:1px solid var(--border);border-radius:7px;
+                   color:var(--text3);font-size:12px;font-family:var(--font);cursor:pointer;
+                   transition:all .15s;white-space:nowrap;">
+      <i class="bi bi-eye-slash"></i> לא פעילים
+    </button>
+    <?php endif; ?>
     <div style="flex:1;"></div>
     <div id="ct-result-count" style="font-size:12px;color:var(--text3);"></div>
     <div class="view-toggle">
@@ -89,13 +98,14 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
 <!-- ── Grid view ── -->
 <div id="ct-grid" class="ct-grid">
 <?php foreach ($contacts as $c):
-  $ctype   = $c['contact_type'] ?? 'איש קשר';
-  $tc      = $typeColors[$ctype] ?? $typeColors['אחר'];
-  $initials= mb_substr($c['first_name']??'?',0,1).mb_substr($c['last_name']??'',0,1);
-  $acolor  = $avatarColors[abs(crc32(($c['first_name']??'').($c['last_name']??''))) % count($avatarColors)];
-  $tags    = array_filter(array_map('trim', explode(',', $c['tags'] ?? '')));
+  $ctype    = $c['contact_type'] ?? 'איש קשר';
+  $tc       = $typeColors[$ctype] ?? $typeColors['אחר'];
+  $initials = mb_substr($c['first_name']??'?',0,1).mb_substr($c['last_name']??'',0,1);
+  $acolor   = $avatarColors[abs(crc32(($c['first_name']??'').($c['last_name']??''))) % count($avatarColors)];
+  $tags     = array_filter(array_map('trim', explode(',', $c['tags'] ?? '')));
+  $isActive = (int)($c['is_active'] ?? 1) === 1;
 ?>
-<div class="ct-card"
+<div class="ct-card <?= $isActive?'':'ct-card-inactive' ?>"
      data-id="<?= (int)$c['id'] ?>"
      data-name="<?= strtolower(View::e(($c['first_name']??'').' '.($c['last_name']??''))) ?>"
      data-phone="<?= View::e($c['phone']??'') ?>"
@@ -103,6 +113,7 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
      data-dept="<?= View::e($c['department']??'') ?>"
      data-tags="<?= strtolower(View::e($c['tags']??'')) ?>"
      data-role="<?= strtolower(View::e($c['role']??'')) ?>"
+     data-active="<?= $isActive?'1':'0' ?>"
      onclick="openCtView(<?= (int)$c['id'] ?>)"
      style="border-right:3px solid <?= $tc['color'] ?>;">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
@@ -110,9 +121,16 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
       <?= View::e($ctype) ?>
     </span>
     <?php if ($canEdit): ?>
-    <button class="ct-edit-btn" onclick="event.stopPropagation();openCtEdit(<?= (int)$c['id'] ?>)" title="ערוך">
-      <i class="bi bi-pencil-fill"></i>
-    </button>
+    <div style="display:flex;gap:5px;" onclick="event.stopPropagation()">
+      <button class="ct-edit-btn" onclick="openCtEdit(<?= (int)$c['id'] ?>)" title="ערוך">
+        <i class="bi bi-pencil-fill"></i>
+      </button>
+      <button class="ct-edit-btn <?= $isActive?'ct-toggle-danger':'' ?>"
+              onclick="doCtToggle(<?= (int)$c['id'] ?>)"
+              title="<?= $isActive?'השבת':'הפעל' ?>">
+        <i class="bi bi-toggle-<?= $isActive?'on':'off' ?>"></i>
+      </button>
+    </div>
     <?php endif; ?>
   </div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
@@ -444,6 +462,9 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
 .ct-tag{font-size:10px;background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:1px 7px;color:var(--text3)}
 .ct-edit-btn{background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:3px 7px;cursor:pointer;font-size:11px;color:var(--text3);transition:all .13s}
 .ct-edit-btn:hover{background:var(--accent-dim);color:var(--accent)}
+.ct-toggle-danger:hover{background:rgba(239,68,68,.1)!important;color:#ef4444!important;border-color:rgba(239,68,68,.3)!important}
+.ct-card-inactive{opacity:.5;}
+.ct-card-inactive:hover{opacity:.75;}
 /* ── Table ── */
 .cth{padding:10px 14px;text-align:right;font-weight:600;font-size:12px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
 .ctd{padding:11px 14px;vertical-align:middle}
@@ -480,7 +501,62 @@ const CT_PK = 'v2_ct';
 function ctPref(k,d){try{const p=JSON.parse(localStorage.getItem(CT_PK)||'{}');return k in p?p[k]:d;}catch{return d;}}
 function ctSetPref(k,v){try{const p=JSON.parse(localStorage.getItem(CT_PK)||'{}');p[k]=v;localStorage.setItem(CT_PK,JSON.stringify(p));}catch{}}
 
-let _ctView = ctPref('view','grid');
+let _ctView         = ctPref('view','grid');
+let _ctShowInactive = false;
+
+<?php if ($canEdit): ?>
+function ctToggleInactive() {
+  _ctShowInactive = !_ctShowInactive;
+  const btn = document.getElementById('ct-show-inactive');
+  if (btn) {
+    btn.style.background  = _ctShowInactive ? 'var(--accent-dim)'     : 'var(--bg3)';
+    btn.style.borderColor = _ctShowInactive ? 'rgba(91,141,238,.4)'   : 'var(--border)';
+    btn.style.color       = _ctShowInactive ? 'var(--accent)'         : 'var(--text3)';
+    btn.innerHTML         = _ctShowInactive
+      ? '<i class="bi bi-eye"></i> לא פעילים'
+      : '<i class="bi bi-eye-slash"></i> לא פעילים';
+  }
+  if (_ctShowInactive) ctSortInactiveFirst();
+  ctFilter();
+}
+
+function ctSortInactiveFirst() {
+  // sort: inactive first (by updated_at desc), then active (by updated_at desc)
+  const byId = {};
+  CT_ALL.forEach(c => { byId[c.id] = c; });
+
+  function sortKey(el) {
+    const c = byId[el.dataset.id];
+    const active = el.dataset.active === '1' ? 1 : 0;
+    const ts = c && c.updated_at ? new Date(c.updated_at).getTime() : 0;
+    return [active, -ts]; // inactive (0) first, newest first within group
+  }
+
+  // sort grid cards
+  const grid = document.getElementById('ct-grid');
+  if (grid) {
+    Array.from(grid.children)
+      .sort((a, b) => {
+        const [aa, at] = sortKey(a);
+        const [ba, bt] = sortKey(b);
+        return aa !== ba ? aa - ba : at - bt;
+      })
+      .forEach(el => grid.appendChild(el));
+  }
+
+  // sort table rows
+  const tbody = document.getElementById('ct-tbody');
+  if (tbody) {
+    Array.from(tbody.querySelectorAll('.ct-row'))
+      .sort((a, b) => {
+        const [aa, at] = sortKey(a);
+        const [ba, bt] = sortKey(b);
+        return aa !== ba ? aa - ba : at - bt;
+      })
+      .forEach(el => tbody.appendChild(el));
+  }
+}
+<?php endif; ?>
 function ctSetView(v) {
   _ctView = v; ctSetPref('view', v);
   document.getElementById('ct-grid').style.display  = v==='grid'  ? 'grid'  : 'none';
@@ -525,7 +601,8 @@ function ctFilter() {
                  (el.dataset.tags||'').includes(q) || (el.dataset.role||'').includes(q);
     const md   = !dept || el.dataset.dept === dept;
     const mt   = _activeTypes.size === 0 || _activeTypes.has(el.dataset.type);
-    const show = mq && md && mt;
+    const ma   = _ctShowInactive ? el.dataset.active === '0' : el.dataset.active !== '0';
+    const show = mq && md && mt && ma;
     el.style.display = show ? '' : 'none';
     if (show) vis++;
   });

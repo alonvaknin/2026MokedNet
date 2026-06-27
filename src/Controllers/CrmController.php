@@ -6,6 +6,7 @@ namespace Controllers;
 use Core\Controller;
 use Core\Auth;
 use Core\DB;
+use Services\GlassixService;
 
 class CrmController extends Controller
 {
@@ -393,5 +394,71 @@ class CrmController extends Controller
             http_response_code(500);
             echo json_encode(['ok' => false, 'data' => []]);
         }
+    }
+
+    // ── GET /api/crm/glassix-history?phone=05XXXXXXXX ───────────────────────
+    public function apiGlassixHistory(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $user  = Auth::user();
+        $phone = preg_replace('/\D/', '', $_GET['phone'] ?? '');
+        if (strlen($phone) < 7) {
+            echo json_encode(['ok' => false, 'error' => 'invalid phone', 'data' => []]);
+            return;
+        }
+
+        $userId    = (int)($user['id']    ?? 0);
+        $userEmail = $user['email']        ?? '';
+        $depts     = ['service', 'support', 'sales'];
+        $all       = [];
+        $errors    = [];
+
+        foreach ($depts as $dept) {
+            try {
+                $svc = new GlassixService($dept, $userEmail, $userId);
+                $res = $svc->getTicketsByPhone($phone);
+                if ($res['ok'] && !empty($res['data'])) {
+                    foreach ($res['data'] as $t) {
+                        $t['dept_slug'] = $dept;
+                        $all[] = $t;
+                    }
+                } elseif (!$res['ok']) {
+                    $errors[] = $dept . ': ' . ($res['error'] ?? '');
+                }
+            } catch (\Throwable $ex) {
+                $errors[] = $dept . ': ' . $ex->getMessage();
+            }
+        }
+
+        usort($all, fn($a, $b) => strcmp($b['updated_at'] ?? '', $a['updated_at'] ?? ''));
+        // אם אין תוצאות בכלל ויש שגיאות — החזר debug
+        echo json_encode([
+            'ok'     => true,
+            'data'   => $all,
+            'errors' => $errors,
+            'debug'  => empty($all) && !empty($errors) ? ['userEmail' => $userEmail] : null,
+        ]);
+    }
+
+    // ── POST /api/crm/glassix-messages ──────────────────────────────────────
+    public function apiGlassixMessages(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $user = Auth::user();
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $ticketId = trim($body['ticket_id'] ?? '');
+        $dept     = trim($body['dept']      ?? 'service');
+
+        if (!$ticketId) {
+            echo json_encode(['ok' => false, 'error' => 'חסר ticket_id']);
+            return;
+        }
+
+        $svc = new GlassixService($dept, $user['email'] ?? '', (int)($user['id'] ?? 0));
+        echo json_encode($svc->getTicketMessages($ticketId));
     }
 }

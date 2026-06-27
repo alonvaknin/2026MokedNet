@@ -407,5 +407,4 @@ function notifyOverdueTasks(PDO $pdo, array &$runLog): void
     }
 
     $runLog[] = "SLA: " . count($tasks);
-    echo "✓ SLA notifications sent: " . count($tasks) . "\n";
 }

@@ -246,6 +246,7 @@ function openFormatterModal(prefill){
 function closeFmtModal(){
   document.getElementById('fmt-modal').style.display='none';
   document.querySelectorAll('.fmt-inv-popup').forEach(el=>el.remove());
+  if (window.CRM && window.CRM.getState().minimized) window.CRM.restore();
 }
 document.getElementById('fmt-modal').addEventListener('click',e=>{
   if(e.target===document.getElementById('fmt-modal'))closeFmtModal();
