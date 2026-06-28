@@ -903,7 +903,22 @@ async function loadNotes(phone) {
   try {
     const r = await fetch(`${BASE}/api/crm/notes?phone=${encodeURIComponent(phone)}`);
     const d = await r.json();
-    renderNotes(d.data || []);
+    const notes = d.data || [];
+    // If we don't have a name yet, pull the most recent customer_name from notes
+    if (!state.name) {
+      const withName = notes.find(n => n.customer_name);
+      if (withName) {
+        state.name = withName.customer_name;
+        $('crm-name-display').textContent = withName.customer_name;
+        $('crm-note-name').value = withName.customer_name;
+        $('crm-wa-name').value   = withName.customer_name;
+        document.title = '📞 ' + withName.customer_name + ' (' + phone + ') | CRM';
+        // Update the top of the customer panel if it already rendered
+        const topName = document.querySelector('#crm-customer-body > div:first-child > div:first-child');
+        if (topName) topName.textContent = withName.customer_name;
+      }
+    }
+    renderNotes(notes);
   } catch(e) {
     // no notes endpoint yet — show empty
     renderNotes([]);
@@ -1040,7 +1055,7 @@ function renderService(items) {
   const el  = $('crm-service-body');
   const cnt = $('crm-service-count');
   if (!items.length) {
-    el.innerHTML = '<div class="crm-empty-state"><i class="bi bi-inbox"></i><span>אין קריאות שירות</span></div>';
+    el.innerHTML = '<div class="crm-empty-state"><i class="bi bi-gear"></i><span>אין קריאות שירות</span></div>';
     cnt.style.display = 'none';
     return;
   }
@@ -1195,7 +1210,7 @@ function renderGlassix(items) {
   const el  = $('crm-glassix-body');
   const cnt = $('crm-glassix-count');
   if (!items.length) {
-    el.innerHTML = '<div class="crm-empty-state"><i class="bi bi-chat-slash"></i><span>אין שיחות ב-12 הימים האחרונים</span></div>';
+    el.innerHTML = '<div class="crm-empty-state"><i class="bi bi-chat"></i><span>אין שיחות ב-12 הימים האחרונים</span></div>';
     cnt.style.display = 'none';
     return;
   }

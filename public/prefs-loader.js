@@ -151,29 +151,18 @@
 #sidebar .nav-item{padding:var(--nav-item-pad,9px 12px)}`;
   document.head.appendChild(st);
 
-  /* ── Boot: apply from localStorage immediately ── */
+  /* ── Boot: server-preloaded prefs take priority (no flash, no extra fetch) ── */
   window.V2_PREFS = {...DEFAULT};
   try {
-    const saved = JSON.parse(localStorage.getItem('v2_prefs') || '{}');
-    apply(Object.keys(saved).length ? saved : DEFAULT);
+    if (window.__V2_PREFS_PRELOAD && Object.keys(window.__V2_PREFS_PRELOAD).length) {
+      // Server injected the real DB prefs into the page — use them and sync to localStorage
+      localStorage.setItem('v2_prefs', JSON.stringify(window.__V2_PREFS_PRELOAD));
+      apply(window.__V2_PREFS_PRELOAD);
+    } else {
+      const saved = JSON.parse(localStorage.getItem('v2_prefs') || '{}');
+      apply(Object.keys(saved).length ? saved : DEFAULT);
+    }
   } catch(e) { apply(DEFAULT); }
-
-  /* ── DB sync after page load ── */
-  window.addEventListener('load', function() {
-    const base = window.__V2_BASE || '';
-    if (!base) return;
-    fetch(base + '/preferences/get', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(dbPrefs => {
-        if (!dbPrefs || !Object.keys(dbPrefs).length) return;
-        const local = (() => { try { return JSON.parse(localStorage.getItem('v2_prefs')||'{}'); } catch(e){return{};} })();
-        if (!local._updated || (dbPrefs._updated && dbPrefs._updated > local._updated)) {
-          localStorage.setItem('v2_prefs', JSON.stringify(dbPrefs));
-          apply(dbPrefs);
-        }
-      })
-      .catch(() => {});
-  });
 
   window.applyV2Prefs = apply;
   window.V2_FONTS     = FONTS;

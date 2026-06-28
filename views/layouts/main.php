@@ -28,15 +28,31 @@ if (!empty($_SESSION['user_id'])) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= View::e($appName) ?></title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235b8dee'/%3E%3Cstop offset='1' stop-color='%237c5ce8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Ctext x='32' y='46' font-family='Arial,sans-serif' font-size='36' font-weight='700' fill='white' text-anchor='middle'%3E%D7%9E%3C/text%3E%3C/svg%3E">
-<script>window.__V2_BASE="<?= $base ?>";window.__OVERDUE_COUNT=<?= (int)$overdueCount ?>;</script>
+<style>body{visibility:hidden}</style>
+<script>
+window.__V2_BASE="<?= $base ?>";
+window.__OVERDUE_COUNT=<?= (int)$overdueCount ?>;
+<?php
+$_layoutPrefsRow = \Core\DB::row(
+    'SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = "theme"',
+    [$_SESSION['user_id'] ?? 0]
+);
+if ($_layoutPrefsRow) {
+    echo 'window.__V2_PREFS_PRELOAD=' . $_layoutPrefsRow['pref_value'] . ';';
+}
+unset($_layoutPrefsRow);
+?>
+</script>
 <script src="<?= $base ?>/prefs-loader.js"></script>
 <link rel="dns-prefetch" href="https://fonts.googleapis.com">
 <link rel="dns-prefetch" href="https://fonts.gstatic.com">
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700&family=Heebo:wght@300;400;500;600;700&family=Rubik:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700&family=Heebo:wght@300;400;500;600;700&family=Rubik:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"></noscript>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{visibility:visible}
 :root{
   --sidebar-w:272px;--sidebar-mini:64px;--header-h:58px;
   --font:'Assistant',sans-serif;--num-font:'Assistant',sans-serif;
