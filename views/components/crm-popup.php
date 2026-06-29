@@ -146,18 +146,6 @@ if (isset($_GET['caller'])) {
         </div>
       </div>
 
-      <!-- WhatsApp Glassix -->
-      <div class="crm-col-search">
-        <div class="crm-section-head">
-          <i class="bi bi-whatsapp" style="color:#25d366;flex-shrink:0"></i>
-          <span class="crm-col-label">WhatsApp</span>
-          <span class="crm-badge" id="crm-glassix-count" style="display:none"></span>
-        </div>
-        <div class="crm-section-body" id="crm-glassix-body">
-          <div class="crm-empty-state"><i class="bi bi-chat-dots"></i><span>ממתין לחיפוש…</span></div>
-        </div>
-      </div>
-
       <!-- שיחות מרכזיה -->
       <div class="crm-col-search">
         <div class="crm-section-head">
@@ -311,22 +299,6 @@ if (isset($_GET['caller'])) {
         <i class="bi bi-send-fill"></i> שלח הודעה
       </button>
       <button class="crm-btn-ghost" onclick="CRM.closeWaModal()">ביטול</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Glassix conversation modal ── -->
-<div class="crm-modal-wrap" id="crm-glx-modal" style="display:none" role="dialog" aria-label="שיחת WhatsApp">
-  <div class="crm-modal" style="width:min(560px,96vw);">
-    <div class="crm-modal-head">
-      <span><i class="bi bi-whatsapp" style="color:#25d366"></i> <span id="crm-glx-title">שיחה</span></span>
-      <button class="crm-icon-btn" onclick="CRM.closeGlxModal()"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="crm-modal-body" id="crm-glx-body" style="padding:0;gap:0;max-height:70vh;overflow-y:auto;">
-      <div class="crm-spinner"></div>
-    </div>
-    <div class="crm-modal-foot">
-      <button class="crm-btn-ghost" onclick="CRM.closeGlxModal()">סגור</button>
     </div>
   </div>
 </div>
@@ -637,20 +609,6 @@ if (isset($_GET['caller'])) {
 }
 .sc-auto-btn:hover { background:rgba(91,141,238,.18); border-color:rgba(91,141,238,.5); }
 
-/* ── Glassix ticket card ── */
-.crm-glx-card {
-  background:var(--bg3); border:1px solid var(--border); border-right:3px solid #25d366;
-  border-radius:6px; padding:9px 11px; margin-bottom:7px; cursor:pointer;
-  transition:background .14s, transform .12s;
-}
-.crm-glx-card:hover { background:var(--bg4); transform:translateX(-2px); }
-.crm-glx-card .gx-date { font-size:10px; color:var(--text3); margin-bottom:3px; }
-.crm-glx-card .gx-subj { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
-.crm-glx-card .gx-meta { display:flex; gap:5px; flex-wrap:wrap; align-items:center; }
-.crm-glx-card .gx-chip { font-size:11px; background:var(--bg4); border:1px solid var(--border2); border-radius:10px; padding:2px 7px; color:var(--text2); }
-.crm-glx-card .gx-open   { border-color:rgba(37,211,102,.4); color:#25d366; background:rgba(37,211,102,.08); }
-.crm-glx-card .gx-closed { border-color:var(--border); color:var(--text3); }
-
 /* ── PBX call table ── */
 .crm-pbx-wrap { font-size:12px; }
 .crm-pbx-wrap a { color:#2196f3; }
@@ -668,19 +626,6 @@ if (isset($_GET['caller'])) {
 .crm-note-card .nc-crit  { display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#ef4444;font-weight:700;background:rgba(239,68,68,.1);border-radius:4px;padding:1px 6px;margin-bottom:4px; }
 .crm-note-card .nc-full-btn { display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--accent);background:var(--accent-dim);border-radius:4px;padding:2px 7px;margin-top:5px;cursor:pointer;border:1px solid rgba(91,141,238,.25);font-family:var(--font);transition:background .13s; }
 .crm-note-card .nc-full-btn:hover { background:rgba(91,141,238,.25); }
-
-/* ── Glassix chat messages ── */
-.glx-chat-wrap { display:flex; flex-direction:column; padding:12px; gap:0; }
-.glx-msg { display:flex; flex-direction:column; margin-bottom:10px; max-width:85%; }
-.glx-msg.glx-agent  { align-self:flex-start; align-items:flex-start; }
-.glx-msg.glx-client { align-self:flex-end;   align-items:flex-end; }
-.glx-msg.glx-system { align-self:center; align-items:center; max-width:95%; }
-.glx-bubble { padding:8px 12px; border-radius:12px; font-size:13px; line-height:1.55; color:var(--text); white-space:pre-wrap; word-break:break-word; }
-.glx-msg.glx-agent  .glx-bubble { background:var(--bg3); border:1px solid var(--border2); border-radius:12px 12px 12px 2px; }
-.glx-msg.glx-client .glx-bubble { background:rgba(37,211,102,.15); border:1px solid rgba(37,211,102,.25); border-radius:12px 12px 2px 12px; }
-.glx-msg.glx-system .glx-bubble { background:var(--bg4); border:1px solid var(--border); font-size:11px; color:var(--text3); border-radius:8px; }
-.glx-sender { font-size:11px; font-weight:600; color:var(--text3); margin-bottom:3px; }
-.glx-time   { font-size:10px; color:var(--text3); margin-top:3px; }
 
 /* ── Mini bar ── */
 .crm-mini-bar {
@@ -880,11 +825,9 @@ function loadAll(phone) {
   setLoading('crm-customer-body');
   setLoading('crm-service-body');
   setLoading('crm-calls-body');
-  setLoading('crm-glassix-body');
   loadCustomer(phone);
   loadService(phone);
   loadCalls(phone);
-  loadGlassix(phone);
 }
 
 async function loadCustomer(phone) {
@@ -1010,7 +953,6 @@ async function loadCalls(phone) {
 
 /* ── Service items cache for automation buttons ── */
 const _scItems  = [];
-const _glxItems = [];
 
 /* ── Time helpers ── */
 function relativeTime(dateStr) {
@@ -1195,126 +1137,14 @@ if (typeof window.pbxLoadRec === 'undefined') {
   };
 }
 
-/* ── Glassix ── */
-async function loadGlassix(phone) {
-  try {
-    const r = await fetch(`${BASE}/api/crm/glassix-history?phone=${encodeURIComponent(phone)}`, {credentials:'include'});
-    const d = await r.json();
-    renderGlassix(d.data || []);
-  } catch(ex) {
-    $('crm-glassix-body').innerHTML = err('שגיאה בטעינת שיחות WhatsApp');
-  }
-}
-
-function renderGlassix(items) {
-  const el  = $('crm-glassix-body');
-  const cnt = $('crm-glassix-count');
-  if (!items.length) {
-    el.innerHTML = '<div class="crm-empty-state"><i class="bi bi-chat"></i><span>אין שיחות ב-12 הימים האחרונים</span></div>';
-    cnt.style.display = 'none';
-    return;
-  }
-  cnt.textContent   = items.length;
-  cnt.style.display = 'inline';
-
-  const stateLabel = s => {
-    const low = (s || '').toLowerCase();
-    if (low === 'open')   return '<span class="gx-chip gx-open">פתוח</span>';
-    if (low === 'closed') return '<span class="gx-chip gx-closed">סגור</span>';
-    return `<span class="gx-chip">${e(s)}</span>`;
-  };
-
-  // store on module-level array — avoids JSON-in-onclick-attribute quoting issues
-  _glxItems.length = 0;
-  items.forEach(t => _glxItems.push(t));
-
-  el.innerHTML = items.map((t, idx) => {
-    const subject = t.subject || 'שיחת WhatsApp';
-    return `<div class="crm-glx-card" data-glx-idx="${idx}">
-      <div class="gx-date"><i class="bi bi-clock"></i> ${e(t.updated_at || t.created_at)}</div>
-      <div class="gx-subj">${e(subject)}</div>
-      <div class="gx-meta">
-        ${stateLabel(t.state)}
-        ${t.agent ? `<span class="gx-chip"><i class="bi bi-person-fill"></i> ${e(t.agent)}</span>` : ''}
-        ${t.dept  ? `<span class="gx-chip">${e(t.dept)}</span>` : ''}
-        <span class="gx-chip" style="margin-right:auto;color:var(--accent);border-color:rgba(91,141,238,.3);"><i class="bi bi-chevron-left"></i> פרטים</span>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function openGlxModal(ticket) {
-  const modal  = $('crm-glx-modal');
-  const body   = $('crm-glx-body');
-  const title  = $('crm-glx-title');
-
-  minimize();
-  modal.style.display = 'flex';
-  title.textContent   = ticket.subject || 'שיחת WhatsApp';
-  body.innerHTML      = '<div class="crm-spinner"></div>';
-
-  try {
-    const r = await fetch(`${BASE}/api/crm/glassix-messages`, {
-      method:  'POST',
-      headers: {'Content-Type':'application/json'},
-      credentials: 'include',
-      body: JSON.stringify({ ticket_id: ticket.id, dept: ticket.dept_slug || 'service' }),
-    });
-    const d = await r.json();
-    renderGlxMessages(body, ticket, d.data || []);
-  } catch(ex) {
-    body.innerHTML = `<div class="crm-empty-state"><i class="bi bi-exclamation-circle"></i><span>שגיאה בטעינת הודעות</span></div>`;
-  }
-}
-
-function renderGlxMessages(body, ticket, messages) {
-  const meta = `<div style="padding:10px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);display:flex;gap:12px;flex-wrap:wrap;">
-    ${ticket.agent ? `<span><i class="bi bi-person-fill" style="color:#25d366"></i> ${e(ticket.agent)}</span>` : ''}
-    ${ticket.dept  ? `<span><i class="bi bi-building"></i> ${e(ticket.dept)}</span>` : ''}
-    <span><i class="bi bi-clock"></i> ${e(ticket.updated_at || ticket.created_at)}</span>
-    <span style="margin-right:auto"><i class="bi bi-hash"></i>${e(ticket.id)}</span>
-  </div>`;
-
-  if (!messages.length) {
-    body.innerHTML = meta + '<div class="crm-empty-state" style="padding:30px;"><i class="bi bi-chat-slash"></i><span>אין הודעות</span></div>';
-    return;
-  }
-
-  const msgs = messages.map(m => {
-    const isAgent  = (m.sender_type || '').toLowerCase() === 'agent';
-    const isSystem = (m.sender_type || '').toLowerCase() === 'system' || m.type === 'Note';
-    const cls      = isSystem ? 'glx-system' : isAgent ? 'glx-agent' : 'glx-client';
-    const senderLabel = isSystem ? '' : `<div class="glx-sender">${e(m.sender)}</div>`;
-    const content  = m.text
-      ? e(m.text).replace(/\n/g, '<br>')
-      : (m.media_url ? `<a href="${e(m.media_url)}" target="_blank" rel="noopener" style="color:var(--accent)"><i class="bi bi-paperclip"></i> קובץ מצורף</a>` : '');
-    return `<div class="glx-msg ${cls}">
-      ${senderLabel}
-      <div class="glx-bubble">${content}</div>
-      <div class="glx-time">${e(m.time)}</div>
-    </div>`;
-  }).join('');
-
-  body.innerHTML = meta + `<div class="glx-chat-wrap">${msgs}</div>`;
-  // גלול לתחתית
-  setTimeout(() => { body.scrollTop = body.scrollHeight; }, 50);
-}
-
-function closeGlxModal() {
-  $('crm-glx-modal').style.display = 'none';
-  if (state.minimized) restore();
-}
-
 function resetSections() {
   const empty = `<div class="crm-empty-state"><i class="bi bi-search"></i><span>ממתין לחיפוש…</span></div>`;
   $('crm-customer-body').innerHTML  = empty;
   $('crm-service-body').innerHTML   = empty;
   $('crm-calls-body').innerHTML     = empty;
-  $('crm-glassix-body').innerHTML   = empty;
   $('crm-notes-count').style.display    = 'none';
   $('crm-service-count').style.display  = 'none';
   $('crm-calls-count').style.display    = 'none';
-  $('crm-glassix-count').style.display  = 'none';
   $('crm-critical-banner').style.display = 'none';
   // name block: show placeholder
   $('crm-name-display').textContent = '—';
@@ -1778,12 +1608,6 @@ document.addEventListener('DOMContentLoaded', () => {
   $('crm-btn-fmt').onclick   = openFormatter;
   $('crm-overlay').onclick   = minimize;
   $('crm-pbx-refresh').onclick = () => { if (state.phone) { setLoading('crm-calls-body'); loadCalls(state.phone); } };
-
-  // glassix card click delegation
-  $('crm-glassix-body').addEventListener('click', ev => {
-    const card = ev.target.closest('[data-glx-idx]');
-    if (card) openGlxModal(_glxItems[+card.dataset.glxIdx]);
-  });
 
   // name edit
   $('crm-edit-name-btn').onclick  = openNameEdit;

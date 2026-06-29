@@ -124,9 +124,6 @@ $router->get ('/api/crm/service', 'Controllers\\CrmController@apiService');
 $router->get ('/api/crm/notes',   'Controllers\\CrmController@apiNotes');
 $router->post('/api/crm/note',    'Controllers\\CrmController@apiSaveNote');
 $router->post('/api/crm/wa',      'Controllers\\CrmController@apiSendWa');
-$router->get ('/api/crm/glassix-history',  'Controllers\\CrmController@apiGlassixHistory');
-$router->post('/api/crm/glassix-messages', 'Controllers\\CrmController@apiGlassixMessages');
-
 // Accounts (Support Passwords)
 $router->get ('/accounts',                  'Controllers\\AccountController@index');
 $router->get ('/api/accounts',              'Controllers\\AccountController@apiList');

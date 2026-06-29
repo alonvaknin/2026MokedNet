@@ -53,42 +53,52 @@ class GlassixService
             return ['ok' => false, 'error' => 'לא ניתן לקבל token', 'debug' => $tokenErr];
         }
 
-        $since = date('Y-m-d\TH:i:s', strtotime('-12 days'));
-        $res = $this->curl('GET', '/tickets/all?' . http_build_query([
-            'phoneNumber' => $phone,
-            'sinceDate'   => $since,
-            'pageSize'    => 50,
-        ]), [], $token);
+        // Glassix API אינו תומך בחיפוש לפי טלפון — שולפים לפי טווח תאריכים ומסננים
+        $since = date('d/m/Y H:i:s:00', strtotime('-30 days'));
+        $until = date('d/m/Y H:i:s:00');
 
-        if (!is_array($res)) {
-            return ['ok' => false, 'error' => 'תגובה לא תקינה מ-Glassix'];
-        }
+        $matchedTickets = [];
+        $page = 1;
+        do {
+            $res = $this->curl('GET', '/tickets/list?' . http_build_query([
+                'since'     => $since,
+                'until'     => $until,
+                'sortOrder' => 'DESC',
+                'page'      => $page,
+            ]), [], $token);
 
-        $tickets = $res['data'] ?? $res ?? [];
-        if (!is_array($tickets)) {
-            $tickets = [];
-        }
+            if (!is_array($res)) break;
+            $batch = is_array($res['data'] ?? null) ? $res['data'] : (is_array($res) ? $res : []);
+
+            foreach ($batch as $t) {
+                if (!is_array($t)) continue;
+                foreach ($t['participants'] ?? [] as $p) {
+                    if (($p['type'] ?? '') === 'Client') {
+                        $pPhone = preg_replace('/\D/', '', $p['identifier'] ?? '');
+                        if ($pPhone === $phone) {
+                            $matchedTickets[] = $t;
+                            break;
+                        }
+                    }
+                }
+            }
+            $page++;
+        } while (count($batch) === 100 && $page <= 10);
 
         $result = [];
-        foreach ($tickets as $t) {
+        foreach ($matchedTickets as $t) {
             $agent = '';
             $dept  = '';
             foreach ($t['participants'] ?? [] as $p) {
-                if (($p['type'] ?? '') === 'Agent') {
-                    $agent = $p['name'] ?? '';
-                }
-                if (($p['type'] ?? '') === 'Department') {
-                    $dept = $p['name'] ?? '';
-                }
+                if (($p['type'] ?? '') === 'Agent')      $agent = $p['name'] ?? '';
+                if (($p['type'] ?? '') === 'Department') $dept  = $p['name'] ?? '';
             }
-            if (!is_array($t)) continue;
             $ticketId = $t['id'] ?? $t['uniqueId'] ?? $t['ticketId'] ?? $t['ticket_id'] ?? '';
             $result[] = [
                 'id'         => $ticketId,
-                '_raw_keys'  => array_keys($t),
                 'subject'    => $t['field1'] ?? $t['subject'] ?? '',
                 'state'      => $t['state'] ?? '',
-                'created_at' => isset($t['dateCreated']) ? date('d/m/Y H:i', strtotime($t['dateCreated'])) : '',
+                'created_at' => isset($t['dateCreated'])  ? date('d/m/Y H:i', strtotime($t['dateCreated']))  : '',
                 'updated_at' => isset($t['dateModified']) ? date('d/m/Y H:i', strtotime($t['dateModified'])) : '',
                 'agent'      => $agent,
                 'dept'       => $dept,
