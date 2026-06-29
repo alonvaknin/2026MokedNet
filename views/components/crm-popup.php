@@ -1630,7 +1630,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if ($('crm-note-modal').style.display !== 'none') { closeNoteModal(); return; }
       if ($('crm-wa-modal').style.display !== 'none')   { closeWaModal();   return; }
       if ($('crm-sc-modal').style.display  !== 'none') { closeScModal();  return; }
-      if ($('crm-glx-modal').style.display !== 'none') { closeGlxModal(); return; }
       if (state.open && !state.minimized) minimize();
     }
   });
@@ -1685,8 +1684,6 @@ window.CRM = {
   getState: () => ({ ...state }),
   openAutomationForPhone,
   openAutomationForCase,
-  openGlxModal,
-  closeGlxModal,
   openNameEdit,
   cancelNameEdit,
   saveNameInline,

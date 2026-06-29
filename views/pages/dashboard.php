@@ -498,6 +498,7 @@ body.grid-compact .sc-city,body.grid-compact .sc-meta,body.grid-compact .sc-phon
 body.grid-compact .c-modan .sc-city{display:flex;justify-content:center;font-size:11px;font-weight:600;color:#8b5cf6;gap:3px}
 body.grid-compact .c-modan .sc-num{font-size:11px;font-weight:700;text-align:center;color:#8b5cf6;opacity:.8;letter-spacing:0}
 body.grid-compact .c-modan .sc-name{font-size:13px;}
+body.grid-compact .c-modan{min-height:85px}
 body.grid-compact .sc-alert .sc-alert-text,body.grid-compact .sc-alert .sc-alert-ts{display:none}
 body.grid-compact .sc-alert{background:none;padding:2px 0;justify-content:center;font-size:13px}
 body.grid-compact .sc-dot{bottom:6px;left:8px}
