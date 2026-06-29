@@ -82,6 +82,36 @@ class TaskModel
         );
     }
 
+    public static function recentClosed(int $userId, bool $allUsers = false, int $limit = 20): array
+    {
+        $where  = 'WHERE t.is_active = 0';
+        $params = [];
+        if (!$allUsers) {
+            $where   .= ' AND t.assigned_user_id = ?';
+            $params[] = $userId;
+        }
+        return DB::query(
+            "SELECT t.id, t.title, t.sla_days, t.created_at, t.status_changed_at,
+                    t.status_id, t.task_type_id,
+                    CONCAT(opener.first_name,' ',opener.last_name) AS opened_by_name,
+                    CONCAT(changer.first_name,' ',changer.last_name) AS changed_by_name,
+                    ts.name  AS status_name,
+                    ts.color AS status_color,
+                    tt.name  AS type_name,
+                    dept.name_heb AS dept_name
+             FROM tasks t
+             LEFT JOIN users opener    ON opener.id  = t.open_by
+             LEFT JOIN users changer   ON changer.id = t.status_changed_by
+             LEFT JOIN task_statuses ts ON ts.id     = t.status_id
+             LEFT JOIN task_types    tt ON tt.id     = t.task_type_id
+             LEFT JOIN departments   dept ON dept.id = t.assigned_dept_id
+             {$where}
+             ORDER BY t.status_changed_at DESC
+             LIMIT {$limit}",
+            $params
+        );
+    }
+
     public static function create(array $data): int
     {
         return DB::insert(
@@ -194,8 +224,8 @@ class TaskModel
                  status_changed_by  = ?,
                  status_changed_at  = NOW(),
                  is_active          = ?
-             WHERE id = ? AND (assigned_user_id = ? OR open_by = ?)',
-            [$statusId, $byUserId, $isClosed ? 0 : 1, $id, $byUserId, $byUserId]
+             WHERE id = ?',
+            [$statusId, $byUserId, $isClosed ? 0 : 1, $id]
         ) > 0;
     }
 

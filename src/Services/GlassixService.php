@@ -14,7 +14,7 @@ use Core\DB;
 class GlassixService
 {
     private const BASE_URL      = 'https://bug-multisystem.glassix.com/api/v1.2';
-    private const FALLBACK_EMAIL = 'alon@leonai.io';
+    private const FALLBACK_EMAIL = 'gild@bug.co.il';
 
     // API keys לפי slug מה-dropdown (support / service / sales)
     private const DEPT_KEYS = [

@@ -162,7 +162,7 @@ const TS_USERS  = <?= $usersJson ?>;
 // Current assignees per type (mutable)
 const typeAssignees = {};
 TS_TYPES.forEach(t => {
-  try { typeAssignees[t.id] = JSON.parse(t.default_assignee_ids || '[]'); }
+  try { typeAssignees[t.id] = (JSON.parse(t.default_assignee_ids || '[]')).map(Number); }
   catch(e) { typeAssignees[t.id] = []; }
 });
 

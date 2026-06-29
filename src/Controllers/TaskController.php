@@ -24,19 +24,18 @@ class TaskController extends Controller
         $scopeAll    = ($scope === 'all') && $canViewAll;
         $overdueOnly = ($filter === 'overdue');
 
-        $tasks = TaskModel::forQuery($userId, $showClosed, $scopeAll, $overdueOnly);
+        $tasks       = TaskModel::forQuery($userId, $showClosed, $scopeAll, $overdueOnly);
+        $recentClosed = $showClosed ? [] : TaskModel::recentClosed($userId, $scopeAll);
 
-        // Build status lists indexed by task_type_id for the JS dropdown
+        // Build status lists for ALL types (needed for new-task modal + existing tasks)
+        $allTypes = \Core\DB::query('SELECT id, name FROM task_types ORDER BY name');
         $statusesByType = [];
-        foreach ($tasks as $t) {
-            $tid = (int)($t['task_type_id'] ?? 0);
-            if ($tid && !isset($statusesByType[$tid])) {
-                $rows = \Core\DB::query(
-                    'SELECT id, name, color, is_closed FROM task_statuses WHERE task_type_id = ? ORDER BY sort_order',
-                    [$tid]
-                );
-                $statusesByType[$tid] = $rows;
-            }
+        foreach ($allTypes as $type) {
+            $tid = (int)$type['id'];
+            $statusesByType[$tid] = \Core\DB::query(
+                'SELECT id, name, color, is_closed FROM task_statuses WHERE task_type_id = ? ORDER BY sort_order',
+                [$tid]
+            );
         }
 
         $users = \Core\DB::query(
@@ -45,7 +44,7 @@ class TaskController extends Controller
         );
 
         $this->view('pages/tasks/index', compact(
-            'tasks', 'statusesByType', 'filter',
+            'tasks', 'recentClosed', 'statusesByType', 'allTypes', 'filter',
             'showClosed', 'scopeAll', 'canViewAll', 'users'
         ));
     }
@@ -70,6 +69,17 @@ class TaskController extends Controller
             );
         }
 
+        $taskTypeId = (int)$this->post('task_type_id', 0) ?: null;
+
+        // Auto-assign the first non-closed status of the type as the default "open" status
+        $defaultStatusId = null;
+        if ($taskTypeId) {
+            $defaultStatusId = \Core\DB::value(
+                'SELECT id FROM task_statuses WHERE task_type_id = ? AND is_closed = 0 ORDER BY sort_order ASC LIMIT 1',
+                [$taskTypeId]
+            ) ?: null;
+        }
+
         $newId = TaskModel::create([
             'open_by'          => $openBy,
             'assigned_user_id' => $assignedUserId,
@@ -77,6 +87,8 @@ class TaskController extends Controller
             'description'      => trim($this->post('description', '')),
             'sla_days'         => (int)$this->post('sla_days', 3),
             'assigned_dept_id' => $assignedDept ?: null,
+            'task_type_id'     => $taskTypeId,
+            'status_id'        => $defaultStatusId,
         ]);
 
         ActivityLog::create('task', $newId, trim($this->post('title', '')));

@@ -5,8 +5,10 @@ $csrf = $_SESSION['csrf_token'] ?? '';
 $filter = $filter ?? '';
 $isOverdueFilter = $filter === 'overdue';
 // JSON-encode statusesByType for JS
-$statusesJson = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
-$usersJson    = json_encode($users ?? [], JSON_UNESCAPED_UNICODE);
+$statusesJson  = json_encode($statusesByType ?? [], JSON_UNESCAPED_UNICODE);
+$usersJson     = json_encode($users ?? [], JSON_UNESCAPED_UNICODE);
+$allTypesJson  = json_encode($allTypes ?? [], JSON_UNESCAPED_UNICODE);
+$recentClosed  = $recentClosed ?? [];
 $users        = $users ?? [];
 $showClosed   = $showClosed ?? false;
 $canViewAll  = $canViewAll ?? false;
@@ -158,14 +160,14 @@ $scopeAll   = $scopeAll ?? false;
 
       <!-- Status badge with dropdown -->
       <td style="padding:10px 14px;position:relative;">
-        <?php if ($typeId && $statusId): ?>
+        <?php if ($typeId): ?>
           <span class="task-status-badge"
                 data-type-id="<?= $typeId ?>"
                 data-current-status="<?= $statusId ?>"
                 style="color:<?= View::e($statusColor) ?>;background:<?= View::e($statusColor) ?>22;border-color:<?= View::e($statusColor) ?>44;"
                 onclick="toggleStatusDropdown(event, <?= (int)$t['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
             <span style="width:7px;height:7px;border-radius:50%;background:<?= View::e($statusColor) ?>;flex-shrink:0;"></span>
-            <span id="status-label-<?= (int)$t['id'] ?>"><?= View::e($statusName) ?></span>
+            <span id="status-label-<?= (int)$t['id'] ?>"><?= $statusId ? View::e($statusName) : '— בחר סטטוס —' ?></span>
           </span>
         <?php else: ?>
           <span style="color:var(--text3);font-size:13px;">—</span>
@@ -205,6 +207,59 @@ $scopeAll   = $scopeAll ?? false;
     <?php endforeach; ?>
     </tbody>
   </table>
+</div>
+<?php endif; ?>
+
+<?php if (!$showClosed && !empty($recentClosed)): ?>
+<div style="margin-top:24px;">
+  <button onclick="toggleClosedSection()"
+          style="display:flex;align-items:center;gap:8px;background:none;border:none;
+                 color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:0;margin-bottom:10px;">
+    <i class="bi bi-chevron-left" id="closed-chevron" style="transition:transform .2s;font-size:11px;"></i>
+    <?= count($recentClosed) ?> משימות סגורות אחרונות
+  </button>
+  <div id="closed-section" style="display:none;">
+    <div class="card" style="padding:0;overflow:visible;opacity:.8;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="color:var(--text3);">
+            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">#</th>
+            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">כותרת</th>
+            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">סטטוס</th>
+            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
+            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">נסגר</th>
+            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">סגר</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($recentClosed as $c):
+          $sColor = $c['status_color'] ?? '#6b7280';
+          $sName  = $c['status_name']  ?? '—';
+        ?>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 14px;color:var(--text3);"><?= (int)$c['id'] ?></td>
+            <td style="padding:8px 14px;color:var(--text2);"><?= View::e($c['title'] ?? '') ?></td>
+            <td style="padding:8px 14px;">
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;
+                           font-size:12px;font-weight:700;color:<?= View::e($sColor) ?>;
+                           background:<?= View::e($sColor) ?>22;border:1px solid <?= View::e($sColor) ?>44;">
+                <span style="width:6px;height:6px;border-radius:50%;background:<?= View::e($sColor) ?>;flex-shrink:0;"></span>
+                <?= View::e($sName) ?>
+              </span>
+            </td>
+            <td style="padding:8px 14px;color:var(--text3);"><?= View::e($c['type_name'] ?? '—') ?></td>
+            <td style="padding:8px 14px;color:var(--text3);font-size:12px;">
+              <?= $c['status_changed_at'] ? date('d/m/Y', strtotime($c['status_changed_at'])) : '—' ?>
+            </td>
+            <td style="padding:8px 14px;color:var(--text3);font-size:12px;">
+              <?= View::e($c['changed_by_name'] ?? '—') ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 <?php endif; ?>
 
@@ -248,6 +303,13 @@ $scopeAll   = $scopeAll ?? false;
         <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">תיאור</label>
         <textarea name="description" rows="3"
                   style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">סוג משימה</label>
+        <select name="task_type_id" id="new-task-type"
+                style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
+          <option value="">— ללא סוג —</option>
+        </select>
       </div>
       <div style="margin-bottom:20px;">
         <label style="display:block;font-size:13px;color:var(--text2);margin-bottom:6px;">SLA (ימים)</label>
@@ -301,6 +363,7 @@ $scopeAll   = $scopeAll ?? false;
 const TASK_CSRF   = <?= json_encode($csrf) ?>;
 const TASK_BASE   = <?= json_encode($base) ?>;
 const STATUSES_BY_TYPE = <?= $statusesJson ?>;
+const ALL_TASK_TYPES   = <?= $allTypesJson ?>;
 const TASK_USERS  = <?= $usersJson ?>;
 
 /* ── User search in new-task modal ── */
@@ -362,6 +425,13 @@ function openNewTaskModal() {
   const me = TASK_USERS.find(u => u.id == _selectedUserId);
   const inp = document.getElementById('user-search-input');
   if (inp) inp.value = me ? me.name : '';
+
+  // Populate type select
+  const typeEl = document.getElementById('new-task-type');
+  typeEl.innerHTML = '<option value="">— ללא סוג —</option>';
+  ALL_TASK_TYPES.forEach(t => {
+    typeEl.innerHTML += `<option value="${t.id}">${esc(t.name)}</option>`;
+  });
   document.getElementById('new-task-modal').style.display = 'flex';
 }
 
@@ -437,6 +507,14 @@ async function setStatus(taskId, statusId, name, color, isClosed) {
 
       if (isClosed) {
         loadConfettiAndFire(badge);
+        const row = document.getElementById(`task-row-${taskId}`);
+        if (row) {
+          setTimeout(() => {
+            row.style.transition = 'opacity .4s';
+            row.style.opacity = '0';
+            setTimeout(() => row.remove(), 420);
+          }, 800);
+        }
       }
     }
   }
@@ -444,14 +522,24 @@ async function setStatus(taskId, statusId, name, color, isClosed) {
 }
 
 function loadConfettiAndFire(originEl) {
-  if (window.confetti) {
-    fireConfetti(originEl);
-    return;
-  }
+  if (window.confetti) { fireConfetti(originEl); return; }
   const s = document.createElement('script');
   s.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
   s.onload = () => fireConfetti(originEl);
   document.head.appendChild(s);
+}
+
+// preload confetti so it's ready on first close
+(function(){ const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+  document.head.appendChild(s); })();
+
+function toggleClosedSection() {
+  const sec  = document.getElementById('closed-section');
+  const chev = document.getElementById('closed-chevron');
+  const open = sec.style.display === 'none';
+  sec.style.display  = open ? 'block' : 'none';
+  chev.style.transform = open ? 'rotate(-90deg)' : '';
 }
 
 function fireConfetti(originEl) {

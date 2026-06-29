@@ -277,6 +277,79 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
   <main id="content"><?= $content ?></main>
 </div>
 
+<!-- ── Wiz track button styles ── -->
+<style>
+.wiz-track-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  background: linear-gradient(120deg, #5b8dee 0%, #8b5cf6 55%, #a855f7 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  box-shadow: 0 2px 10px rgba(91,141,238,.35);
+  transition: background-position .4s ease, box-shadow .2s, transform .15s;
+  animation: wiz-glow-pulse 1.1s ease-in-out 3;
+}
+.wiz-track-btn--tech {
+  background: linear-gradient(120deg, #06b6d4 0%, #5b8dee 55%, #8b5cf6 100%);
+  background-size: 200% 100%;
+  box-shadow: 0 2px 10px rgba(6,182,212,.3);
+  animation-delay: .25s;
+}
+.wiz-track-btn:hover {
+  background-position: 100% 50%;
+  box-shadow: 0 4px 18px rgba(139,92,246,.6);
+  transform: translateY(-1px) scale(1.03);
+}
+.wiz-track-btn:active { transform: scale(.97); }
+.wiz-track-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.22) 50%, transparent 60%);
+  background-size: 200% 100%;
+  background-position: -100% 0;
+  transition: background-position .5s ease;
+  pointer-events: none;
+}
+.wiz-track-btn:hover::before { background-position: 200% 0; }
+.wiz-spark-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+@keyframes wiz-spark-fly {
+  0%   { transform: rotate(var(--wsa)) translateX(0) scale(1); opacity: 1; }
+  60%  { opacity: .8; }
+  100% { transform: rotate(var(--wsa)) translateX(var(--wsd)) scale(0); opacity: 0; }
+}
+.wiz-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  transform-origin: center;
+  animation: wiz-spark-fly linear both;
+  animation-iteration-count: 3;
+}
+@keyframes wiz-glow-pulse {
+  0%,100% { box-shadow: 0 2px 10px rgba(91,141,238,.35); }
+  50%      { box-shadow: 0 0 20px 5px rgba(167,139,250,.7), 0 2px 10px rgba(91,141,238,.35); }
+}
+</style>
+
 <!-- Wizenet Search Modal -->
 <div id="wiz-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:flex-start;justify-content:center;padding:40px 16px 16px;">
   <div id="wiz-modal-inner" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:var(--wiz-w,860px);max-height:92vh;display:flex;flex-direction:column;transition:max-width .2s;">
@@ -844,6 +917,25 @@ function renderWizCall(container,d,append,searchQuery){
     +' style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent);text-decoration:none;'
     +'padding:4px 9px;border:1px solid rgba(91,141,238,.3);border-radius:var(--radius-sm);white-space:nowrap;flex-shrink:0;background:var(--accent-dim);">'
     +'<i class="bi bi-box-arrow-up-right"></i> וייזנט</a>';
+  /* ── Follow-up buttons (like CRM service card) ── */
+  (function(){
+    const wizCaseKey='_wizCase_'+cardId;
+    window[wizCaseKey]={
+      ticket_id: d.callId||'',
+      description: d.statusName||'',
+      status: d.statusName||'',
+      agent: d.contactName||'',
+      dept: d.branch||'',
+    };
+    h+='<button onclick="event.stopPropagation();_wizTrack(\''+cardId+'\',\'notifyOnChangeTo\')" class="wiz-track-btn" title="פתח מעקב סטטוס קריאה">'
+      +'<i class="bi bi-arrow-left-right"></i><span>מעקב סטטוס</span>'
+      +'<span class="wiz-spark-wrap" aria-hidden="true"></span>'
+      +'</button>';
+    h+='<button onclick="event.stopPropagation();_wizTrack(\''+cardId+'\',\'techCare\')" class="wiz-track-btn wiz-track-btn--tech" title="פתח מעקב טכנאי">'
+      +'<i class="bi bi-tools"></i><span>מעקב טכנאי</span>'
+      +'<span class="wiz-spark-wrap" aria-hidden="true"></span>'
+      +'</button>';
+  })();
   h+='</div>';
   /* ROW 2: date cards + diff badge */
   {
@@ -1051,6 +1143,59 @@ function renderWizCall(container,d,append,searchQuery){
 }
 
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function _wizTrack(cardId,action){
+  const caseObj=window['_wizCase_'+cardId];
+  if(!caseObj)return;
+  if(typeof CRM!=='undefined'&&typeof CRM.openAutomationForCase==='function'){
+    CRM.openAutomationForCase(caseObj,action);
+  }
+}
+
+/* ── Wiz track buttons: inject sparks on first render ── */
+(function(){
+  function _spawnSparks(wrap){
+    if(wrap.dataset.sparked)return;
+    wrap.dataset.sparked='1';
+    const COLS=['#a78bfa','#818cf8','#60a5fa','#34d399','#f472b6','#fb923c','#facc15'];
+    for(let i=0;i<14;i++){
+      const s=document.createElement('span');
+      s.className='wiz-spark';
+      const angle=Math.random()*360;
+      const dist=22+Math.random()*28;
+      const size=2+Math.random()*3;
+      const dur=0.55+Math.random()*0.6;
+      const delay=Math.random()*1.8;
+      s.style.cssText=
+        'background:'+COLS[i%COLS.length]+';'
+        +'width:'+size+'px;height:'+size+'px;'
+        +'--wsa:'+angle+'deg;--wsd:'+dist+'px;'
+        +'animation-duration:'+dur.toFixed(2)+'s;'
+        +'animation-delay:'+delay.toFixed(2)+'s;';
+      wrap.appendChild(s);
+    }
+  }
+  document.addEventListener('click',function(e){
+    const wrap=e.target.closest('.wiz-track-btn');
+    if(wrap) _spawnSparks(wrap.querySelector('.wiz-spark-wrap'));
+  });
+  // observe wiz-results mutations to attach sparks to newly rendered buttons
+  const obs=new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.addedNodes.forEach(function(n){
+        if(n.nodeType!==1)return;
+        (n.querySelectorAll?n.querySelectorAll('.wiz-spark-wrap'):[]).forEach(function(w){
+          // short delay so the card paint settles first
+          setTimeout(function(){_spawnSparks(w);},300+Math.random()*400);
+        });
+        if(n.classList&&n.classList.contains('wiz-spark-wrap'))
+          setTimeout(function(){_spawnSparks(n);},300);
+      });
+    });
+  });
+  const res=document.getElementById('wiz-results');
+  if(res)obs.observe(res,{childList:true,subtree:true});
+})();
 
 /* ── Nav ── */
 const NI_CLASS={'bi-house-fill':'ni-home','bi-home-fill':'ni-home','bi-shop':'ni-store','bi-building-fill':'ni-store','bi-people-fill':'ni-store','bi-check2-square':'ni-task','bi-eyedropper':'ni-lab','bi-box-seam':'ni-lab','bi-headset':'ni-support','bi-book':'ni-support','bi-link-45deg':'ni-link','bi-chat-dots-fill':'ni-link','bi-bag-fill':'ni-link','bi-telephone-fill':'ni-link','bi-telephone-outbound':'ni-link','bi-gear-fill':'ni-admin','bi-menu-button-wide':'ni-admin','bi-palette-fill':'ni-admin','bi-person-fill':'ni-admin'};

@@ -45,14 +45,42 @@ $tplJson = $tpl ? json_encode($tpl, JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX
         <input id="f-desc" class="finput" type="text" style="max-width:400px;" value="<?= View::e($tpl['description']??'') ?>">
       </div>
       <!-- mail row -->
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
-        <div style="flex:2;min-width:180px;">
-          <label class="flabel">נמענים (To) <span style="font-weight:400;color:var(--text3);">פסיק מפריד</span></label>
-          <input id="f-mail-to" class="finput" type="text" value="<?= View::e($tpl['mail_to']??'') ?>">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-bottom:10px;">
+        <!-- To -->
+        <div style="flex:2;min-width:200px;">
+          <label class="flabel">נמענים (To)</label>
+          <div id="fmt-to-wrap">
+            <div class="fmt-email-box" id="fmt-to-box">
+              <i class="bi bi-search" style="color:var(--text3);font-size:12px;flex-shrink:0;"></i>
+              <input type="text" id="fmt-to-q" class="fmt-email-input"
+                     placeholder="חיפוש או הזנת מייל..." autocomplete="off"
+                     oninput="fmtEmailFilter('to',this.value)"
+                     onfocus="fmtEmailOpen('to')"
+                     onkeydown="fmtEmailKey(event,'to')">
+              <span id="fmt-to-badge" style="display:none;background:var(--accent);color:#fff;
+                    border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0;"></span>
+            </div>
+          </div>
+          <div id="fmt-to-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
+          <input type="hidden" id="f-mail-to" value="<?= View::e($tpl['mail_to']??'') ?>">
         </div>
-        <div style="flex:2;min-width:180px;">
+        <!-- CC -->
+        <div style="flex:2;min-width:200px;">
           <label class="flabel">עותק (CC)</label>
-          <input id="f-mail-cc" class="finput" type="text" value="<?= View::e($tpl['mail_cc']??'') ?>">
+          <div id="fmt-cc-wrap">
+            <div class="fmt-email-box" id="fmt-cc-box">
+              <i class="bi bi-search" style="color:var(--text3);font-size:12px;flex-shrink:0;"></i>
+              <input type="text" id="fmt-cc-q" class="fmt-email-input"
+                     placeholder="חיפוש או הזנת מייל..." autocomplete="off"
+                     oninput="fmtEmailFilter('cc',this.value)"
+                     onfocus="fmtEmailOpen('cc')"
+                     onkeydown="fmtEmailKey(event,'cc')">
+              <span id="fmt-cc-badge" style="display:none;background:var(--accent);color:#fff;
+                    border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;flex-shrink:0;"></span>
+            </div>
+          </div>
+          <div id="fmt-cc-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
+          <input type="hidden" id="f-mail-cc" value="<?= View::e($tpl['mail_cc']??'') ?>">
         </div>
         <div style="flex:1;min-width:140px;">
           <label class="flabel">נושא מייל</label>
@@ -144,6 +172,26 @@ $tplJson = $tpl ? json_encode($tpl, JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX
   </div>
 </div>
 
+<!-- Email picker dropdowns — fixed so they escape any stacking/overflow context -->
+<div id="fmt-to-dropdown" style="display:none;position:fixed;background:var(--bg2);
+     border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;
+     z-index:9500;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+  <div id="fmt-to-inner">
+    <div style="padding:12px;color:var(--text3);font-size:13px;text-align:center;">
+      <i class="bi bi-hourglass-split"></i> טוען...
+    </div>
+  </div>
+</div>
+<div id="fmt-cc-dropdown" style="display:none;position:fixed;background:var(--bg2);
+     border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;
+     z-index:9500;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+  <div id="fmt-cc-inner">
+    <div style="padding:12px;color:var(--text3);font-size:13px;text-align:center;">
+      <i class="bi bi-hourglass-split"></i> טוען...
+    </div>
+  </div>
+</div>
+
 <style>
 .flabel{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:500}
 .finput{background:var(--bg3);border:1px solid var(--border);border-radius:8px;
@@ -170,6 +218,30 @@ $tplJson = $tpl ? json_encode($tpl, JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX
 .ph-built .ph-key{color:#8bb0f5;}
 /* Highlight in preview */
 mark.ph-hi{background:#f59e0b22;color:var(--warning);border-radius:2px;padding:0 1px;}
+
+/* Email picker widget */
+.fmt-email-box{display:flex;align-items:center;gap:7px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:8px;padding:0 12px;transition:border-color .15s;}
+.fmt-email-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,141,238,.12);}
+.fmt-email-input{background:none;border:none;outline:none;color:var(--text);
+  font-family:var(--font);font-size:13px;padding:8px 0;flex:1;}
+.fmt-email-input::placeholder{color:var(--text3);}
+.fmt-ct-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;
+  border-bottom:1px solid var(--border);transition:background .12s;font-size:13px;}
+.fmt-ct-item:last-child{border-bottom:none;}
+.fmt-ct-item:hover,.fmt-ct-item.fmt-sel,.fmt-ct-item.fmt-cursor{background:var(--accent-dim);}
+.fmt-ct-avatar{width:26px;height:26px;border-radius:50%;color:#fff;display:grid;
+  place-items:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.fmt-ct-name{font-size:13px;font-weight:600;color:var(--text);}
+.fmt-ct-sub{font-size:11px;color:var(--text3);}
+.fmt-ct-check{margin-right:auto;font-size:15px;color:var(--accent);display:none;}
+.fmt-ct-item.fmt-sel .fmt-ct-check{display:block;}
+.fmt-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(91,141,238,.12);
+  border:1px solid rgba(91,141,238,.3);border-radius:20px;padding:3px 10px;
+  font-size:12px;color:var(--accent);}
+.fmt-chip button{background:none;border:none;color:var(--accent);cursor:pointer;
+  font-size:15px;line-height:1;padding:0;opacity:.7;}
+.fmt-chip button:hover{opacity:1;}
 </style>
 
 <script>
@@ -220,6 +292,11 @@ function init(){
   document.querySelectorAll('[name="prev-gender"]').forEach(r=>
     r.addEventListener('change', renderPreview)
   );
+  // Load existing mail_to / mail_cc into the picker widgets
+  _fmtLoadInitial('to',  document.getElementById('f-mail-to')?.value  || '');
+  _fmtLoadInitial('cc',  document.getElementById('f-mail-cc')?.value  || '');
+  // Preload contacts in background
+  _fmtEnsureContacts();
 }
 
 /* ── Toolbar helpers ──────────────────────────────────────────────────────── */
@@ -449,6 +526,242 @@ async function saveTemplate(){
 function fesc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 // hesc: for innerHTML (escapes but keeps text safe)
 function hesc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ── Email picker (To / CC) ──────────────────────────────────────────────── */
+const FMT_EMAIL_COLORS = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4'];
+let _fmtContacts = null;
+const _fmtSel    = { to: new Map(), cc: new Map() };
+const _fmtCursor = { to: -1, cc: -1 };
+
+function _fmtHash(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); }
+function _fmtIsEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((s||'').trim()); }
+function _fmtAttr(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+function _fmtEsc2(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function _fmtEnsureContacts(){
+  if(_fmtContacts !== null) return;
+  try{
+    const r = await fetch(FMT_BASE+'/api/contacts/list',{credentials:'include'});
+    _fmtContacts = await r.json();
+  }catch{ _fmtContacts = []; }
+}
+
+function _fmtPositionDropdown(field){
+  const anchor = document.getElementById(`fmt-${field}-box`);
+  const dd     = document.getElementById(`fmt-${field}-dropdown`);
+  if(!anchor || !dd) return;
+  const r = anchor.getBoundingClientRect();
+  dd.style.top   = (r.bottom + 4) + 'px';
+  dd.style.left  = r.left + 'px';
+  dd.style.width = r.width + 'px';
+}
+
+function fmtEmailOpen(field){
+  _fmtEnsureContacts().then(()=>{
+    const q = document.getElementById(`fmt-${field}-q`)?.value||'';
+    _fmtCursor[field] = -1;
+    fmtEmailFilter(field, q);
+    _fmtPositionDropdown(field);
+    document.getElementById(`fmt-${field}-dropdown`).style.display='block';
+  });
+}
+
+function fmtEmailFilter(field, q){
+  const rawQ = (q||'').trim();
+  const lq   = rawQ.toLowerCase();
+  const list = _fmtContacts ? (lq
+    ? _fmtContacts.filter(c =>
+        ((c.first_name||'') + ' ' + (c.last_name||'') + ' ' + (c.email||''))
+          .toLowerCase().includes(lq))
+    : _fmtContacts) : [];
+  _fmtCursor[field] = -1;
+  _fmtRenderDropdown(field, list, rawQ);
+  _fmtPositionDropdown(field);
+  document.getElementById(`fmt-${field}-dropdown`).style.display='block';
+}
+
+function fmtEmailKey(e, field){
+  const dd = document.getElementById(`fmt-${field}-dropdown`);
+  if(!dd || dd.style.display === 'none'){
+    if(e.key === 'ArrowDown'){ fmtEmailOpen(field); e.preventDefault(); }
+    return;
+  }
+  const items = dd.querySelectorAll('.fmt-ct-item');
+  if(!items.length) return;
+
+  if(e.key === 'ArrowDown'){
+    e.preventDefault();
+    _fmtCursor[field] = Math.min(_fmtCursor[field] + 1, items.length - 1);
+    _fmtHighlightCursor(field, items);
+  } else if(e.key === 'ArrowUp'){
+    e.preventDefault();
+    _fmtCursor[field] = Math.max(_fmtCursor[field] - 1, -1);
+    _fmtHighlightCursor(field, items);
+  } else if(e.key === 'Enter'){
+    e.preventDefault();
+    const idx = _fmtCursor[field];
+    if(idx >= 0 && idx < items.length){
+      const item = items[idx];
+      const isManual = item.dataset.manual === '1';
+      const cid = isManual ? item.dataset.cid : parseInt(item.dataset.cid);
+      _fmtToggle(field, cid, item.dataset.name, item.dataset.email);
+      document.getElementById(`fmt-${field}-q`).value = '';
+      _fmtCursor[field] = -1;
+    }
+  } else if(e.key === 'Escape'){
+    dd.style.display = 'none';
+    _fmtCursor[field] = -1;
+  }
+}
+
+function _fmtHighlightCursor(field, items){
+  items.forEach((el, i) => {
+    el.classList.toggle('fmt-cursor', i === _fmtCursor[field]);
+    if(i === _fmtCursor[field]) el.scrollIntoView({block:'nearest'});
+  });
+}
+
+function _fmtRenderDropdown(field, list, rawQ){
+  const inner = document.getElementById(`fmt-${field}-inner`);
+  if(!inner) return;
+  const sel = _fmtSel[field];
+
+  let manualHtml = '';
+  if(rawQ && _fmtIsEmail(rawQ)){
+    const emailLower = rawQ.toLowerCase();
+    const inList     = list && list.some(c => (c.email||'').toLowerCase() === emailLower);
+    const inSel      = [...sel.values()].some(c => (c.email||'').toLowerCase() === emailLower);
+    if(!inList && !inSel){
+      const mKey = '__manual__'+rawQ;
+      const cls  = sel.has(mKey) ? 'fmt-sel' : '';
+      manualHtml = `<div class="fmt-ct-item ${cls}" data-cid="${_fmtAttr(mKey)}"
+           data-name="${_fmtAttr(rawQ)}" data-email="${_fmtAttr(rawQ)}" data-manual="1">
+        <div class="fmt-ct-avatar" style="background:#10b981;">&#9993;</div>
+        <div style="flex:1;min-width:0;">
+          <div class="fmt-ct-name">${_fmtEsc2(rawQ)}</div>
+          <div class="fmt-ct-sub">הזנה ידנית</div>
+        </div>
+        <i class="bi bi-check2-circle fmt-ct-check"></i>
+      </div>`;
+    }
+  }
+
+  if(!list || !list.length){
+    inner.innerHTML = manualHtml ||
+      `<div style="padding:12px;color:var(--text3);font-size:13px;text-align:center;">לא נמצאו אנשי קשר${rawQ && rawQ.length>2 && !_fmtIsEmail(rawQ) ? '<br><span style="font-size:11px;">הזן כתובת מייל מלאה להוספה ידנית</span>' : ''}</div>`;
+  } else {
+    inner.innerHTML = manualHtml + list.map(c=>{
+      const name  = ((c.first_name||'')+' '+(c.last_name||'')).trim();
+      const init  = (c.first_name||'?').charAt(0)+(c.last_name||'').charAt(0);
+      const ac    = FMT_EMAIL_COLORS[_fmtHash(name) % FMT_EMAIL_COLORS.length];
+      const cls   = sel.has(c.id) ? 'fmt-sel' : '';
+      const isUsr = c.source === 'user';
+      const sub   = (isUsr ? [c.email] : [c.role, c.department, c.email]).filter(Boolean).join(' · ');
+      const badge = isUsr ? ' <span style="font-size:10px;background:rgba(91,141,238,.15);color:var(--accent);border-radius:4px;padding:1px 5px;font-weight:600;">משתמש</span>' : '';
+      return `<div class="fmt-ct-item ${cls}" data-cid="${c.id}"
+           data-name="${_fmtAttr(name)}" data-email="${_fmtAttr(c.email||'')}">
+        <div class="fmt-ct-avatar" style="background:${ac};">${_fmtEsc2(init)}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="fmt-ct-name">${_fmtEsc2(name)}${badge}</div>
+          ${sub?`<div class="fmt-ct-sub">${_fmtEsc2(sub)}</div>`:''}
+        </div>
+        <i class="bi bi-check2-circle fmt-ct-check"></i>
+      </div>`;
+    }).join('');
+  }
+
+  inner.onclick = e => {
+    const item = e.target.closest('.fmt-ct-item');
+    if(!item) return;
+    const isManual = item.dataset.manual === '1';
+    const cid = isManual ? item.dataset.cid : parseInt(item.dataset.cid);
+    _fmtToggle(field, cid, item.dataset.name, item.dataset.email);
+    document.getElementById(`fmt-${field}-q`).value = '';
+    _fmtCursor[field] = -1;
+  };
+}
+
+function _fmtToggle(field, id, name, email){
+  const sel = _fmtSel[field];
+  if(sel.has(id)) sel.delete(id);
+  else            sel.set(id, {id, name, email});
+  const q = document.getElementById(`fmt-${field}-q`)?.value||'';
+  fmtEmailFilter(field, q);
+  _fmtRenderChips(field);
+  _fmtUpdateBadge(field);
+  _fmtSyncHidden(field);
+}
+
+function _fmtRenderChips(field){
+  const wrap = document.getElementById(`fmt-${field}-chips`);
+  if(!wrap) return;
+  const sel = _fmtSel[field];
+  if(!sel.size){ wrap.innerHTML=''; return; }
+  wrap.innerHTML = [...sel.values()].map(c=>
+    `<span class="fmt-chip">
+      <i class="bi bi-envelope" style="font-size:11px;"></i>
+      ${_fmtEsc2(c.email)}
+      <button data-field="${field}" data-cid="${_fmtAttr(String(c.id))}"
+              style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:15px;line-height:1;padding:0;opacity:.7;">×</button>
+    </span>`
+  ).join('');
+  wrap.onclick = e => {
+    const btn = e.target.closest('button[data-cid]');
+    if(!btn) return;
+    const f = btn.dataset.field;
+    const cid = _fmtSel[f] && [..._fmtSel[f].keys()].find(k=>String(k)===btn.dataset.cid);
+    if(cid !== undefined){
+      const entry = _fmtSel[f].get(cid);
+      _fmtToggle(f, cid, entry.name, entry.email);
+    }
+  };
+}
+
+function _fmtUpdateBadge(field){
+  const b = document.getElementById(`fmt-${field}-badge`);
+  if(!b) return;
+  const n = _fmtSel[field].size;
+  b.textContent   = n || '';
+  b.style.display = n ? 'inline-block' : 'none';
+}
+
+function _fmtSyncHidden(field){
+  const emails = [..._fmtSel[field].values()].map(c=>c.email).join(',');
+  const el = document.getElementById(`f-mail-${field}`);
+  if(el) el.value = emails;
+}
+
+function _fmtLoadInitial(field, csvStr){
+  if(!csvStr) return;
+  csvStr.split(',').map(s=>s.trim()).filter(Boolean).forEach(email=>{
+    const key = '__loaded__'+email;
+    _fmtSel[field].set(key, {id: key, name: email, email});
+  });
+  _fmtRenderChips(field);
+  _fmtUpdateBadge(field);
+}
+
+// Close dropdowns on outside click; reposition on scroll/resize
+document.addEventListener('click', e => {
+  ['to','cc'].forEach(field => {
+    const wrap = document.getElementById(`fmt-${field}-wrap`);
+    const dd   = document.getElementById(`fmt-${field}-dropdown`);
+    if(dd && wrap && !wrap.contains(e.target) && !dd.contains(e.target))
+      dd.style.display = 'none';
+  });
+});
+window.addEventListener('scroll', () => {
+  ['to','cc'].forEach(field => {
+    const dd = document.getElementById(`fmt-${field}-dropdown`);
+    if(dd && dd.style.display !== 'none') _fmtPositionDropdown(field);
+  });
+}, true);
+window.addEventListener('resize', () => {
+  ['to','cc'].forEach(field => {
+    const dd = document.getElementById(`fmt-${field}-dropdown`);
+    if(dd && dd.style.display !== 'none') _fmtPositionDropdown(field);
+  });
+});
 
 // Run init AFTER all functions are defined
 init();

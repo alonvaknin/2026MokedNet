@@ -49,6 +49,16 @@ class TaskSettingsController extends Controller
             [$name, $slaDays, json_encode($assigneeIds, JSON_UNESCAPED_UNICODE), json_encode([0], JSON_UNESCAPED_UNICODE)]
         );
 
+        // Create default open/closed statuses
+        DB::execute(
+            'INSERT INTO task_statuses (task_type_id, name, color, is_closed, sort_order) VALUES (?,?,?,?,?)',
+            [$id, 'פתוח', '#22c55e', 0, 1]
+        );
+        DB::execute(
+            'INSERT INTO task_statuses (task_type_id, name, color, is_closed, sort_order) VALUES (?,?,?,?,?)',
+            [$id, 'סגור', '#6b7280', 1, 2]
+        );
+
         $this->json(['error' => false, 'id' => $id, 'msg' => 'סוג נוצר']);
     }
 
