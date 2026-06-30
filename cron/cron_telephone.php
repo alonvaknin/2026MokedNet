@@ -6,9 +6,6 @@ require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
 
-$pdo    = DB::v1(); // alon_db — mvoice_telephoneline_fail, stores, logger
-$pdoLog = DB::get(); // alon_db2 — cron_log
-
 $debug = isset($_GET['debug']);
 
 $raw  = fetchPhoneLines();
@@ -18,16 +15,14 @@ $statusReq = $json['responses'][0];
 
 if ((int)$statusReq['code'] !== 200) {
     if ($debug) { die("שגיאת API: קוד " . htmlspecialchars((string)$statusReq['code'], ENT_QUOTES, 'UTF-8')); }
-    logEntry($pdo, 'mvoice-server-error');
-    cronLog($pdoLog, 'run', 'error', "mvoice החזיר קוד {$statusReq['code']}");
+    cronLog('run', 'error', "mvoice החזיר קוד {$statusReq['code']}");
     exit;
 }
 
 $phones = $json['data'];
 if (empty($phones)) {
     if ($debug) { die("לא התקבלו קווי טלפון מה-API"); }
-    logEntry($pdo, 'no-phones-in-response');
-    cronLog($pdoLog, 'run', 'error', 'לא התקבלו קווי טלפון מה-API');
+    cronLog('run', 'error', 'לא התקבלו קווי טלפון מה-API');
     exit;
 }
 
@@ -36,10 +31,10 @@ $mailErrors = 0;
 foreach ($phones as $phone) {
     if ((int)$phone['registered'] === 0 && (int)$phone['expect_registered'] === 1) {
         $line  = $phone['name'];
-        $store = getStoreByLine($pdo, $line);
+        $store = getStoreByLine($line);
 
-        $sMail   = $store['sMail'] ?? '';
-        $sNum    = $store['sNum']  ?? 0;
+        $sMail   = $store['email']     ?? '';
+        $sNum    = $store['store_num'] ?? 0;
         $desc    = preg_replace('/[\r\n\0]/', '', $phone['description'] ?? '');
         $subject = '[מוקד-נט] שלוחת טלפון - ' . $desc . ' לא מחוברת';
         $subject = preg_replace('/[\r\n\0]/', '', $subject);
@@ -49,9 +44,7 @@ foreach ($phones as $phone) {
             continue;
         }
 
-        insertFailLog($pdo, $line, (string) $sNum);
-        $sent     = sendAlertMail($sMail . ';gild@bug.co.il', $subject);
-        logEntry($pdo, $sent ? 'send-mail-to-STORE' : 'mailer-fail', "store:|{$desc}|telephoneline:|{$line}|mail:|{$sMail}");
+        $sent = sendAlertMail($sMail . ';gild@bug.co.il', $subject);
         $failLines[] = $desc;
         if (!$sent) $mailErrors++;
     }
@@ -73,9 +66,9 @@ $totalLines = count($phones);
 if (!empty($failLines)) {
     $details = "נבדקו: {$totalLines} | כשלו: " . implode(', ', $failLines);
     if ($mailErrors > 0) $details .= " | שגיאות שליחה: {$mailErrors}";
-    cronLog($pdoLog, 'run', $mailErrors > 0 ? 'error' : 'ok', $details);
+    cronLog('run', $mailErrors > 0 ? 'error' : 'ok', $details);
 } else {
-    cronLog($pdoLog, 'run', 'ok', "נבדקו: {$totalLines} | כל הקווים תקינים");
+    cronLog('run', 'ok', "נבדקו: {$totalLines} | כל הקווים תקינים");
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -92,36 +85,22 @@ function fetchPhoneLines(): string
 
 // ── DB ────────────────────────────────────────────────────────────────────────
 
-function getStoreByLine(PDO $pdo, string $line): array
+function getStoreByLine(string $line): array
 {
-    $stmt = $pdo->prepare(
-        "SELECT sMail, sNum FROM stores
-         WHERE sType = 'סניף באג' AND FIND_IN_SET(?, telephoneLineNum) AND active = 1 LIMIT 1"
+    return DB::row(
+        "SELECT email, store_num FROM stores
+         WHERE type = 'סניף באג' AND FIND_IN_SET(?, telephone_line_num) AND is_active = 1 LIMIT 1",
+        [$line]
+    ) ?? [];
+}
+
+
+function cronLog(string $action, string $status = 'ok', string $details = ''): void
+{
+    DB::execute(
+        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_telephone', ?, ?, ?)",
+        [$action, $status, $details]
     );
-    $stmt->execute([$line]);
-    return $stmt->fetch() ?: [];
-}
-
-function insertFailLog(PDO $pdo, string $line, string $storeNum): void
-{
-    $pdo->prepare(
-        'INSERT INTO mvoice_telephoneline_fail (telephoneline_number, store_num) VALUES (?, ?)'
-    )->execute([$line, $storeNum]);
-}
-
-function cronLog(PDO $pdo, string $action, string $status = 'ok', string $details = ''): void
-{
-    $pdo->prepare(
-        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_telephone', ?, ?, ?)"
-    )->execute([$action, $status, $details]);
-}
-
-function logEntry(PDO $pdo, string $action, string $value = ''): void
-{
-    $pdo->prepare(
-        "INSERT INTO logger (userId, logWhereChange, logAction, logValue, ipaddress)
-         VALUES (-1, 'CRON-chk-telephoneline', ?, ?, 'cron')"
-    )->execute([$action, $value]);
 }
 
 // ── מייל ─────────────────────────────────────────────────────────────────────

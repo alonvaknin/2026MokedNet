@@ -6,16 +6,13 @@ require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
 
-$pdo    = DB::v1();
-$pdoLog = DB::get(); // alon_db2 — cron_log
+$pdo = DB::get(); // alon_db2
 
-$stmt = $pdo->prepare(
-    "SELECT logValue FROM logger
-     WHERE logAction = 'LAST_READ_CRON_CHANGE'
-     ORDER BY logtime DESC LIMIT 1"
+$last_check_time = DB::value(
+    "SELECT detail FROM activity_log
+     WHERE action = 'cron.run' AND entity_label = 'cron_5min'
+     ORDER BY created_at DESC LIMIT 1"
 );
-$stmt->execute();
-$last_check_time = $stmt->fetchColumn();
 
 if (!$last_check_time) {
     $last_check_time = date('Y-m-d H:i:s', strtotime('-1 hour'));
@@ -23,28 +20,28 @@ if (!$last_check_time) {
 
 $new_check_time = date('Y-m-d H:i:s');
 
-$stmt = $pdo->prepare(
-    "SELECT * FROM logger
-     WHERE logAction = 'change-store-display'
-     AND logtime > :last_check
-     AND logtime <= :new_check"
+$result = DB::query(
+    "SELECT al.entity_id, al.entity_label, al.user_name, al.new_value, al.created_at
+     FROM activity_log al
+     WHERE al.action = 'store.toggle'
+     AND al.created_at > :last_check
+     AND al.created_at <= :new_check
+     ORDER BY al.created_at ASC",
+    [':last_check' => $last_check_time, ':new_check' => $new_check_time]
 );
-$stmt->execute([':last_check' => $last_check_time, ':new_check' => $new_check_time]);
-$result = $stmt->fetchAll();
 
 $changeCount = count($result);
 
 if ($changeCount > 0) {
     $temp = '';
     foreach ($result as $row) {
-        $val        = explode("@!", $row['logValue']);
-        $sNum       = $val[0];
-        $user       = $row['userName'];
-        $action     = ($val[1] === 'on')
+        $storeNum   = get_store_num($row['entity_id']);
+        $storeName  = $row['entity_label'];
+        $user       = $row['user_name'] ?? 'לא ידוע';
+        $action     = ($row['new_value'] === '1')
             ? "<span style='color:green;'>פעילה</span>"
             : "<span style='color:red;'>לא פעילה</span>";
-        $store_name = get_store_name($pdo, $sNum);
-        $temp      .= "חנות: {$store_name} - {$sNum} עברה ל: <strong>{$action}</strong> ע''י {$user}<br>";
+        $temp      .= "חנות: {$storeName}" . ($storeNum ? " - {$storeNum}" : '') . " עברה ל: <strong>{$action}</strong> ע''י {$user}<br>";
     }
 
     $to      = 'gild@bug.co.il,eyal@bug.co.il,web8@bug.co.il,web4@bug.co.il,amir@bug.co.il,sharone@bug.co.il,sagih@bug.co.il,roei@bug.co.il,nissimh@bug.co.il,haim@bug.co.il,oritc@bug.co.il,modan@modan.co.il,mebah@bug.co.il,talb@bug.co.il,alex@bug.co.il,yehonatan@bug.co.il,gal@bug.co.il,ayman@bug.co.il,avitala@bug.co.il';
@@ -57,7 +54,7 @@ if ($changeCount > 0) {
     $mbody .= '</div>';
     $mbody .= '<table cellpadding="0" cellspacing="0" style="margin:0 0 8px;">';
     $mbody .= '<tr><td style="background:#4f7fff;border-radius:8px;padding:0;">';
-    $mbody .= '<a href="https://alon.alexisdeveloping.com/test/stores_availability.test.php" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">רשימת זמינות חנויות עדכנית ←</a>';
+    $mbody .= '<a href="https://alon.alexisdeveloping.com/stores" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">רשימת זמינות חנויות עדכנית ←</a>';
     $mbody .= '</td></tr></table>';
 
     $message = mailWrap($subject, $mbody);
@@ -67,15 +64,13 @@ if ($changeCount > 0) {
     $headers .= "Content-Type: text/html; charset=utf-8\r\n";
 
     $sent = mail($to, $subject, $message, $headers);
-    cron_log($pdoLog, 'run', $sent ? 'ok' : 'error', "שינויי חנות: {$changeCount}" . ($sent ? '' : ' | שליחת מייל נכשלה'));
+    $summary = "שינויי חנות: {$changeCount}" . ($sent ? '' : ' | שליחת מייל נכשלה');
+    cron_log('run', $sent ? 'ok' : 'error', $summary);
+    activity_log_run($new_check_time, $summary);
 } else {
-    cron_log($pdoLog, 'run', 'ok', 'אין שינויים');
+    cron_log('run', 'ok', 'אין שינויים');
+    activity_log_run($new_check_time, 'אין שינויים');
 }
-
-$pdo->prepare(
-    "INSERT INTO logger (logAction, logValue, userId, userName, logWhereChange, SEVERITY)
-     VALUES ('LAST_READ_CRON_CHANGE', :logval, 0, 'cron', 'system', 'INFO')"
-)->execute([':logval' => $new_check_time]);
 
 function mailWrap(string $title, string $body): string
 {
@@ -97,18 +92,24 @@ function mailWrap(string $title, string $body): string
         . '</table></td></tr></table></body></html>';
 }
 
-function cron_log(PDO $pdo, string $action, string $status = 'ok', string $details = ''): void
+function cron_log(string $action, string $status = 'ok', string $details = ''): void
 {
-    $pdo->prepare(
-        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_5min', ?, ?, ?)"
-    )->execute([$action, $status, $details]);
+    DB::execute(
+        "INSERT INTO cron_log (cron_name, action, status, details) VALUES ('cron_5min', ?, ?, ?)",
+        [$action, $status, $details]
+    );
 }
 
-function get_store_name(PDO $pdo, string $sNum): string
+function activity_log_run(string $checkedUntil, string $summary): void
 {
-    $stmt = $pdo->prepare(
-        'SELECT sName FROM stores WHERE sNum = ? AND active = 1 LIMIT 1'
+    DB::execute(
+        "INSERT INTO activity_log (action, entity_type, entity_label, detail, new_value)
+         VALUES ('cron.run', 'cron', 'cron_5min', ?, ?)",
+        [$checkedUntil, $summary]
     );
-    $stmt->execute([$sNum]);
-    return (string) ($stmt->fetchColumn() ?: $sNum);
+}
+
+function get_store_num(int $id): string
+{
+    return (string) (DB::value('SELECT store_num FROM stores WHERE id = ? LIMIT 1', [$id]) ?: '');
 }

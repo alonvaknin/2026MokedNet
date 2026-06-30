@@ -298,9 +298,19 @@ function renderStatuses(typeId) {
   if (!typeId) { container.innerHTML = ''; return; }
   const statuses = TS_STATUSES[typeId] || [];
 
+  const openCount   = statuses.filter(s => !parseInt(s.is_closed)).length;
+  const closedCount = statuses.filter(s =>  parseInt(s.is_closed)).length;
+
   let html = `<div id="status-list-${typeId}">`;
   statuses.forEach((s, idx) => {
-    const safeColor = /^#[0-9a-fA-F]{3,8}$/.test(s.color) ? s.color : '#4f7fff';
+    const safeColor  = /^#[0-9a-fA-F]{3,8}$/.test(s.color) ? s.color : '#4f7fff';
+    const isClosed   = parseInt(s.is_closed);
+    const isLastOfKind = isClosed ? closedCount <= 1 : openCount <= 1;
+    const deleteBtn  = isLastOfKind
+      ? `<button class="btn btn-ghost" style="padding:4px 8px;color:var(--text3);cursor:not-allowed;"
+                 title="חייב להיות לפחות סטטוס ${isClosed ? 'סגור' : 'פתוח'} אחד" disabled>🗑</button>`
+      : `<button class="btn btn-ghost" style="padding:4px 8px;color:var(--danger);"
+                 onclick="deleteStatus(${typeId},${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑</button>`;
     html += `<div class="ts-status-card" id="sc-${s.id}">
       <button class="ts-order-btn" onclick="moveStatus(${typeId},${s.id},-1)" ${idx===0?'disabled':''}>▲</button>
       <button class="ts-order-btn" onclick="moveStatus(${typeId},${s.id},1)" ${idx===statuses.length-1?'disabled':''}>▼</button>
@@ -309,8 +319,7 @@ function renderStatuses(typeId) {
       <input type="color" id="color-input-${s.id}" value="${safeColor}" style="display:none;"
              onchange="updateStatusColor(${s.id},this.value)">
       <span style="flex:1;" onclick="startStatusEdit(${s.id},this)">${esc(s.name)}</span>
-      <button class="btn btn-ghost" style="padding:4px 8px;color:var(--danger);"
-              onclick="deleteStatus(${typeId},${s.id},'${s.name.replace(/'/g,"\\'")}')">🗑</button>
+      ${deleteBtn}
     </div>`;
   });
 

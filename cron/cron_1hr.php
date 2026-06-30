@@ -6,14 +6,13 @@ require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
 
-$pdo   = DB::get();   // alon_db2 — טבלת automations
-$pdoV1 = DB::v1();    // alon_db  — callStatus
+$pdo = DB::get(); // alon_db2
 
 $runLog = [];
 
 closeExpiredJobs($pdo, $runLog);
 deactivateMaxRunJobs($pdo, $runLog);
-processActiveJobs($pdo, $pdoV1, $runLog);
+processActiveJobs($pdo, $runLog);
 notifyOverdueTasks($pdo, $runLog);
 
 cronLog($pdo, 'run', 'ok', !empty($runLog) ? implode(' | ', $runLog) : 'אין פעולות');
@@ -60,7 +59,7 @@ function deactivateMaxRunJobs(PDO $pdo, array &$runLog): void
 
 // ── עיבוד משימות פעילות ──────────────────────────────────────────────────────
 
-function processActiveJobs(PDO $pdo, PDO $pdoV1, array &$runLog): void
+function processActiveJobs(PDO $pdo, array &$runLog): void
 {
     $stmt = $pdo->prepare(
         "SELECT id, user_name, user_mail, mailto, cc_mail, msg_from_user,
@@ -82,8 +81,8 @@ function processActiveJobs(PDO $pdo, PDO $pdoV1, array &$runLog): void
                 if ($currentStatus === false) break;
                 if ((int) $job['run_even_diff'] === 1) {
                     if ($job['current_save_value'] !== $currentStatus) {
-                        $savedLabel   = translateStatus($pdoV1, (string) $job['current_save_value']);
-                        $currentLabel = translateStatus($pdoV1, $currentStatus);
+                        $savedLabel   = translateStatus((string) $job['current_save_value']);
+                        $currentLabel = translateStatus($currentStatus);
                         if (sendMailNotifyOnChange($job, $savedLabel, $currentLabel)) {
                             incrementRunCount($pdo, $job['id']);
                             updateSavedValue($pdo, $job['id'], $currentStatus);
@@ -92,7 +91,7 @@ function processActiveJobs(PDO $pdo, PDO $pdoV1, array &$runLog): void
                     }
                 } else {
                     if ($job['condition_of_type'] === $currentStatus) {
-                        if (sendMailNotifyOnChange($job, '', translateStatus($pdoV1, $currentStatus))) {
+                        if (sendMailNotifyOnChange($job, '', translateStatus($currentStatus))) {
                             incrementRunCount($pdo, $job['id']);
                             setJobDone($pdo, $job['id']);
                             $sent++;
@@ -216,11 +215,9 @@ function updateSavedValue(PDO $pdo, int $id, string $value): void
     $pdo->prepare('UPDATE automations SET current_save_value = ? WHERE id = ?')->execute([$value, $id]);
 }
 
-function translateStatus(PDO $pdoV1, string $statusId): string
+function translateStatus(string $statusId): string
 {
-    $stmt = $pdoV1->prepare('SELECT statusDesc FROM callStatus WHERE statuscallid = ? LIMIT 1');
-    $stmt->execute([$statusId]);
-    return (string) ($stmt->fetchColumn() ?: $statusId);
+    return (string) (DB::v1Value('SELECT statusDesc FROM callStatus WHERE statuscallid = ? LIMIT 1', [$statusId]) ?: $statusId);
 }
 
 // ── שליחת מיילים ─────────────────────────────────────────────────────────────

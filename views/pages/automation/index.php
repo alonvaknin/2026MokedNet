@@ -43,6 +43,18 @@ $agents     = $agents ?? [];
 .aut-collapse-hdr.open i.chev{transform:rotate(180deg);}
 .aut-collapse-body{display:none;}
 .aut-collapse-body.open{display:block;}
+
+/* message column */
+.aut-msg-cell{max-width:280px;white-space:normal;word-break:break-word;line-height:1.4;}
+@media(max-width:1400px){.aut-msg-cell{max-width:200px;}}
+@media(max-width:1100px){.aut-msg-cell{max-width:140px;}}
+
+/* job type row colors */
+.job-notifyOnChangeTo .aut-type-badge{background:rgba(91,141,238,.13);color:#5b8dee;}
+.job-techCare         .aut-type-badge{background:rgba(167,139,250,.13);color:#a78bfa;}
+.job-openCaseByPhone  .aut-type-badge{background:rgba(34,197,94,.13);color:#22c55e;}
+.job-chechOrderNote   .aut-type-badge{background:rgba(245,158,11,.13);color:#f59e0b;}
+.aut-type-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
 </style>
 
 <!-- ── Page header ── -->
@@ -289,9 +301,9 @@ $agents     = $agents ?? [];
           :'<span class="aut-badge aut-badge-done">הסתיימה</span>';
 
       const msg=(row.msgFromUser||'').trim();
-      const msgHtml=msg.length>24
-        ?`<span title="${E(msg)}" style="cursor:help;border-bottom:1px dotted var(--border2);">${E(msg.slice(0,22))}…</span>`
-        :E(msg);
+      const msgHtml=msg
+        ?`<span class="aut-msg-cell" title="${E(msg)}">${E(msg)}</span>`
+        :'—';
 
       const cc=(row.toCcmail||'').trim();
       const ccHtml=cc.length>22
@@ -311,12 +323,13 @@ $agents     = $agents ?? [];
            </button>`:showCancel?'':'';
 
       const dateCol=showCancel?E(row.upToDateFmt||''):E(row.statusChangeFmt||'—');
-      const dateTh=showCancel?'תפוגה':'הסתיים';
+      const jobType=row.typeOfJob||'';
+      const typeLabel=E(row.typeLabel||row.typeOfJob||'');
 
-      html+=`<tr class="${active?'':'row-ended'}">
+      html+=`<tr class="${active?'':'row-ended'} job-${E(jobType)}">
         <td style="white-space:nowrap;font-size:12px;">${E(row.addJobTimeFmt||'')}</td>
         <td>${E(row.userName||'')}</td>
-        <td style="font-size:12px;">${E(row.typeLabel||row.typeOfJob||'')}</td>
+        <td style="font-size:12px;"><span class="aut-type-badge">${typeLabel}</span></td>
         <td style="font-size:12px;">${E(row.conditionLabel||row.conditionOfType||'—')}</td>
         <td><strong>${E(row.valueOfType||'—')}</strong></td>
         <td style="font-size:11px;">${mailCell}</td>

@@ -186,6 +186,21 @@ class TaskSettingsController extends Controller
         $this->requirePermission('task_settings.manage');
         $this->verifyCsrf();
 
+        $status = DB::row('SELECT * FROM task_statuses WHERE id=?', [(int)$id]);
+        if (!$status) {
+            $this->json(['error' => true, 'msg' => 'סטטוס לא נמצא'], 404);
+        }
+
+        $countSameKind = (int)DB::value(
+            'SELECT COUNT(*) FROM task_statuses WHERE task_type_id=? AND is_closed=?',
+            [$status['task_type_id'], $status['is_closed']]
+        );
+
+        if ($countSameKind <= 1) {
+            $label = $status['is_closed'] ? 'סגור' : 'פתוח';
+            $this->json(['error' => true, 'msg' => "לא ניתן למחוק — חייב להיות לפחות סטטוס {$label} אחד לסוג זה"], 409);
+        }
+
         DB::execute('DELETE FROM task_statuses WHERE id=?', [(int)$id]);
         $this->json(['error' => false, 'msg' => 'נמחק']);
     }
