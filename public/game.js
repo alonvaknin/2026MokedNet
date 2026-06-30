@@ -190,12 +190,14 @@
     const cy = (e.clientY - rect.top)  * scaleY;
 
     let hit = false;
+    let pts = 0;
     for (let i = bubbles.length - 1; i >= 0; i--) {
       const b  = bubbles[i];
       const dx = cx - b.x;
       const dy = cy - b.y;
       if (dx * dx + dy * dy <= b.r * b.r) {
-        score += b.type.points;
+        pts = b.type.points;
+        score += pts;
         spawnParticles(b.x, b.y, b.type.color, b.type.rare ? 10 : 6);
         bubbles.splice(i, 1);
         hit = true;
@@ -206,7 +208,7 @@
     if (!hit) return;
 
     // Level flash every 50 pts
-    if (Math.floor(score / 50) > Math.floor((score - (bubbles[0]?.type?.points || 10)) / 50)) {
+    if (Math.floor(score / 50) > Math.floor((score - pts) / 50)) {
       scoreEl.classList.remove('game-score-flash');
       void scoreEl.offsetWidth;
       scoreEl.classList.add('game-score-flash');
@@ -247,7 +249,7 @@
         <div class="game-lb-row${row.is_me ? ' is-me' : ''}">
           <span class="game-lb-rank">${medals[i] || (i + 1)}</span>
           <span class="game-lb-name">${escHtml(row.name)}</span>
-          <span class="game-lb-score">${row.score}</span>
+          <span class="game-lb-score">${Number(row.score) || 0}</span>
         </div>
       `).join('');
 
@@ -268,6 +270,7 @@
 
   // ── Start / stop ──────────────────────────────────────────────────────
   function startGame() {
+    if (running) return;
     resize();
     score    = 0;
     bubbles  = [];
@@ -277,9 +280,11 @@
     overlay.style.display = 'none';
     updateScoreDisplay();
     lastTime = performance.now();
+    if (rafId) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(loop);
 
     // Auto-save every 30s
+    clearInterval(saveTimer);
     saveTimer = setInterval(saveScore, 30000);
   }
 
