@@ -1099,6 +1099,7 @@ renderFiltered();
       <span class="game-timer-wrap">⏱ <b id="game-timer-display">30</b>s</span>
       <span>ניקוד: <b id="game-score-display">0</b></span>
       <span>שיא: <b id="game-best-display">0</b></span>
+      <button id="game-close-btn" title="סגור" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:0 0 0 4px;line-height:1;transition:color .15s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">✕</button>
     </div>
   </div>
   <div class="game-body">
@@ -1110,13 +1111,19 @@ renderFiltered();
       <div id="game-lb-me" class="game-lb-me-row" style="display:none">
         <span>➤ אתה:</span><span id="game-lb-my-score">0</span>
       </div>
+      <hr class="game-lb-divider" style="margin-top:auto">
+      <div style="font-size:9px;color:var(--text3);line-height:1.5;padding:2px 0 2px;">
+        😤 פוצץ = +ניקוד<br>
+        😊❌ אל תפוצץ = -ניקוד
+      </div>
     </div>
     <!-- canvas — LEFT side -->
     <div class="game-canvas-wrap">
       <canvas id="game-canvas"></canvas>
       <div class="game-start-overlay" id="game-overlay">
-        <p>פוצץ לקוחות לפני שישגעו אותך 😤<br>
-          <small>👑 לקוח VIP = +30 &nbsp;|&nbsp; 🤖 שואב נפשע = +25</small></p>
+        <p>פוצץ פניות לפני שמגיעות לראש 😤<br>
+          <small>😊❌ לקוח מרוצה = <span style="color:#e74c3c">-ניקוד!</span> אל תפוצץ!</small><br>
+          <small>👑 VIP = +30 &nbsp;|&nbsp; 🤖 שואב נפשע = +25</small></p>
         <button class="game-btn" id="game-start-btn">▶ התחל</button>
       </div>
     </div>

@@ -8,7 +8,7 @@
   overflow: hidden;
   margin-top: 20px;
   user-select: none;
-  max-width: 560px;   /* לא מתוח על כל המסך */
+  max-width: 680px;
 }
 
 .game-header {
@@ -67,7 +67,7 @@
 
 .game-body {
   display: flex;
-  height: 220px;  /* גובה קומפקטי יותר */
+  height: 240px;
 }
 
 .game-canvas-wrap {
