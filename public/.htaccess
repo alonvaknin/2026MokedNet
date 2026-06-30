@@ -1,6 +1,10 @@
 Options -Indexes
 RewriteEngine On
 
+# Game API — serve directly
+RewriteRule ^api/game-score\.php$ api/game-score.php [L]
+RewriteRule ^api/game-leaderboard\.php$ api/game-leaderboard.php [L]
+
 # אם mod_rewrite עובד — נתב הכל ל-index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

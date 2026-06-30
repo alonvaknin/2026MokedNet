@@ -31,6 +31,7 @@ if (!empty($_SESSION['user_id'])) {
 <style>body{visibility:hidden}</style>
 <script>
 window.__V2_BASE="<?= $base ?>";
+window.__CSRF="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>";
 window.__OVERDUE_COUNT=<?= (int)$overdueCount ?>;
 <?php
 $_layoutPrefsRow = \Core\DB::row(

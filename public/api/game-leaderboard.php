@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
-require_once $_SERVER['DOCUMENT_ROOT'] . '/bootstrap.php';
+define('ROOT', dirname(__DIR__, 2));
+define('SRC',  ROOT . '/src');
+require_once ROOT . '/config/bootstrap.php';
 use Core\Auth;
 use Core\DB;
 
