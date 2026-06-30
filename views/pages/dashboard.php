@@ -1084,3 +1084,41 @@ document.addEventListener('keydown',e=>{
 });
 renderFiltered();
 </script>
+
+<!-- ── BubblePop Game Widget ── -->
+<link rel="stylesheet" href="<?= $base ?>/game.css">
+
+<div class="game-widget" id="game-widget">
+  <div class="game-header">
+    <div class="game-header-title">
+      <i class="bi bi-controller" style="color:var(--accent)"></i>
+      BubblePop
+    </div>
+    <div class="game-header-scores">
+      <span>ניקוד: <b id="game-score-display">0</b></span>
+      <span>שיא: <b id="game-best-display">0</b></span>
+    </div>
+  </div>
+  <div class="game-body">
+    <!-- leaderboard — RIGHT side (RTL) -->
+    <div class="game-leaderboard">
+      <div class="game-lb-title">🏆 טבלת שיאים</div>
+      <div id="game-lb-list"></div>
+      <hr class="game-lb-divider">
+      <div id="game-lb-me" class="game-lb-me-row" style="display:none">
+        <span>➤ אתה:</span><span id="game-lb-my-score">0</span>
+      </div>
+    </div>
+    <!-- canvas — LEFT side -->
+    <div class="game-canvas-wrap">
+      <canvas id="game-canvas"></canvas>
+      <div class="game-start-overlay" id="game-overlay">
+        <p>פוצץ את הפניות לפני שיגיעו לראש!<br>
+           🤖 שואב רובוטי = +25 &nbsp;|&nbsp; 🎧 אוזניות = +20</p>
+        <button class="game-btn" id="game-start-btn">▶ התחל</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="<?= $base ?>/game.js"></script>
