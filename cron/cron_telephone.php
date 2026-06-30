@@ -44,7 +44,8 @@ foreach ($phones as $phone) {
             continue;
         }
 
-        $sent = sendAlertMail($sMail . ';gild@bug.co.il', $subject);
+        $recipients = array_filter([$sMail, 'gild@bug.co.il']);
+        $sent = sendAlertMail(implode(',', $recipients), $subject);
         $failLines[] = $desc;
         if (!$sent) $mailErrors++;
     }
@@ -154,6 +155,7 @@ function sendAlertMail(string $to, string $subject): bool
     $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
     $headers .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= 'Bcc: aloncomputer@gmail.com' . "\r\n";
     $headers .= "Content-Type: text/html; charset=utf-8\r\n";
 
     return mail($to, $subject, $message, $headers);
