@@ -18,15 +18,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+$body        = json_decode(file_get_contents('php://input'), true) ?? [];
 $csrfHeader  = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+$csrfPost    = $body['_csrf'] ?? '';
 $csrfSession = $_SESSION['csrf_token'] ?? '';
-if (!$csrfHeader || !hash_equals($csrfSession, $csrfHeader)) {
+$csrfOk      = ($csrfHeader && hash_equals($csrfSession, $csrfHeader))
+             || ($csrfPost   && hash_equals($csrfSession, $csrfPost));
+if (!$csrfOk) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'csrf']);
     exit;
 }
 
-$body  = json_decode(file_get_contents('php://input'), true);
 $score = (int)($body['score'] ?? 0);
 
 if ($score <= 0 || $score > 99999) {

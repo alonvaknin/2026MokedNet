@@ -296,7 +296,14 @@
     if (document.hidden && running) saveScore();
   });
   window.addEventListener('beforeunload', () => {
-    if (running) saveScore();
+    if (!running || score <= 0) return;
+    // sendBeacon is more reliable than fetch on page unload
+    const payload = JSON.stringify({ score, _csrf: CSRF });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(BASE + '/api/game/score', new Blob([payload], { type: 'application/json' }));
+    } else {
+      saveScore();
+    }
   });
 
   new ResizeObserver(resize).observe(canvas.parentElement);
