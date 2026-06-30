@@ -96,7 +96,7 @@ try {
 } catch (Throwable $ex) {
     http_response_code(500);
     error_log('[CRM/WA] Error: ' . $ex->getMessage());
-    echo json_encode(['ok' => false, 'error' => $ex->getMessage()]);
+    echo json_encode(['ok' => false, 'error' => 'שגיאת שרת פנימית']);
 }
 
 /* ── Helper ── */

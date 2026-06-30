@@ -1,6 +1,6 @@
 <?php
-header('X-Frame-Options: ALLOWALL');
-header("Content-Security-Policy: frame-ancestors *");
+header('X-Frame-Options: SAMEORIGIN');
+header("Content-Security-Policy: frame-ancestors 'self' https://alon.alexisdeveloping.com");
 ?>
 
 <!DOCTYPE html>

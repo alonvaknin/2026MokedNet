@@ -17,7 +17,7 @@ $json = json_decode($raw, true);
 $statusReq = $json['responses'][0];
 
 if ((int)$statusReq['code'] !== 200) {
-    if ($debug) { die("שגיאת API: קוד {$statusReq['code']}"); }
+    if ($debug) { die("שגיאת API: קוד " . htmlspecialchars((string)$statusReq['code'], ENT_QUOTES, 'UTF-8')); }
     logEntry($pdo, 'mvoice-server-error');
     cronLog($pdoLog, 'run', 'error', "mvoice החזיר קוד {$statusReq['code']}");
     exit;
@@ -40,11 +40,12 @@ foreach ($phones as $phone) {
 
         $sMail   = $store['sMail'] ?? '';
         $sNum    = $store['sNum']  ?? 0;
-        $desc    = $phone['description'];
+        $desc    = preg_replace('/[\r\n\0]/', '', $phone['description'] ?? '');
         $subject = '[מוקד-נט] שלוחת טלפון - ' . $desc . ' לא מחוברת';
+        $subject = preg_replace('/[\r\n\0]/', '', $subject);
 
         if ($debug) {
-            $failLines[] = "<b>{$desc}</b> ({$line})\nחנות: " . ($sNum ?: 'לא נמצא') . " | מייל: " . ($sMail ?: '—');
+            $failLines[] = "<b>" . htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') . "</b> (" . htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . ")\nחנות: " . ($sNum ?: 'לא נמצא') . " | מייל: " . htmlspecialchars($sMail ?: '—', ENT_QUOTES, 'UTF-8');
             continue;
         }
 

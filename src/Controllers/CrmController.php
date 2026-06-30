@@ -294,8 +294,9 @@ class CrmController extends Controller
             echo json_encode(['ok' => true]);
 
         } catch (\Throwable $ex) {
+            error_log('[CrmController::saveNote] ' . $ex->getMessage());
             http_response_code(500);
-            echo json_encode(['ok' => false, 'error' => 'db error: ' . $ex->getMessage()]);
+            echo json_encode(['ok' => false, 'error' => 'שגיאת שרת פנימית']);
         }
     }
 
@@ -329,8 +330,9 @@ class CrmController extends Controller
             echo json_encode($result);
 
         } catch (\Throwable $ex) {
+            error_log('[CrmController::apiSendWa] ' . $ex->getMessage());
             http_response_code(500);
-            echo json_encode(['ok' => false, 'error' => $ex->getMessage()]);
+            echo json_encode(['ok' => false, 'error' => 'שגיאת שרת פנימית']);
         }
     }
 

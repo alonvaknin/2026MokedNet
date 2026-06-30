@@ -75,6 +75,7 @@ try {
     echo json_encode(['ok' => true]);
 
 } catch (Throwable $ex) {
+    error_log('[CRM/save-note] ' . $ex->getMessage());
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'db error: ' . $ex->getMessage()]);
+    echo json_encode(['ok' => false, 'error' => 'שגיאת שרת פנימית']);
 }
