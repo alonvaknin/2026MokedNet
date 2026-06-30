@@ -1093,8 +1093,10 @@ renderFiltered();
     <div class="game-header-title">
       <i class="bi bi-controller" style="color:var(--accent)"></i>
       BubblePop
+      <span class="game-level-badge" id="game-level-display">1 — בוקר רגוע</span>
     </div>
     <div class="game-header-scores">
+      <span class="game-timer-wrap">⏱ <b id="game-timer-display">30</b>s</span>
       <span>ניקוד: <b id="game-score-display">0</b></span>
       <span>שיא: <b id="game-best-display">0</b></span>
     </div>
@@ -1102,7 +1104,7 @@ renderFiltered();
   <div class="game-body">
     <!-- leaderboard — RIGHT side (RTL) -->
     <div class="game-leaderboard">
-      <div class="game-lb-title">🏆 טבלת שיאים</div>
+      <div class="game-lb-title">🏆 שיאים</div>
       <div id="game-lb-list"></div>
       <hr class="game-lb-divider">
       <div id="game-lb-me" class="game-lb-me-row" style="display:none">
@@ -1113,8 +1115,8 @@ renderFiltered();
     <div class="game-canvas-wrap">
       <canvas id="game-canvas"></canvas>
       <div class="game-start-overlay" id="game-overlay">
-        <p>פוצץ את הפניות לפני שיגיעו לראש!<br>
-           🤖 שואב רובוטי = +25 &nbsp;|&nbsp; 🎧 אוזניות = +20</p>
+        <p>פוצץ לקוחות לפני שישגעו אותך 😤<br>
+          <small>👑 לקוח VIP = +30 &nbsp;|&nbsp; 🤖 שואב נפשע = +25</small></p>
         <button class="game-btn" id="game-start-btn">▶ התחל</button>
       </div>
     </div>
