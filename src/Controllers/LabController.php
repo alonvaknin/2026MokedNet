@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Controllers;
 
+use Core\ActivityLog;
 use Core\Auth;
 use Core\Controller;
 use Core\DB;
@@ -37,6 +38,7 @@ class LabController extends Controller
             'isAdmin'     => $this->isAdmin(),
             'isTech'      => $this->isTech(),
             'permGroup'   => $this->permGroup(),
+            'canReport'   => Auth::can('canReportLabInv'),
         ]);
     }
 
@@ -54,6 +56,8 @@ class LabController extends Controller
     public function apiHistory(): void
     {
         $this->requirePermission('canEditLabInv');
+        $onlyReported = isset($_GET['reported']) && $_GET['reported'] === '1';
+        $where        = $onlyReported ? 'WHERE m.reported_at IS NOT NULL' : '';
         $rows = DB::query("
             SELECT
                 m.*,
@@ -66,6 +70,7 @@ class LabController extends Controller
             LEFT JOIN lab_inventory_items i ON i.id = m.item_id
             LEFT JOIN users u               ON u.id = m.user_id
             LEFT JOIN users t               ON t.id = m.technician_id
+            $where
             ORDER BY m.movement_date DESC
         ");
         $this->json($rows);
@@ -115,8 +120,9 @@ class LabController extends Controller
         $itemQtys      = array_map('intval', (array)($_POST['item_qty']  ?? []));
         $technicianId  = (int)($_POST['technician_id']   ?? $userId);
         $serviceCallId = trim($_POST['service_call_id'] ?? '');
-        $notes         = trim($_POST['notes']           ?? '');
-        $serialNumber  = trim($_POST['sNum']            ?? '');
+        $notes              = trim($_POST['notes']              ?? '');
+        $serialNumber       = trim($_POST['sNum']               ?? '');
+        $isReportInventory  = ($_POST['is_report_inventory'] ?? '0') === '1' ? 1 : 0;
 
         if (empty($itemIds) || $technicianId <= 0) {
             $this->json(['success' => false, 'message' => 'שדות חסרים'], 400);
@@ -141,9 +147,9 @@ class LabController extends Controller
 
                 DB::execute("
                     INSERT INTO lab_inventory_movements
-                        (user_id, item_id, direction, qty, technician_id, service_call_id, notes, serial_number, status, movement_date)
-                    VALUES (?, ?, 'OUT', ?, ?, ?, ?, ?, ?, NOW())
-                ", [$userId, $itemId, $qty, $technicianId, $scId, $notes, $serialNumber, $status]);
+                        (user_id, item_id, direction, qty, technician_id, service_call_id, notes, serial_number, status, is_report_inventory, movement_date)
+                    VALUES (?, ?, 'OUT', ?, ?, ?, ?, ?, ?, ?, NOW())
+                ", [$userId, $itemId, $qty, $technicianId, $scId, $notes, $serialNumber, $status, $isReportInventory]);
 
                 if ($status === 'approved') {
                     DB::execute('UPDATE lab_inventory_items SET qty = qty - ?, updated_at = NOW() WHERE id = ?', [$qty, $itemId]);
@@ -453,6 +459,74 @@ class LabController extends Controller
 
         DB::execute('UPDATE users SET is_active = 1 - is_active WHERE id = ? AND department_id = ?', [$userId, $deptId]);
         $this->json(['success' => true]);
+    }
+
+    // ── API: report inventory preview ────────────────────────────────────────
+
+    public function apiReportInventoryPreview(): void
+    {
+        if (!Auth::can('canEditLabInv') && !Auth::can('canReportLabInv')) {
+            $this->json(['success' => false, 'message' => 'אין הרשאה'], 403);
+        }
+
+        $rows = DB::query("
+            SELECT
+                m.id,
+                m.qty,
+                m.service_call_id,
+                i.part_number,
+                i.product_name_en,
+                i.compatibility
+            FROM lab_inventory_movements m
+            LEFT JOIN lab_inventory_items i ON i.id = m.item_id
+            WHERE m.is_report_inventory = 1
+              AND m.reported_at IS NULL
+              AND m.exclude_from_report = 0
+            ORDER BY m.movement_date DESC
+        ");
+
+        $this->json(['success' => true, 'rows' => $rows]);
+    }
+
+    // ── API: mark movements as reported ─────────────────────────────────────
+
+    public function apiMarkReported(): void
+    {
+        $this->requirePermission('canReportLabInv');
+        $this->verifyCsrf();
+
+        $raw      = file_get_contents('php://input');
+        $body     = json_decode($raw, true);
+        $toReport = array_map('intval', (array)($body['ids']      ?? []));
+        $excluded = array_map('intval', (array)($body['excluded'] ?? []));
+
+        if (empty($toReport) && empty($excluded)) {
+            $this->json(['success' => false, 'message' => 'לא נשלחו רשומות'], 400);
+        }
+
+        $pdo = DB::get();
+        $pdo->beginTransaction();
+        try {
+            if (!empty($toReport)) {
+                $ph = implode(',', array_fill(0, count($toReport), '?'));
+                DB::execute("UPDATE lab_inventory_movements SET reported_at = NOW() WHERE id IN ($ph)", $toReport);
+            }
+            if (!empty($excluded)) {
+                $ph = implode(',', array_fill(0, count($excluded), '?'));
+                DB::execute("UPDATE lab_inventory_movements SET exclude_from_report = 1 WHERE id IN ($ph)", $excluded);
+            }
+            $pdo->commit();
+
+            $reportedCount = count($toReport);
+            $excludedCount = count($excluded);
+            $detail = "דווחו: {$reportedCount}" . ($excludedCount ? ", הוחרגו: {$excludedCount}" : '');
+            ActivityLog::log('דיווח מלאי מעבדה', 'lab_inventory', null, 'דיווח מלאי', $detail);
+
+            $this->json(['success' => true]);
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $this->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     // ── private helpers ──────────────────────────────────────────────────────

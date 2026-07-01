@@ -162,6 +162,8 @@ $router->post('/api/lab/import',             'Controllers\\LabController@apiImpo
 $router->get ('/api/lab/users',              'Controllers\\LabController@apiUsersList');
 $router->post('/api/lab/user/add',           'Controllers\\LabController@apiAddUser');
 $router->post('/api/lab/user/toggle',        'Controllers\\LabController@apiToggleUser');
+$router->get ('/api/lab/report-preview',    'Controllers\\LabController@apiReportInventoryPreview');
+$router->post('/api/lab/report-mark',       'Controllers\\LabController@apiMarkReported');
 
 // Invoice Change Name
 $router->get ('/invoice-change-name',                 'Controllers\\InvoiceChangeNameController@index');

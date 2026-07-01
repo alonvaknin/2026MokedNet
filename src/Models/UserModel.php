@@ -25,6 +25,7 @@ class UserModel
             'GetCanSearchLabCalls' => 'חיפוש קריאות מעבדה',
             'canEditLabInv'        => 'עריכת מלאי מעבדה',
             'canTakeLabItems'      => 'הוצאת פריטי מעבדה',
+            'canReportLabInv'      => 'דיווח מלאי מעבדה',
         ],
         'חנויות ולקוחות' => [
             'canEditStore'                   => 'עריכת חנויות',
@@ -86,6 +87,7 @@ class UserModel
         'canUseInvoiceChangeName'      => 'שינוי שם חשבונית',
         'canEditLabInv'                => 'עריכת מלאי מעבדה',
         'canTakeLabItems'              => 'הוצאת פריטי מעבדה',
+        'canReportLabInv'              => 'דיווח מלאי מעבדה',
         'canFormatter'                 => 'עריכת פורמטור',
         'canOrianorder'                => 'הזמנות אוריאן',
         'canViewLogs'                  => 'צפייה בלוג פעולות',

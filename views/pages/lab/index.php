@@ -4,6 +4,7 @@ $csrf       = $_SESSION['csrf_token'] ?? '';
 $permGroup  = $permGroup  ?? 0;
 $isAdmin    = $isAdmin    ?? false;
 $isTech     = $isTech     ?? false;
+$canReport  = $canReport  ?? false;
 $technicians = $technicians ?? [];
 $base       = rtrim(CFG['app']['url'], '/');
 ?>
@@ -455,7 +456,27 @@ table.pvtTable tbody tr td{background:var(--bg2)!important;border:1px solid var(
                             </div>
                             <div>
                                 <label class="form-label">הערות <span style="color:var(--danger)">*</span></label>
-                                <input type="text" name="notes" class="form-control" placeholder="תיאור קצר...">
+                                <input type="text" name="notes" id="movNotes" class="form-control" placeholder="תיאור קצר...">
+                                <div class="mt-1 d-flex gap-1 flex-wrap" id="notes-presets">
+                                    <button type="button" class="btn btn-sm btn-outline-warning fw-bold" id="btn-preset-tikun"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">
+                                        <i class="bi bi-tools me-1"></i>תיקון
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-notes-preset="החלפת חלף"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">החלפת חלף</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-notes-preset="אחריות"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">אחריות</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-notes-preset="בדיקה"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">בדיקה</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-notes-preset="איפוס מלאי"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">איפוס מלאי</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-notes-preset="אינטרנט"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">אינטרנט</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-notes-preset="בית לקוח"
+                                            style="font-size:11px;padding:2px 10px;border-radius:20px;">בית לקוח</button>
+
+                                </div>
+                                <input type="hidden" name="is_report_inventory" id="is_report_inventory" value="0">
                             </div>
                             <div>
                                 <label class="form-label">מספר סידורי (SN)</label>
@@ -481,12 +502,25 @@ table.pvtTable tbody tr td{background:var(--bg2)!important;border:1px solid var(
     <div class="lab-card card-hist">
         <div class="lab-card-header">
             <span class="lab-card-title"><i class="bi bi-clock-history" style="color:var(--warning)"></i> היסטוריית תנועות</span>
+            <div class="d-flex gap-2 align-items-center">
+                <?php if ($isAdmin || $canReport): ?>
+                <div class="form-check form-switch mb-0 d-flex align-items-center gap-1" id="filter-reported-wrap">
+                    <input class="form-check-input" type="checkbox" id="filterReportedToggle" style="cursor:pointer">
+                    <label class="form-check-label" for="filterReportedToggle" style="font-size:12px;color:var(--text3)">דווח בלבד</label>
+                </div>
+                <?php endif; ?>
+                <?php if ($canReport): ?>
+                <button class="btn btn-sm btn-outline-primary fw-bold" id="btnReportInventory" style="border-radius:20px;font-size:11.5px;">
+                    <i class="bi bi-send-check me-1"></i>דיווח מלאי
+                </button>
+                <?php endif; ?>
+            </div>
         </div>
         <div style="overflow-x:auto;max-width:100%;">
             <table id="dtMovements" class="table" style="min-width:860px;">
                 <thead><tr>
                     <th>תאריך</th><th>משתמש</th><th>מק"ט</th><th>פריט</th><th>כיוון</th>
-                    <th>כמות</th><th>קריאה</th><th>טכנאי</th><th>הערה</th><th>SN</th><th>סטטוס</th>
+                    <th>כמות</th><th>קריאה</th><th>טכנאי</th><th>הערה</th><th>SN</th><th>סטטוס</th><th>זמן דיווח</th>
                 </tr></thead>
                 <tbody></tbody>
             </table>
@@ -815,11 +849,64 @@ table.pvtTable tbody tr td{background:var(--bg2)!important;border:1px solid var(
 </div>
 
 <!-- ════════════════════════════════════════════
+     MODAL — דיווח מלאי
+═══════════════════════════════════════════════ -->
+<div class="modal fade" id="reportInventoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header" style="border-bottom:1px solid var(--border)">
+                <h5 class="modal-title fw-bold" style="color:var(--accent)">
+                    <i class="bi bi-send-check me-2"></i>דיווח מלאי — פריטים לדיווח
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="reportPreviewLoading" class="text-center p-4" style="color:var(--text3)">
+                    <div class="spinner-border spinner-border-sm me-2"></div>טוען נתונים...
+                </div>
+                <div id="reportPreviewContent" style="display:none">
+                    <div style="padding:.75rem 1rem;background:var(--bg3);border-bottom:1px solid var(--border);font-size:12px;color:var(--text3)">
+                        סמן/בטל סימון שורות לכלול בדיווח. שורות מסומנות יכללו בקובץ האקסל ויסומנו כדווחו.
+                    </div>
+                    <div style="overflow-x:auto">
+                        <table class="table" id="tblReportPreview" style="margin-bottom:0">
+                            <thead><tr>
+                                <th style="width:38px;text-align:center">
+                                    <input type="checkbox" id="chkAllReport" checked title="בחר הכל">
+                                </th>
+                                <th>מקט</th>
+                                <th>תיאור</th>
+                                <th>תאימות</th>
+                                <th class="text-center">כמות</th>
+                                <th class="text-center">קריאה</th>
+                            </tr></thead>
+                            <tbody id="reportPreviewBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="reportPreviewEmpty" style="display:none;padding:2rem;text-align:center;color:var(--text3)">
+                    <i class="bi bi-inbox" style="font-size:2rem;opacity:.3;display:block;margin-bottom:8px"></i>
+                    אין פריטים לדיווח. לחץ "תיקון" בטופס תנועה כדי לסמן פריטים.
+                </div>
+            </div>
+            <div class="modal-footer" id="reportPreviewFooter" style="display:none">
+                <span style="font-size:12px;color:var(--text3);flex:1" id="reportPreviewCount"></span>
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">ביטול</button>
+                <button type="button" class="btn btn-primary fw-bold px-4" id="btnDownloadReport">
+                    <i class="bi bi-file-earmark-excel me-2"></i>הורד אקסל
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════
      JAVASCRIPT
 ═══════════════════════════════════════════════ -->
 <script>
-const LAB_CSRF    = '<?= $csrf ?>';
-const LAB_BASE    = '<?= $base ?>';
+const LAB_CSRF       = '<?= $csrf ?>';
+const LAB_BASE       = '<?= $base ?>';
+const LAB_CAN_REPORT = <?= $canReport ? 'true' : 'false' ?>;
 const LAB_GROUP   = <?= $permGroup ?>;
 const LAB_ADMIN   = <?= $isAdmin ? 'true' : 'false' ?>;
 
@@ -1159,7 +1246,14 @@ const Movements = {
                         return '<span class="lbadge lbadge-yellow">ממתין לאישור</span>';
                     }
                     return d === 'approved' ? '<span class="lbadge lbadge-green"><i class="bi bi-check2"></i> מאושר</span>' : (d||'');
-                }}
+                }},
+                { data:'reported_at', className:'text-center nowrap', width:'110px', defaultContent:'',
+                  render:(d,t)=> {
+                    if (!d) return '';
+                    if (t !== 'display') return d;
+                    return `<span class="lbadge lbadge-green" style="font-size:10px"><i class="bi bi-check2-circle me-1"></i>${new Date(d).toLocaleString('he-IL')}</span>`;
+                  }
+                }
             ],
             createdRow(row, data) {
                 const dir = (data.direction||'').toUpperCase();
@@ -1256,6 +1350,9 @@ const Movements = {
                         App.state.posCart = [];
                         Movements.renderCart();
                         $('#formMovement')[0].reset();
+                        $('#is_report_inventory').val('0');
+                        $('#btn-preset-tikun').removeClass('active btn-danger').addClass('btn-outline-danger');
+                        $('[data-notes-preset]').removeClass('active btn-secondary').addClass('btn-outline-secondary');
                         if (App.state.dtMov) App.state.dtMov.ajax.reload(null, false);
                         if (App.state.dtInv) App.state.dtInv.ajax.reload(null, false);
                     } else { labToast(res.message||'שגיאה', 'danger'); }
@@ -1371,6 +1468,155 @@ const Movements = {
         });
     }
 };
+
+/* ── Notes preset buttons ────────────────────────────────────────────────── */
+function resetNotesPresets() {
+    $('#btn-preset-tikun').removeClass('active btn-danger').addClass('btn-outline-danger');
+    $('[data-notes-preset]').removeClass('active btn-secondary').addClass('btn-outline-secondary');
+    $('#is_report_inventory').val('0');
+}
+
+$('#btn-preset-tikun').on('click', function() {
+    $('#movNotes').val('תיקון');
+    $('#is_report_inventory').val('1');
+    $(this).addClass('active btn-danger').removeClass('btn-outline-danger');
+    $('[data-notes-preset]').removeClass('active btn-secondary').addClass('btn-outline-secondary');
+});
+
+$(document).on('click', '[data-notes-preset]', function() {
+    $('#movNotes').val($(this).data('notes-preset'));
+    $('#is_report_inventory').val('0');
+    $('#btn-preset-tikun').removeClass('active btn-danger').addClass('btn-outline-danger');
+    $(this).addClass('active btn-secondary').removeClass('btn-outline-secondary');
+});
+
+$('#movNotes').on('input', function() {
+    if ($(this).val() !== 'תיקון') {
+        $('#is_report_inventory').val('0');
+        $('#btn-preset-tikun').removeClass('active btn-danger').addClass('btn-outline-danger');
+    }
+});
+
+/* ── Reported filter ─────────────────────────────────────────────────────── */
+$('#filterReportedToggle').on('change', function() {
+    if (App.state.dtMov) {
+        App.state.dtMov.ajax.url(LAB_BASE + '/api/lab/history' + (this.checked ? '?reported=1' : '')).load();
+    }
+});
+
+/* ── ReportInventory ─────────────────────────────────────────────────────── */
+const ReportInventory = {
+    _rows: [],
+
+    open() {
+        const m = bootstrap.Modal.getOrCreateInstance('#reportInventoryModal');
+        m.show();
+        $('#reportPreviewLoading').show();
+        $('#reportPreviewContent,#reportPreviewEmpty,#reportPreviewFooter').hide();
+        $('#reportPreviewBody').empty();
+
+        fetch(LAB_BASE + '/api/lab/report-preview')
+            .then(r => r.json())
+            .then(res => {
+                $('#reportPreviewLoading').hide();
+                if (!res.success || !res.rows.length) {
+                    $('#reportPreviewEmpty').show();
+                    return;
+                }
+                ReportInventory._rows = res.rows;
+                res.rows.forEach(row => {
+                    $('#reportPreviewBody').append(`
+                        <tr data-id="${row.id}">
+                            <td class="text-center">
+                                <input type="checkbox" class="chk-report-row" data-id="${row.id}" checked>
+                            </td>
+                            <td class="number-font fw-bold">${row.part_number || '—'}</td>
+                            <td>${row.product_name_en || '—'}</td>
+                            <td>${row.compatibility || '—'}</td>
+                            <td class="text-center number-font">${row.qty}</td>
+                            <td class="text-center number-font">${row.service_call_id || '—'}</td>
+                        </tr>
+                    `);
+                });
+                ReportInventory.updateCount();
+                $('#reportPreviewContent').show();
+                $('#reportPreviewFooter').css('display', 'flex');
+            })
+            .catch(() => {
+                $('#reportPreviewLoading').hide();
+                labToast('שגיאה בטעינת נתוני דיווח', 'danger');
+            });
+    },
+
+    updateCount() {
+        const total   = $('.chk-report-row').length;
+        const checked = $('.chk-report-row:checked').length;
+        $('#reportPreviewCount').text(`${checked} מתוך ${total} פריטים נבחרו`);
+    },
+
+    download() {
+        const checkedIds  = [];
+        const excludedIds = [];
+        $('.chk-report-row').each(function() {
+            const id = parseInt($(this).data('id'));
+            if ($(this).is(':checked')) checkedIds.push(id);
+            else excludedIds.push(id);
+        });
+
+        if (!checkedIds.length) { labToast('לא נבחרו פריטים לדיווח', 'warning'); return; }
+
+        const $btn = $('#btnDownloadReport');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>שולח...');
+
+        fetch(LAB_BASE + '/api/lab/report-mark', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': LAB_CSRF },
+            body: JSON.stringify({ ids: checkedIds, excluded: excludedIds })
+        })
+        .then(r => r.json())
+        .then(res => {
+            $btn.prop('disabled', false).html('<i class="bi bi-file-earmark-excel me-2"></i>הורד אקסל');
+            if (!res.success) { labToast(res.message || 'שגיאה בשמירת הדיווח', 'danger'); return; }
+
+            const reportedRows = ReportInventory._rows.filter(r => checkedIds.includes(parseInt(r.id)));
+            const wsData = [
+                ['מקט', 'כמות'],
+                ...reportedRows.map(r => [
+                    r.part_number || '',
+                    r.qty
+                ])
+            ];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{ wch: 20 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, ws, 'דיווח מלאי');
+            const today = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `דיווח_מלאי_${today}.xlsx`);
+
+            bootstrap.Modal.getOrCreateInstance('#reportInventoryModal').hide();
+            labToast('הדיווח הושלם והקובץ הורד');
+            if (App.state.dtMov) App.state.dtMov.ajax.reload(null, false);
+        })
+        .catch(() => {
+            $btn.prop('disabled', false).html('<i class="bi bi-file-earmark-excel me-2"></i>הורד אקסל');
+            labToast('שגיאת תקשורת', 'danger');
+        });
+    }
+};
+
+$(document).on('click', '#btnReportInventory', () => ReportInventory.open());
+$(document).on('click', '#btnDownloadReport',  () => ReportInventory.download());
+$(document).on('change', '#chkAllReport', function() {
+    $('.chk-report-row').prop('checked', this.checked);
+    ReportInventory.updateCount();
+});
+$(document).on('change', '.chk-report-row', function() {
+    ReportInventory.updateCount();
+    const total   = $('.chk-report-row').length;
+    const checked = $('.chk-report-row:checked').length;
+    $('#chkAllReport').prop('indeterminate', checked > 0 && checked < total);
+    $('#chkAllReport').prop('checked', checked === total);
+});
 
 /* ── Analytics ───────────────────────────────────────────────────────────── */
 const Analytics = {
