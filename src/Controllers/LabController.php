@@ -76,6 +76,26 @@ class LabController extends Controller
         $this->json($rows);
     }
 
+    // ── API: item field-change logs ──────────────────────────────────────────
+
+    public function apiItemLogs(): void
+    {
+        $this->requirePermission('canEditLabInv');
+        $itemId = (int)($_GET['item_id'] ?? 0);
+        if (!$itemId) $this->json([]);
+
+        $rows = DB::query("
+            SELECT l.field_name, l.old_value, l.new_value, l.changed_at,
+                   CONCAT(u.first_name,' ',u.last_name) AS username
+            FROM lab_inventory_logs l
+            LEFT JOIN users u ON u.id = l.user_id
+            WHERE l.item_id = ?
+            ORDER BY l.changed_at DESC
+            LIMIT 50
+        ", [$itemId]);
+        $this->json($rows);
+    }
+
     // ── API: history chart (pivot) ───────────────────────────────────────────
 
     public function apiHistoryChart(): void
@@ -204,7 +224,7 @@ class LabController extends Controller
         $userId = (int)($_SESSION['user_id'] ?? 0);
         $id     = (int)($_POST['id']      ?? 0);
 
-        $old = DB::row('SELECT qty FROM lab_inventory_items WHERE id = ?', [$id]);
+        $old = DB::row('SELECT * FROM lab_inventory_items WHERE id = ?', [$id]);
         if (!$old) $this->json(['success' => false, 'message' => 'פריט לא נמצא'], 404);
 
         // אם qty לא נשלח או ריק — שמור על הכמות הקיימת (מניעת איפוס בטעות)
@@ -213,19 +233,30 @@ class LabController extends Controller
             $this->json(['success' => false, 'message' => 'לא ניתן להוריד כמות דרך עריכה — השתמש בתנועות מלאי'], 400);
         }
 
+        $newValues = [
+            'product_name_en' => $_POST['product_name_en'] ?? '',
+            'model'           => $_POST['model']           ?? '',
+            'manufacturer'    => $_POST['manufacturer']    ?? '',
+            'min_qty'         => (string)(int)($_POST['min_qty'] ?? 0),
+            'location'        => $_POST['location']        ?? '',
+            'compatibility'   => $_POST['compatibility']   ?? '',
+            'barcode'         => trim($_POST['barcode']   ?? ''),
+        ];
+
         DB::execute("
             UPDATE lab_inventory_items
             SET product_name_en = ?, model = ?, manufacturer = ?, qty = ?,
-                min_qty = ?, location = ?, compatibility = ?, updated_at = NOW()
+                min_qty = ?, location = ?, compatibility = ?, barcode = ?, updated_at = NOW()
             WHERE id = ?
         ", [
-            $_POST['product_name_en'] ?? '',
-            $_POST['model']           ?? '',
-            $_POST['manufacturer']    ?? '',
+            $newValues['product_name_en'],
+            $newValues['model'],
+            $newValues['manufacturer'],
             $qty,
-            (int)($_POST['min_qty']  ?? 0),
-            $_POST['location']        ?? '',
-            $_POST['compatibility']   ?? '',
+            (int)$newValues['min_qty'],
+            $newValues['location'],
+            $newValues['compatibility'],
+            $newValues['barcode'],
             $id,
         ]);
 
@@ -238,6 +269,27 @@ class LabController extends Controller
                     (item_id, direction, qty, user_id, movement_date, notes, status)
                 VALUES (?, ?, ?, ?, NOW(), 'עדכון ידני', 'approved')
             ", [$id, $dir, abs($diff), $userId]);
+        }
+
+        // רשום שינויי שדות ב-log
+        $fieldLabels = [
+            'product_name_en' => 'שם פריט',
+            'model'           => 'דגם',
+            'manufacturer'    => 'יצרן',
+            'min_qty'         => 'מינימום מלאי',
+            'location'        => 'מיקום',
+            'compatibility'   => 'תאימות',
+            'barcode'         => 'ברקוד',
+        ];
+        foreach ($fieldLabels as $field => $label) {
+            $oldVal = (string)($old[$field] ?? '');
+            $newVal = $newValues[$field];
+            if ($oldVal !== $newVal) {
+                DB::execute("
+                    INSERT INTO lab_inventory_logs (item_id, user_id, field_name, old_value, new_value, changed_at)
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                ", [$id, $userId, $label, $oldVal, $newVal]);
+            }
         }
 
         $this->json(['success' => true]);

@@ -153,6 +153,7 @@ $router->get ('/includes/lab_dashboard.php', fn() => header('Location: /lab', tr
 $router->get ('/lab',                        'Controllers\\LabController@index');
 $router->get ('/api/lab/inventory',          'Controllers\\LabController@apiInventory');
 $router->get ('/api/lab/history',            'Controllers\\LabController@apiHistory');
+$router->get ('/api/lab/item/logs',          'Controllers\\LabController@apiItemLogs');
 $router->get ('/api/lab/history-chart',      'Controllers\\LabController@apiHistoryChart');
 $router->post('/api/lab/movement',           'Controllers\\LabController@apiMovement');
 $router->post('/api/lab/movement/approve',   'Controllers\\LabController@apiApproveMovement');

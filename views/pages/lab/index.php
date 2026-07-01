@@ -10,13 +10,12 @@ $base       = rtrim(CFG['app']['url'], '/');
 ?>
 
 <!-- ────── LAB STYLES ────── -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* ═══ LAB DESIGN SYSTEM ═══════════════════════════════════════════════════ */
 #content{background:var(--bg);}
 *{box-sizing:border-box;}
 
-/* font import */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 #content,#content *:not(.number-font *){font-family:'Inter','Heebo',sans-serif;}
 
 /* ── animations ── */
@@ -720,10 +719,10 @@ table.pvtTable tbody tr td{background:var(--bg2)!important;border:1px solid var(
 
         <div class="section-sep"></div>
         <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-            <i class="bi bi-clock-history"></i> תנועות אחרונות לפריט
+            <i class="bi bi-clock-history"></i> היסטוריית פריט
         </div>
         <table class="table table-sm" id="dtItemHistory" style="font-size:12px;">
-            <thead><tr><th>תאריך</th><th>סוג</th><th>כמות</th><th>משתמש</th></tr></thead>
+            <thead><tr><th>תאריך</th><th>סוג</th><th>פרטים</th><th>משתמש</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -1121,25 +1120,51 @@ const Inventory = {
 
         const $hBody = $('#dtItemHistory tbody');
         $hBody.html('<tr><td colspan="4" class="text-center" style="color:var(--text3)">טוען...</td></tr>');
-        $.get(LAB_BASE+'/api/lab/history', function(res) {
-            const logs = res.filter(l => l.part_number === item.part_number);
+
+        $.when(
+            $.get(LAB_BASE+'/api/lab/history'),
+            $.get(LAB_BASE+'/api/lab/item/logs?item_id='+item.id)
+        ).done(function(movRes, logRes) {
+            const movements = (movRes[0]||[]).filter(l => l.part_number === item.part_number);
+            const fieldLogs = logRes[0]||[];
+
+            const rows = [];
+            movements.forEach(m => rows.push({ ts: new Date(m.date).getTime(), type: 'mov', data: m }));
+            fieldLogs.forEach(l => rows.push({ ts: new Date(l.changed_at).getTime(), type: 'log', data: l }));
+            rows.sort((a,b) => b.ts - a.ts);
+
             $hBody.empty();
-            if (!logs.length) {
-                $hBody.html('<tr><td colspan="4" class="text-center" style="color:var(--text3)">אין תנועות</td></tr>'); return;
+            if (!rows.length) {
+                $hBody.html('<tr><td colspan="4" class="text-center" style="color:var(--text3)">אין היסטוריה</td></tr>');
+                return;
             }
-            logs.forEach(log => {
-                const isIn = (log.direction||'').toUpperCase() === 'IN';
-                const badge = isIn
-                    ? '<span class="badge bg-success-subtle">הכנסה</span>'
-                    : '<span class="badge bg-danger-subtle">הוצאה</span>';
-                $hBody.append(`<tr>
-                    <td>${new Date(log.date).toLocaleDateString('he-IL')}</td>
-                    <td>${badge}</td>
-                    <td><strong>${log.qty}</strong></td>
-                    <td>${log.username||''}</td>
-                </tr>`);
+            rows.forEach(r => {
+                if (r.type === 'mov') {
+                    const m = r.data;
+                    const isIn = (m.direction||'').toUpperCase() === 'IN';
+                    const badge = isIn
+                        ? '<span class="badge bg-success-subtle" style="font-size:10px">הכנסה</span>'
+                        : '<span class="badge bg-danger-subtle"  style="font-size:10px">הוצאה</span>';
+                    $hBody.append(`<tr>
+                        <td style="white-space:nowrap;color:var(--text3)">${new Date(m.date).toLocaleDateString('he-IL')}</td>
+                        <td>${badge}</td>
+                        <td><strong>${m.qty}</strong> יח'</td>
+                        <td>${m.username||''}</td>
+                    </tr>`);
+                } else {
+                    const l = r.data;
+                    const before = l.old_value||'—';
+                    const after  = l.new_value||'—';
+                    $hBody.append(`<tr>
+                        <td style="white-space:nowrap;color:var(--text3)">${new Date(l.changed_at).toLocaleDateString('he-IL')}</td>
+                        <td><span class="badge" style="background:var(--bg4);color:var(--text2);font-size:10px">✏️ ${l.field_name}</span></td>
+                        <td style="direction:ltr"><span style="color:var(--danger);text-decoration:line-through">${before}</span> → <span style="color:var(--success)">${after}</span></td>
+                        <td>${l.username||''}</td>
+                    </tr>`);
+                }
             });
         });
+
         bootstrap.Offcanvas.getOrCreateInstance('#drawerItem').show();
     },
 
