@@ -71,7 +71,12 @@ class ContactModel
 
     public static function types(): array
     {
-        return ['נותן שירות', 'פנים ארגוני', 'ספק', 'תמיכה טכנית', 'איש קשר', 'אחר'];
+        $rows = DB::query(
+            "SELECT DISTINCT contact_type FROM contacts
+             WHERE contact_type IS NOT NULL AND contact_type!=''
+             ORDER BY contact_type"
+        );
+        return array_map(fn($r) => $r['contact_type'], $rows);
     }
 
     /** אנשי קשר מסומנים לתכתובות אוטומטיות */

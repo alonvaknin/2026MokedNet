@@ -13,14 +13,21 @@ $base = rtrim(CFG['app']['url'], '/');
 $csrf = $_SESSION['csrf_token'] ?? '';
 
 // כולל גם לא-פעילים (Controller מחזיר רק פעילים, אבל טבלה מציגה הכל)
-$typeColors = [
-    'נותן שירות'  => ['color'=>'#10b981','bg'=>'rgba(16,185,129,.12)','border'=>'rgba(16,185,129,.3)'],
-    'פנים ארגוני' => ['color'=>'#5b8dee','bg'=>'rgba(91,141,238,.12)','border'=>'rgba(91,141,238,.3)'],
-    'ספק'         => ['color'=>'#f59e0b','bg'=>'rgba(245,158,11,.12)','border'=>'rgba(245,158,11,.3)'],
-    'תמיכה טכנית'=> ['color'=>'#06b6d4','bg'=>'rgba(6,182,212,.12)', 'border'=>'rgba(6,182,212,.3)'],
-    'איש קשר'     => ['color'=>'#8b5cf6','bg'=>'rgba(139,92,246,.12)','border'=>'rgba(139,92,246,.3)'],
-    'אחר'         => ['color'=>'#7c829c','bg'=>'rgba(124,130,156,.1)','border'=>'rgba(124,130,156,.25)'],
-];
+// צבע לכל contact_type מחושב לפי hash של השם, כדי לתמוך בסוגים מותאמים אישית
+$ctTypePalette = ['#10b981','#5b8dee','#f59e0b','#06b6d4','#8b5cf6','#ec4899','#f97316','#22c55e','#eab308','#3b82f6','#a855f7','#ef4444'];
+if (!function_exists('ctTypeColor')) {
+    function ctTypeColor(string $name, array $palette): array {
+        $h = 0;
+        foreach (mb_str_split($name) as $ch) { $h = ($h * 31 + mb_ord($ch)) & 0x7fffffff; }
+        $c = $palette[$h % count($palette)];
+        [$r,$g,$b] = sscanf($c, '#%02x%02x%02x');
+        return ['color'=>$c, 'bg'=>"rgba($r,$g,$b,.12)", 'border'=>"rgba($r,$g,$b,.3)"];
+    }
+}
+$typeColors = [];
+foreach (array_unique(array_merge($types, ['איש קשר'])) as $tn) {
+    $typeColors[$tn] = ctTypeColor($tn, $ctTypePalette);
+}
 $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f97316'];
 ?>
 
@@ -32,6 +39,9 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <?php if ($canEdit): ?>
+    <button id="ct-edit-mode-btn" class="btn btn-ghost" onclick="ctToggleEditMode()">
+      <i class="bi bi-pencil-fill"></i> עריכה
+    </button>
     <button class="btn btn-primary" onclick="openCtEdit(null)">
       <i class="bi bi-person-plus-fill"></i> חדש
     </button>
@@ -76,9 +86,10 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
   <!-- Row 2: type pills (multi-toggle) -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
     <span style="font-size:11px;color:var(--text3);flex-shrink:0;">סינון לפי סוג:</span>
-    <?php foreach ($typeColors as $tn => $tc):
+    <?php foreach ($types as $tn):
       $cnt = count(array_filter($contacts, fn($c) => ($c['contact_type']??'איש קשר') === $tn));
       if (!$cnt) continue;
+      $tc = $typeColors[$tn] ?? $typeColors['אחר'];
     ?>
     <button class="ct-type-pill"
             data-type="<?= View::e($tn) ?>"
@@ -121,7 +132,7 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
       <?= View::e($ctype) ?>
     </span>
     <?php if ($canEdit): ?>
-    <div style="display:flex;gap:5px;" onclick="event.stopPropagation()">
+    <div class="ct-row-actions" style="display:flex;gap:5px;" onclick="event.stopPropagation()">
       <button class="ct-edit-btn" onclick="openCtEdit(<?= (int)$c['id'] ?>)" title="ערוך">
         <i class="bi bi-pencil-fill"></i>
       </button>
@@ -184,7 +195,7 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
           <th class="cth">תגיות</th>
           <th class="cth">תכתובות</th>
           <th class="cth">סטטוס</th>
-          <?php if ($canEdit): ?><th class="cth" style="min-width:110px;"></th><?php endif; ?>
+          <?php if ($canEdit): ?><th class="cth ct-row-actions" style="min-width:110px;"></th><?php endif; ?>
         </tr>
       </thead>
       <tbody id="ct-tbody">
@@ -278,7 +289,7 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
           <?php endif; ?>
         </td>
         <?php if ($canEdit): ?>
-        <td class="ctd" onclick="event.stopPropagation()">
+        <td class="ctd ct-row-actions" onclick="event.stopPropagation()">
           <div style="display:flex;gap:6px;">
             <button class="row-act" onclick="openCtEdit(<?= (int)$c['id'] ?>)" title="ערוך">
               <i class="bi bi-pencil-fill"></i> ערוך
@@ -341,7 +352,8 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <label class="flabel">סוג איש קשר</label>
-            <select id="cte-type" class="finput">
+            <select id="cte-type" class="finput" required style="padding:6px 10px;font-size:14px;">
+              <option value="" disabled selected>בחר סוג איש קשר</option>
               <?php foreach ($types as $t): ?>
                 <option value="<?= View::e($t) ?>"><?= View::e($t) ?></option>
               <?php endforeach; ?>
@@ -446,6 +458,10 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
   background:var(--pill-bg);border-color:var(--pill-border);color:var(--pill-color);font-weight:700;
 }
 .ct-pill-cnt{font-size:11px;opacity:.75;}
+#ct-type-clear.active{
+  background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#ef4444;font-weight:600;
+}
+#ct-type-clear.active:hover{background:rgba(239,68,68,.18);}
 /* ── View toggle ── */
 .view-toggle{display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:3px}
 .view-toggle button{background:none;border:none;padding:4px 8px;border-radius:5px;color:var(--text2);cursor:pointer;font-size:15px;transition:background .13s,color .13s}
@@ -465,6 +481,11 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
 .ct-toggle-danger:hover{background:rgba(239,68,68,.1)!important;color:#ef4444!important;border-color:rgba(239,68,68,.3)!important}
 .ct-card-inactive{opacity:.5;}
 .ct-card-inactive:hover{opacity:.75;}
+.ct-row-actions{display:none!important;}
+.ct-edit-mode div.ct-row-actions{display:flex!important;}
+.ct-edit-mode th.ct-row-actions,
+.ct-edit-mode td.ct-row-actions{display:table-cell!important;}
+#ct-edit-mode-btn.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(91,141,238,.4);}
 /* ── Table ── */
 .cth{padding:10px 14px;text-align:right;font-weight:600;font-size:12px;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
 .ctd{padding:11px 14px;vertical-align:middle}
@@ -491,10 +512,12 @@ const CT_BASE = typeof BASE !== 'undefined' ? BASE : '<?= $base ?>';
 const CT_CSRF = '<?= View::e($csrf) ?>';
 const CT_ALL  = <?= json_encode(array_values($contacts), JSON_UNESCAPED_UNICODE|JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT) ?: '[]' ?>;
 
-const CT_TYPE_COL = {
-  'נותן שירות':'#10b981','פנים ארגוני':'#5b8dee','ספק':'#f59e0b',
-  'תמיכה טכנית':'#06b6d4','איש קשר':'#8b5cf6','אחר':'#7c829c'
-};
+const CT_TYPE_PALETTE = ['#10b981','#5b8dee','#f59e0b','#06b6d4','#8b5cf6','#ec4899','#f97316','#22c55e','#eab308','#3b82f6','#a855f7','#ef4444'];
+function ctTypeColor(name) {
+  let h = 0;
+  for (const ch of String(name||'')) h = (h * 31 + ch.codePointAt(0)) & 0x7fffffff;
+  return CT_TYPE_PALETTE[h % CT_TYPE_PALETTE.length];
+}
 
 /* ── View prefs ── */
 const CT_PK = 'v2_ct';
@@ -505,6 +528,19 @@ let _ctView         = ctPref('view','grid');
 let _ctShowInactive = false;
 
 <?php if ($canEdit): ?>
+let _ctEditMode = ctPref('editMode', false);
+function ctApplyEditMode() {
+  document.body.classList.toggle('ct-edit-mode', _ctEditMode);
+  const btn = document.getElementById('ct-edit-mode-btn');
+  if (btn) btn.classList.toggle('active', _ctEditMode);
+}
+function ctToggleEditMode() {
+  _ctEditMode = !_ctEditMode;
+  ctSetPref('editMode', _ctEditMode);
+  ctApplyEditMode();
+}
+ctApplyEditMode();
+
 function ctToggleInactive() {
   _ctShowInactive = !_ctShowInactive;
   const btn = document.getElementById('ct-show-inactive');
@@ -578,14 +614,18 @@ function ctToggleType(btn) {
     _activeTypes.add(t);
     btn.classList.add('active');
   }
-  document.getElementById('ct-type-clear').style.display = _activeTypes.size ? 'inline-block' : 'none';
+  const clearBtn = document.getElementById('ct-type-clear');
+  clearBtn.style.display = _activeTypes.size ? 'inline-block' : 'none';
+  clearBtn.classList.toggle('active', _activeTypes.size > 0);
   ctFilter();
 }
 
 function ctClearTypes() {
   _activeTypes.clear();
   document.querySelectorAll('.ct-type-pill').forEach(b => b.classList.remove('active'));
-  document.getElementById('ct-type-clear').style.display = 'none';
+  const clearBtn = document.getElementById('ct-type-clear');
+  clearBtn.style.display = 'none';
+  clearBtn.classList.remove('active');
   ctFilter();
 }
 
@@ -621,7 +661,7 @@ let _ctvId = null;
 function openCtView(id) {
   _ctvId = id;
   const c = CT_ALL.find(x => x.id == id); if (!c) return;
-  const col     = CT_TYPE_COL[c.contact_type || 'איש קשר'] || '#8b5cf6';
+  const col     = ctTypeColor(c.contact_type || 'איש קשר');
   const initials= (c.first_name||'?').charAt(0) + (c.last_name||'').charAt(0);
   const fullName= (c.first_name||'') + ' ' + (c.last_name||'');
   const aColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f97316'];
@@ -695,7 +735,7 @@ function openCtEdit(id) {
   document.getElementById('cte-website').value  = c?.website   || '';
   document.getElementById('cte-role').value     = c?.role      || '';
   document.getElementById('cte-dept').value     = c?.department|| '';
-  document.getElementById('cte-type').value     = c?.contact_type || 'איש קשר';
+  document.getElementById('cte-type').value     = c?.contact_type || '';
   document.getElementById('cte-address').value  = c?.address   || '';
   document.getElementById('cte-tags').value     = c?.tags      || '';
   document.getElementById('cte-note').value     = c?.note      || '';
