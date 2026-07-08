@@ -560,7 +560,7 @@ function fmtMail(){
   if(_fmtCur?.body_female && !_fmtGender){fmtCopy();return;}
   fmtCopy();
   if(!_fmtCur)return;
-  let to=_fmtCur.mail_to||'';
+  let to=(_fmtCur.mail_to||'').split(',').map(s=>s.trim()).filter(Boolean).join(';');
   let rawSubj=_fmtCur.mail_subject||'';
   if(_fmtCur.fields){
     _fmtCur.fields.forEach(f=>{
@@ -579,7 +579,7 @@ function fmtMail(){
   const cphone=document.getElementById('fmt-cphone')?.value||'';
   rawSubj = rawSubj.replace(/\[cname\]/g, cname).replace(/\[cphone\]/g, cphone);
   const subj=encodeURIComponent(rawSubj);
-  const cc=encodeURIComponent(_fmtCur.mail_cc||'');
+  const cc=encodeURIComponent((_fmtCur.mail_cc||'').split(',').map(s=>s.trim()).filter(Boolean).join(';'));
   window.open(`mailto:${encodeURIComponent(to)}?cc=${cc}&subject=${subj}`, '_blank');
 }
 
