@@ -66,10 +66,10 @@ if ($changeCount > 0) {
     $sent = mail($to, $subject, $message, $headers);
     $summary = "שינויי חנות: {$changeCount}" . ($sent ? '' : ' | שליחת מייל נכשלה');
     cron_log('run', $sent ? 'ok' : 'error', $summary);
-    activity_log_run($new_check_time, $summary);
+    // activity_log_run($new_check_time, $summary);
 } else {
     cron_log('run', 'ok', 'אין שינויים');
-    activity_log_run($new_check_time, 'אין שינויים');
+    // activity_log_run($new_check_time, 'אין שינויים');
 }
 
 function mailWrap(string $title, string $body): string
