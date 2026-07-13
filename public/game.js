@@ -67,11 +67,13 @@
     { text: 'שירות\nמעולה!',                   color: '#27ae60', points: -15, weight: 7, rare: false, bad: true },
     { text: 'הנציג היה\nמדהים!',               color: '#2ecc71', points: -20, weight: 5, rare: false, bad: true },
     { text: 'אני חוזר\nבטוח!',                 color: '#27ae60', points: -12, weight: 6, rare: false, bad: true },
-    { text: 'נתתי\n5 כוכבים!',                 color: '#f39c12', points: -20, weight: 5, rare: false, bad: true },
+    { text: 'טופל במעבדה\nבפעם הראשונה\nתוך 4 ימים', color: '#f39c12', points: -20, weight: 5, rare: false, bad: true },
+    { text: 'נתתי\nדירוג גבוה',                 color: '#f39c12', points: -20, weight: 5, rare: false, bad: true },
     { text: 'רוצה\nלשדרג!',                    color: '#16a085', points: -10, weight: 6, rare: false, bad: true },
     { text: 'חבר הפנה\nאותי',                  color: '#16a085', points: -10, weight: 5, rare: false, bad: true },
     { text: 'הקפה\nמוכן! ☕',                  color: '#795548', points: -25, weight: 3, rare: true,  bad: true },
     { text: 'מגיע לך\nהפסקה!',                color: '#795548', points: -20, weight: 3, rare: true,  bad: true },
+    { text: 'פרדס חנה לא משהו בכלל',            color: '#95a5a6', points: -10, weight: 4, rare: false, bad: true }
   ];
 
   const LEVELS = [
