@@ -136,6 +136,13 @@ body.nav-collapsed #main{margin-right:var(--sidebar-mini)}
 .topbar-search input{background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;padding:8px 0;width:100%}
 .topbar-search input::placeholder{color:var(--text3)}
 .topbar-search kbd{font-size:10px;color:var(--text3);background:var(--bg4);border:1px solid var(--border2);border-radius:4px;padding:1px 5px;font-family:var(--font)}
+.ai-hub-btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border:none;border-radius:20px;font-size:13px;font-weight:700;font-family:var(--font);color:#fff;cursor:pointer;white-space:nowrap;flex-shrink:0;background:linear-gradient(120deg,#5b2ce8 0%,#8b5cf6 45%,#c084fc 100%);background-size:200% 100%;background-position:0% 50%;box-shadow:0 2px 12px rgba(139,92,246,.4);transition:background-position .4s ease,box-shadow .2s,transform .15s}
+.ai-hub-btn:hover{background-position:100% 50%;box-shadow:0 4px 20px rgba(192,132,252,.6);transform:translateY(-1px) scale(1.02)}
+.ai-hub-btn:active{transform:scale(.97)}
+.ai-hub-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.25) 50%,transparent 60%);background-size:200% 100%;background-position:-100% 0;transition:background-position .5s ease;pointer-events:none}
+.ai-hub-btn:hover::before{background-position:200% 0}
+.ai-hub-stars{display:inline-flex;font-size:15px;filter:drop-shadow(0 0 4px rgba(255,255,255,.6));animation:ai-hub-twinkle 2.2s ease-in-out infinite}
+@keyframes ai-hub-twinkle{0%,100%{opacity:1;transform:scale(1) rotate(0deg)}50%{opacity:.65;transform:scale(1.15) rotate(8deg)}}
 .topbar-spacer{flex:1}
 #page-title{font-size:13px;color:var(--text3);display:flex;align-items:center;gap:6px}
 #page-title .crumb-current{color:var(--text2);font-weight:600}
@@ -244,6 +251,12 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
       <input type="search" id="global-search" placeholder="חיפוש גלובאלי..." autocomplete="off">
       <kbd>⌘K</kbd>
     </div>
+    <button class="ai-hub-btn" onclick="openAiHubModal()" title="מרכז הידע AI">
+      <span class="ai-hub-stars">
+        <i class="bi bi-stars"></i>
+      </span>
+      <span>מרכז הידע AI</span>
+    </button>
     <div class="topbar-spacer"></div>
     <div id="page-title"><span class="crumb-current" id="crumb-text">דשבורד</span></div>
     <div style="position:relative;">
@@ -474,6 +487,23 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
 .gs-empty i{font-size:30px;display:block;margin-bottom:10px;opacity:.35}
 </style>
 
+<!-- AI Knowledge Hub Modal -->
+<div id="ai-hub-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:600;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);width:100%;max-width:560px;box-shadow:0 24px 80px rgba(139,92,246,.25);overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);">
+      <span class="ai-hub-stars" style="font-size:18px;color:#c084fc;"><i class="bi bi-stars"></i></span>
+      <div style="flex:1;font-size:15px;font-weight:700;">מרכז הידע AI</div>
+      <button onclick="closeAiHubModal()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:60px 20px;text-align:center;">
+      <div style="font-size:40px;background:linear-gradient(120deg,#5b2ce8,#8b5cf6,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:14px;">
+        <i class="bi bi-stars"></i>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);">בקרוב...</div>
+    </div>
+  </div>
+</div>
+
 <div id="v2-toast"></div>
 
 <script>
@@ -485,6 +515,9 @@ function closeMobileNav(){document.body.classList.remove('nav-open');}
 function v2Toast(msg){const t=document.getElementById('v2-toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function toggleUserMenu(){document.getElementById('user-dropdown').classList.toggle('open');}
 function closeUserMenu(){document.getElementById('user-dropdown').classList.remove('open');}
+function openAiHubModal(){document.getElementById('ai-hub-modal').style.display='flex';}
+function closeAiHubModal(){document.getElementById('ai-hub-modal').style.display='none';}
+document.getElementById('ai-hub-modal').addEventListener('click',e=>{if(e.target===document.getElementById('ai-hub-modal'))closeAiHubModal();});
 document.addEventListener('click',e=>{
   const dd=document.getElementById('user-dropdown');const btn=document.getElementById('topbar-av');
   if(dd&&!dd.contains(e.target)&&btn&&!btn.contains(e.target))closeUserMenu();

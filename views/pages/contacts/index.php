@@ -147,9 +147,7 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
     <div class="ct-avatar" style="background:<?= $acolor ?>;"><?= View::e($initials) ?></div>
     <div style="min-width:0;">
-      <div style="font-weight:700;font-size:14px;line-height:1.3;">
-        <?= View::e(($c['first_name']??'').' '.($c['last_name']??'')) ?><?php if (!empty($c['department'])): ?> <span style="font-weight:400;color:var(--text3);">(<?= View::e($c['department']) ?>)</span><?php endif; ?>
-      </div>
+      <div style="font-weight:700;font-size:14px;line-height:1.3;"><?= View::e(($c['first_name']??'').' '.($c['last_name']??'')) ?></div>
       <?php if ($c['role']): ?>
         <div style="font-size:11px;color:var(--text3);"><?= View::e($c['role']) ?></div>
       <?php endif; ?>
@@ -232,9 +230,7 @@ $avatarColors = ['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f
           <div style="display:flex;align-items:center;gap:10px;">
             <div class="ct-avatar" style="background:<?= $acolor ?>;width:34px;height:34px;font-size:12px;flex-shrink:0;"><?= View::e($initials) ?></div>
             <div>
-              <div style="font-weight:600;font-size:14px;">
-                <?= View::e(($c['first_name']??'').' '.($c['last_name']??'')) ?><?php if (!empty($c['department'])): ?> <span style="font-weight:400;color:var(--text3);">(<?= View::e($c['department']) ?>)</span><?php endif; ?>
-              </div>
+              <div style="font-weight:600;font-size:14px;"><?= View::e(($c['first_name']??'').' '.($c['last_name']??'')) ?></div>
               <?php if ($c['email']): ?>
                 <div style="font-size:11px;color:var(--text3);direction:ltr;text-align:right;"><?= View::e($c['email']) ?></div>
               <?php endif; ?>
@@ -683,7 +679,7 @@ function openCtView(id) {
       place-items:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">${E(initials)}</div>
      <div>
        <div style="display:flex;align-items:center;gap:8px;">
-         ${E(fullName)}${c.department?` <span style="font-weight:400;color:var(--text3);font-size:13px;">(${E(c.department)})</span>`:''}
+         ${E(fullName)}
          ${!parseInt(c.is_active||1)?'<span style="font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:8px;padding:1px 7px;color:var(--text3);">לא פעיל</span>':''}
        </div>
        <span style="font-size:11px;font-weight:400;color:${col};">${E(c.contact_type||'איש קשר')}</span>
