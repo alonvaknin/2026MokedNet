@@ -67,6 +67,30 @@
       </div>
     </div>
 
+    <div class="sf-section" id="sf-hours-section" style="--sc:#06b6d4;">
+      <div class="sf-section-title"><i class="bi bi-clock-fill"></i> שעות פעילות</div>
+      <div id="sf-sync-wrap" style="display:none;margin-bottom:12px;">
+        <label class="sf-toggle-wrap" for="sf-sync-hours">
+          <input type="checkbox" id="sf-sync-hours" class="sf-toggle-input">
+          <span class="sf-toggle-track">
+            <span class="sf-toggle-thumb"></span>
+          </span>
+          <span class="sf-toggle-label">סנכרון אוט' לפי אתר באג</span>
+        </label>
+      </div>
+      <div style="display:grid;gap:8px;">
+        <div style="display:grid;grid-template-columns:70px 1fr;gap:10px;align-items:center;">
+          <label class="flabel" style="margin:0;">א-ה</label><input id="sf-hours-a" type="text" class="finput" dir="ltr" placeholder="09:00-18:00">
+        </div>
+        <div style="display:grid;grid-template-columns:70px 1fr;gap:10px;align-items:center;">
+          <label class="flabel" style="margin:0;">שישי</label><input id="sf-hours-v" type="text" class="finput" dir="ltr" placeholder="09:00-14:00">
+        </div>
+        <div style="display:grid;grid-template-columns:70px 1fr;gap:10px;align-items:center;">
+          <label class="flabel" style="margin:0;">שבת</label><input id="sf-hours-s" type="text" class="finput" dir="ltr" placeholder="-">
+        </div>
+      </div>
+    </div>
+
     <div class="sf-section" style="--sc:var(--warning);">
       <div class="sf-section-title"><i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);"></i> הערת התראה</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">מוצגת בולטת על הכרטיס. עדכון ישמור תאריך ומשתמש.</div>
@@ -126,8 +150,15 @@ function openStoreForm(s){
   document.getElementById('sf-alert').value      =s.alert_note||'';
   document.getElementById('sf-note').value       =s.note||'';
   document.getElementById('sf-active').checked   =s.id?!!parseInt(s.is_active):true;
+  document.getElementById('sf-sync-hours').checked=s.id?!!parseInt(s.sync_work_hours):false;
+  let wh=s.work_hours||null;
+  if(typeof wh==='string'){try{wh=JSON.parse(wh);}catch(e){wh=null;}}
+  document.getElementById('sf-hours-a').value=(wh&&wh['א'])||'';
+  document.getElementById('sf-hours-v').value=(wh&&wh['ו'])||'';
+  document.getElementById('sf-hours-s').value=(wh&&wh['ש'])||'';
   document.getElementById('sf-error').style.display='none';
   _sfUpdateNumReq();
+  _sfUpdateHoursState();
   modal.style.display='flex';
   setTimeout(()=>document.getElementById('sf-name').focus(),60);
 }
@@ -137,7 +168,19 @@ function _sfUpdateNumReq(){
   const isBug=document.getElementById('sf-type').value==='סניף באג';
   document.getElementById('sf-num-req').style.display=isBug?'':'none';
 }
-document.getElementById('sf-type').addEventListener('change',_sfUpdateNumReq);
+
+function _sfUpdateHoursState(){
+  const isBug=document.getElementById('sf-type').value==='סניף באג';
+  document.getElementById('sf-sync-wrap').style.display=isBug?'':'none';
+  const synced=isBug&&document.getElementById('sf-sync-hours').checked;
+  ['sf-hours-a','sf-hours-v','sf-hours-s'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.disabled=synced;
+    el.style.opacity=synced?.55:1;
+  });
+}
+document.getElementById('sf-type').addEventListener('change',()=>{_sfUpdateNumReq();_sfUpdateHoursState();});
+document.getElementById('sf-sync-hours').addEventListener('change',_sfUpdateHoursState);
 
 function closeStoreForm(){
   const m=document.getElementById('store-edit-modal')||document.getElementById('edit-modal');
@@ -153,6 +196,14 @@ async function submitStoreForm(){
   if(!name){err.textContent='שם הוא שדה חובה';err.style.display='block';return;}
   if(numRequired&&!num){err.textContent='מספר סניף הוא שדה חובה עבור סניף באג';err.style.display='block';return;}
   err.style.display='none';
+  const isBug=type==='סניף באג';
+  const syncHours=isBug&&document.getElementById('sf-sync-hours').checked;
+  const wh={
+    'א':document.getElementById('sf-hours-a').value.trim(),
+    'ו':document.getElementById('sf-hours-v').value.trim(),
+    'ש':document.getElementById('sf-hours-s').value.trim(),
+  };
+  const hasHours=wh['א']||wh['ו']||wh['ש'];
   const body=new URLSearchParams({
     _csrf:_SF_CSRF,id:document.getElementById('sf-id').value,
     store_num:num||'',name,type:document.getElementById('sf-type').value,
@@ -168,6 +219,8 @@ async function submitStoreForm(){
     alert_note:document.getElementById('sf-alert').value.trim(),
     note:document.getElementById('sf-note').value.trim(),
     is_active:document.getElementById('sf-active').checked?'1':'0',
+    sync_work_hours:syncHours?'1':'0',
+    work_hours:hasHours?JSON.stringify(wh):'',
   });
   const res=await fetch(_SF_BASE+'/stores/save',{method:'POST',body});
   const data=await res.json();

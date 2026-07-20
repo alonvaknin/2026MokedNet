@@ -12,7 +12,7 @@ class StoreModel
         'store_num','name','type','city','address',
         'phone_main','phone_cell','email','manager_name','manager_cell',
         'mvoice_queue','telephone_line_num','alert_note','note',
-        'tags','is_active','is_display',
+        'tags','is_active','is_display','sync_work_hours','work_hours',
     ];
 
     public static function allBugStores(): array
@@ -20,7 +20,7 @@ class StoreModel
         return DB::query(
             "SELECT id,store_num,name,type,city,address,phone_main,phone_cell,email,
                     mvoice_queue,telephone_line_num,alert_note,alert_updated_at,
-                    manager_name,manager_cell,is_active,tags,note,work_hours,created_at
+                    manager_name,manager_cell,is_active,tags,note,work_hours,sync_work_hours,created_at
              FROM stores WHERE is_active=1 AND type='סניף באג' ORDER BY CAST(store_num AS UNSIGNED) ASC"
         );
     }
@@ -30,7 +30,7 @@ class StoreModel
         return DB::query(
             "SELECT id,store_num,name,type,city,address,phone_main,phone_cell,email,
                     mvoice_queue,telephone_line_num,alert_note,alert_updated_at,
-                    manager_name,manager_cell,is_active,tags,note,work_hours,created_at
+                    manager_name,manager_cell,is_active,tags,note,work_hours,sync_work_hours,created_at
              FROM stores WHERE is_active=1 AND type='נקודת מודן' ORDER BY name ASC"
         );
     }
@@ -102,9 +102,9 @@ class StoreModel
                  phone_main,phone_cell,email,manager_name,manager_cell,
                  mvoice_queue,telephone_line_num,
                  alert_note,note,tags,
-                 is_active,is_display,
+                 is_active,is_display,sync_work_hours,work_hours,
                  created_at,updated_at)
-             VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?, ?,?,?, ?,?, NOW(),NOW())',
+             VALUES (?,?,?,?,?, ?,?,?,?,?, ?,?, ?,?,?, ?,?,?,?, NOW(),NOW())',
             [
                 $d['store_num']         ?: null,
                 $d['name'],
@@ -123,6 +123,8 @@ class StoreModel
                 $d['tags']              ?: null,
                 ($d['is_active']  ?? true)  ? 1 : 0,
                 ($d['is_display'] ?? true)  ? 1 : 0,
+                ($d['sync_work_hours'] ?? false) ? 1 : 0,
+                $d['work_hours']        ?: null,
             ]
         );
     }
@@ -133,17 +135,20 @@ class StoreModel
         $prev = self::byId($id);
         $alertChanged = ($prev['alert_note'] ?? '') !== ($d['alert_note'] ?? '');
 
+        $syncOn = ($d['sync_work_hours'] ?? false) ? 1 : 0;
+
         DB::execute(
             'UPDATE stores SET
                 store_num=?,name=?,type=?,city=?,address=?,
                 phone_main=?,phone_cell=?,email=?,manager_name=?,manager_cell=?,
                 mvoice_queue=?,telephone_line_num=?,
                 alert_note=?,note=?,tags=?,
-                is_active=?,is_display=?,
+                is_active=?,is_display=?,sync_work_hours=?,
+                work_hours=' . ($syncOn ? 'work_hours' : '?') . ',
                 alert_updated_at=' . ($alertChanged ? 'NOW()' : 'alert_updated_at') . ',
                 updated_at=NOW()
              WHERE id=?',
-            [
+            array_merge([
                 $d['store_num']         ?: null,
                 $d['name'],
                 $d['type']              ?: 'סניף באג',
@@ -161,8 +166,8 @@ class StoreModel
                 $d['tags']              ?: null,
                 ($d['is_active']  ?? true)  ? 1 : 0,
                 ($d['is_display'] ?? true)  ? 1 : 0,
-                $id,
-            ]
+                $syncOn,
+            ], $syncOn ? [] : [$d['work_hours'] ?: null], [$id])
         );
     }
 
@@ -170,7 +175,7 @@ class StoreModel
     {
         return DB::execute(
             "UPDATE stores SET work_hours=?, updated_at=NOW()
-             WHERE store_num=? AND type='סניף באג' AND is_active=1",
+             WHERE store_num=? AND type='סניף באג' AND is_active=1 AND sync_work_hours=1",
             [$workHours, $storeNum]
         );
     }

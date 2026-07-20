@@ -499,7 +499,7 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
       <div style="font-size:40px;background:linear-gradient(120deg,#5b2ce8,#8b5cf6,#c084fc);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:14px;">
         <i class="bi bi-stars"></i>
       </div>
-      <div style="font-size:16px;font-weight:700;color:var(--text);">בקרוב...</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);">ממתינים לאלכס...</div>
     </div>
   </div>
 </div>

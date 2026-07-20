@@ -44,7 +44,7 @@ foreach ($phones as $phone) {
             continue;
         }
 
-        $recipients = array_filter([$sMail, 'gild@bug.co.il']);
+        $recipients = array_filter([$sMail]);
         $sent = sendAlertMail(implode(',', $recipients), $subject);
         $failLines[] = $desc;
         if (!$sent) $mailErrors++;

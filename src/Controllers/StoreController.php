@@ -97,6 +97,8 @@ class StoreController extends Controller
             'tags'               => trim($this->post('tags','')),
             'is_active'          => (bool)$this->post('is_active', 1),
             'is_display'         => (bool)$this->post('is_display', 1),
+            'sync_work_hours'    => (bool)$this->post('sync_work_hours', 0),
+            'work_hours'         => trim($this->post('work_hours', '')),
         ];
 
         if (!$data['name']) $this->json(['שגיאה' => 'שם חובה'], 400);

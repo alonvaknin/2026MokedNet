@@ -118,6 +118,15 @@ $newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_a
     <?php foreach ($stores as $s):
       $hasAlert = !empty($s['alert_note']);
       $isNew = !empty($s['created_at']) && strtotime($s['created_at']) >= strtotime('-7 days');
+      $todayHours = null;
+      if (!empty($s['work_hours'])) {
+          $wh = is_array($s['work_hours']) ? $s['work_hours'] : json_decode((string)$s['work_hours'], true);
+          if (is_array($wh)) {
+              $dow = (int)date('w'); // 0=Sun...6=Sat
+              $key = $dow === 6 ? 'ש' : ($dow === 5 ? 'ו' : 'א');
+              $todayHours = $wh[$key] ?? null;
+          }
+      }
     ?>
     <div class="store-card c-bug<?= $hasAlert?' has-alert':'' ?><?= $isNew?' is-new':'' ?>"
          data-id="<?= (int)$s['id'] ?>"
@@ -145,6 +154,9 @@ $newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_a
             <i class="bi bi-telephone-fill me-2"></i>
             <span><?= View::e($s['phone_main']) ?></span>
           </div>
+        <?php endif; ?>
+        <?php if ($todayHours): ?>
+          <div class="sc-meta sc-hours"><i class="bi bi-clock-fill"></i><span><?= View::e($todayHours) ?></span></div>
         <?php endif; ?>
         <?php if ($hasAlert): ?>
           <div class="sc-alert" title="<?= View::e($s['alert_note']) ?>">
@@ -535,6 +547,7 @@ body.edit-mode .store-card,.edit-mode .card-content{cursor:default}
 .store-card:hover .sc-city{color:var(--text)}
 .sc-phone{cursor:pointer;}
 .sc-phone:hover{opacity:.75;}
+.sc-hours{color:#06b6d4;font-size:11px;display:flex;align-items:center;gap:4px;}
 .sc-alert{font-size:11px;color:var(--warning);background:rgba(245,158,11,.1);border-radius:3px;padding:3px 6px;line-height:1.4;display:flex;align-items:center;gap:4px}
 .sc-alert-ts{margin-right:auto;color:var(--text3);font-size:10px}
 .card-type-icon{position:absolute;top:7px;left:9px;font-size:13px;line-height:1;pointer-events:none;z-index:1;}
@@ -818,7 +831,17 @@ async function openStoreView(id){
     if(typeof wh==='string'){try{wh=JSON.parse(wh);}catch(e){wh=null;}}
     if(wh&&typeof wh==='object'){
       const rows=Object.entries(wh).filter(([,v])=>v).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text2)">${esc(dayNames[k]||k)}</span><span style="font-weight:600">${esc(v)}</span></div>`).join('');
-      if(rows) cards.push(card('<i class="bi bi-clock-fill"></i>','#06b6d4','שעות פעילות',rows));
+      if(rows){
+        const isSynced=s.type==='סניף באג'&&!!parseInt(s.sync_work_hours);
+        const canEditHours=<?= $canEdit ? 'true' : 'false' ?>;
+        let title='שעות פעילות';
+        if(canEditHours && s.type==='סניף באג'){
+          title+=isSynced
+            ?' <span style="font-size:10px;color:#06b6d4;font-weight:400;"><i class="bi bi-arrow-repeat"></i> מסונכרן אוט\'</span>'
+            :' <span style="font-size:10px;color:var(--warning);font-weight:700;"><i class="bi bi-pencil-fill"></i> ידני</span>';
+        }
+        cards.push(card('<i class="bi bi-clock-fill"></i>','#06b6d4',title,rows));
+      }
     }
   }
 
