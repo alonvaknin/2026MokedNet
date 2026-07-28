@@ -70,14 +70,14 @@
 .cal-day.cal-wday::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:rgba(34,197,94,.45);}
 .cal-day.cal-today::after{background:rgba(255,255,255,.5)!important;}
 /* holidays */
-.cal-day.hol-h{color:#f59e0b;font-weight:600;}
-.cal-day.hol-c{color:#d97706;}
-.cal-day.hol-i{color:#06b6d4;font-weight:600;}
-.cal-day.hol-r{color:#8b5cf6;}
-.cal-day.hol-h::before{content:'★';position:absolute;top:1px;right:1px;font-size:5px;color:#f59e0b;line-height:1;}
-.cal-day.hol-c::before{content:'◐';position:absolute;top:1px;right:1px;font-size:5px;color:#d97706;line-height:1;}
-.cal-day.hol-i::before{content:'✦';position:absolute;top:1px;right:1px;font-size:5px;color:#06b6d4;line-height:1;}
-.cal-day.hol-r::before{content:'●';position:absolute;top:1px;right:1px;font-size:4px;color:#8b5cf6;line-height:1;}
+.cal-day.hol-h{color:#f59e0b;font-weight:600;border:1px solid #8b5cf6;}
+.cal-day.hol-c{color:#d97706;border:1px solid #8b5cf6;}
+.cal-day.hol-i{color:#06b6d4;font-weight:600;border:1px solid #8b5cf6;}
+.cal-day.hol-r{color:#8b5cf6;border:1px solid #8b5cf6;}
+.cal-day.hol-h::before{content:'★';position:absolute;top:1px;right:1px;font-size:7px;color:#f59e0b;line-height:1;}
+.cal-day.hol-c::before{content:'◐';position:absolute;top:1px;right:1px;font-size:7px;color:#d97706;line-height:1;}
+.cal-day.hol-i::before{content:'✦';position:absolute;top:1px;right:1px;font-size:7px;color:#06b6d4;line-height:1;}
+.cal-day.hol-r::before{content:'●';position:absolute;top:1px;right:1px;font-size:6px;color:#8b5cf6;line-height:1;}
 #cal-panel.cal-sz-l .cal-day[class*="hol-"]::before{font-size:7px;}
 /* range */
 .cal-day.cal-inr{background:rgba(91,141,238,.13);color:var(--accent);border-color:rgba(91,141,238,.12);border-radius:0!important;}
