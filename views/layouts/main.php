@@ -251,12 +251,12 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
       <input type="search" id="global-search" placeholder="חיפוש גלובאלי..." autocomplete="off">
       <kbd>⌘K</kbd>
     </div>
-    <button class="ai-hub-btn" onclick="openAiHubModal()" title="מרכז הידע AI">
+    <!-- <button class="ai-hub-btn" onclick="openAiHubModal()" title="מרכז הידע AI">
       <span class="ai-hub-stars">
         <i class="bi bi-stars"></i>
       </span>
       <span>מרכז הידע AI</span>
-    </button>
+    </button> -->
     <div class="topbar-spacer"></div>
     <div id="page-title"><span class="crumb-current" id="crumb-text">דשבורד</span></div>
     <div style="position:relative;">
@@ -492,7 +492,7 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
   <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);width:100%;max-width:560px;box-shadow:0 24px 80px rgba(139,92,246,.25);overflow:hidden;">
     <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);">
       <span class="ai-hub-stars" style="font-size:18px;color:#c084fc;"><i class="bi bi-stars"></i></span>
-      <div style="flex:1;font-size:15px;font-weight:700;">מרכז הידע AI</div>
+      <!-- <div style="flex:1;font-size:15px;font-weight:700;">מרכז הידע AI</div> -->
       <button onclick="closeAiHubModal()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button>
     </div>
     <div style="padding:60px 20px;text-align:center;">

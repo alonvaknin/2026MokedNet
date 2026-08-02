@@ -490,12 +490,15 @@ class LabController extends Controller
         $exists = DB::value('SELECT id FROM users WHERE email = ? LIMIT 1', [$email]);
         if ($exists) $this->json(['success' => false, 'message' => 'האימייל כבר קיים'], 409);
 
-        $techGroupId = DB::value("SELECT id FROM permission_groups WHERE name_heb LIKE '%טכנאי%' LIMIT 1") ?? 16;
+        $techGroupId = DB::value("SELECT id FROM permission_groups WHERE name_heb LIKE '%טכנאי%' LIMIT 1");
+        if (!$techGroupId) $techGroupId = 16;
 
-        DB::insert("
+        $newId = DB::insert("
             INSERT INTO users (first_name, last_name, email, password_hash, department_id, permission_group_id, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 1, NOW())
         ", [$firstName, $lastName, $email, password_hash($password, PASSWORD_BCRYPT), $deptId, $techGroupId]);
+
+        ActivityLog::create('lab_user', $newId, "{$firstName} {$lastName}", ['email' => $email]);
 
         $this->json(['success' => true]);
     }
@@ -509,7 +512,14 @@ class LabController extends Controller
         $deptId = (int)($_SESSION['department_id'] ?? 0);
         $userId = (int)($_POST['id'] ?? 0);
 
+        $user = DB::row('SELECT first_name, last_name, is_active FROM users WHERE id = ? AND department_id = ?', [$userId, $deptId]);
+
         DB::execute('UPDATE users SET is_active = 1 - is_active WHERE id = ? AND department_id = ?', [$userId, $deptId]);
+
+        if ($user) {
+            ActivityLog::toggle('lab_user', $userId, "{$user['first_name']} {$user['last_name']}", !$user['is_active']);
+        }
+
         $this->json(['success' => true]);
     }
 
