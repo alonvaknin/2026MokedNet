@@ -1562,6 +1562,7 @@ async function gsAutoSearch(q){
       h+='<div style="font-weight:600;">'+gsHl(fullName,q)+'</div>';
       if(c.phone)h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-telephone-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.phone,q)+'</div>';
       if(c.email&&c.email.trim())h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-envelope-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.email,q)+'</div>';
+      if(c.note&&c.note.trim()&&c.note.toLowerCase().includes(q.toLowerCase()))h+='<div style="font-size:11px;color:var(--text3);margin-top:2px;"><i class="bi bi-sticky-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.note,q)+'</div>';
       h+='<div style="font-size:10px;font-weight:600;margin-top:4px;color:'+col+';">'+
          (isRechesh?'<i class="bi bi-person-fill" style="font-size:11px;margin-left:3px;"></i>':'')+
          E(ctype)+'</div>';
