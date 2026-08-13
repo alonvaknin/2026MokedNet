@@ -1552,10 +1552,11 @@ async function gsAutoSearch(q){
       const isRechesh=ctype==='רכש';
       const col=typeCol[ctype]||'#8b5cf6';
       const hash=fullName.split('').reduce((a,ch)=>Math.imul(31,a)+ch.charCodeAt(0)|0,0);
-      const acolor=isRechesh?'#ef4444':avatarColors[Math.abs(hash)%avatarColors.length];
-      h+='<div class="gs-row" tabindex="-1" onclick="gsOpenContactView(_gsContacts['+i+'])"'+(isRechesh?' style="background:#ef444412;border:1px solid #ef444440;border-radius:8px;"':'')+'>';
-      h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">'+
-         (isRechesh?'<i class="bi bi-person-fill" style="font-size:18px;"></i>':E((c.first_name||'?').charAt(0)))+
+      const acolor=avatarColors[Math.abs(hash)%avatarColors.length];
+      h+='<div class="gs-row" tabindex="-1" onclick="gsOpenContactView(_gsContacts['+i+'])">';
+      h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;position:relative;">'+
+         E((c.first_name||'?').charAt(0))+
+         (isRechesh?'<i class="bi bi-person-fill" style="position:absolute;bottom:-3px;left:-3px;font-size:11px;color:#ef4444;background:var(--bg2);border-radius:50%;padding:1px;"></i>':'')+
          '</div>';
       h+='<div style="flex:1;min-width:0;">';
       h+='<div style="font-weight:600;">'+gsHl(fullName,q)+'</div>';
@@ -1577,10 +1578,9 @@ async function gsAutoSearch(q){
       const onclick=typeof openStoreView!=='undefined'
         ?'openStoreView(\''+num+'\')'
         :'window.location.href=BASE+\'/stores/id/\'+encodeURIComponent(\''+num+'\')';
-      h+='<div class="gs-row" tabindex="-1" onclick="'+onclick+'"'+(isModan?' style="background:#ef444412;border:1px solid #ef444440;border-radius:8px;"':'')+'>';
-      h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+
-         (isModan?'<i class="bi bi-person-fill" style="font-size:17px;margin-left:2px;"></i>':'')+
-         gsHl(s.store_num,q)+'</span>';
+      h+='<div class="gs-row" tabindex="-1" onclick="'+onclick+'">';
+      h+='<span style="font-size:'+(isModan?'13px':'19px')+';font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+
+         (isModan?'נ.מודן':gsHl(s.store_num,q))+'</span>';
       h+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:14px;">'+gsHl(s.name,q)+'</div>';
       if(s.city)h+='<div style="font-size:11px;color:var(--text3);"><i class="bi bi-geo-alt-fill" style="font-size:10px;"></i> '+gsHl(s.city,q)+'</div>';
       h+='</div>';
