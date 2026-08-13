@@ -242,6 +242,28 @@ class TaskModel
         ) > 0;
     }
 
+    /** Full-text search across open + closed tasks (title/description). */
+    public static function search(string $q, int $limit = 20): array
+    {
+        $like = '%' . trim($q) . '%';
+        return DB::query(
+            "SELECT t.id, t.title, t.description, t.sla_days, t.created_at, t.is_active,
+                    t.status_id, t.task_type_id, t.assigned_user_id, t.open_by,
+                    CONCAT(assignee.first_name,' ',assignee.last_name) AS assigned_to_name,
+                    ts.name  AS status_name,
+                    ts.color AS status_color,
+                    tt.name  AS type_name
+             FROM tasks t
+             LEFT JOIN users assignee  ON assignee.id = t.assigned_user_id
+             LEFT JOIN task_statuses ts ON ts.id      = t.status_id
+             LEFT JOIN task_types    tt ON tt.id      = t.task_type_id
+             WHERE (t.title LIKE ? OR t.description LIKE ?)
+             ORDER BY t.is_active DESC, t.created_at DESC
+             LIMIT {$limit}",
+            [$like, $like]
+        );
+    }
+
     public static function typeByName(string $name): ?array
     {
         return DB::row(

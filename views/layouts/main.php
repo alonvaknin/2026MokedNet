@@ -33,6 +33,7 @@ if (!empty($_SESSION['user_id'])) {
 window.__V2_BASE="<?= $base ?>";
 window.__CSRF="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>";
 window.__OVERDUE_COUNT=<?= (int)$overdueCount ?>;
+window.__LOGIN_TOKEN="<?= !empty($_SESSION['auth_token']) ? substr(sha1((string)$_SESSION['auth_token']), 0, 16) : '' ?>";
 <?php
 $_layoutPrefsRow = \Core\DB::row(
     'SELECT pref_value FROM user_preferences WHERE user_id = ? AND pref_key = "theme"',
@@ -1493,7 +1494,7 @@ async function gsAutoSearch(q){
   const res=document.getElementById('gs-results');
   const E=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   res.innerHTML='<div class="gs-empty"><i class="bi bi-hourglass-split"></i>מחפש...</div>';
-  const[contacts,stores,users]=await Promise.all([
+  const[contacts,stores,users,tasks]=await Promise.all([
     fetch(BASE+'/api/contacts?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]),
     (()=>{
       const pool=[...(window.ALL_BUG||[]),...(window.ALL_MODAN||[])];
@@ -1510,12 +1511,14 @@ async function gsAutoSearch(q){
       }
       return fetch(BASE+'/api/stores?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]);
     })(),
-    fetch(BASE+'/api/users/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[])
+    fetch(BASE+'/api/users/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]),
+    fetch(BASE+'/api/tasks/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[])
   ]);
   let cArr=Array.isArray(contacts)?contacts:[];
   const sArr=Array.isArray(stores)?stores:[];
   const uArr=Array.isArray(users)?users:[];
-  if(!cArr.length&&!sArr.length&&!uArr.length){
+  const tArr=Array.isArray(tasks)?tasks:[];
+  if(!cArr.length&&!sArr.length&&!uArr.length&&!tArr.length){
     res.innerHTML='<div class="gs-empty"><i class="bi bi-search"></i>לא נמצאו תוצאות עבור "'+E(q)+'"</div>';
     return;
   }
@@ -1587,6 +1590,29 @@ async function gsAutoSearch(q){
       h+='</div>';
       if(s.phone_main)h+='<a href="tel:'+E(s.phone_main)+'" onclick="event.stopPropagation()" style="font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap;"><i class="bi bi-telephone-fill"></i> '+gsHl(s.phone_main,q)+'</a>';
       if(s.alert_note)h+='<i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:13px;flex-shrink:0;" title="'+E(s.alert_note)+'"></i>';
+      h+='</div>';
+    });
+  }
+  if(tArr.length){
+    h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+((uArr.length||cArr.length||sArr.length)?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-list-task" style="margin-left:4px;"></i>משימות</div>';
+    const taskCol='#f59e0b';
+    tArr.forEach(t=>{
+      const closed=t.is_active==0||t.is_active===false;
+      const sColor=t.status_color||'#6b7280';
+      h+='<div class="gs-row" tabindex="-1" onclick="window.location.href=BASE+\'/tasks?openTask=\'+'+t.id+'" style="border-right:3px solid '+(closed?'transparent':taskCol)+';">';
+      h+='<div style="width:36px;height:36px;border-radius:10px;background:'+taskCol+'1f;color:'+taskCol+';display:grid;place-items:center;font-size:16px;flex-shrink:0;position:relative;'+(closed?'opacity:.55;':'')+'">'+
+         '<i class="bi '+(closed?'bi-check2-square':'bi-list-task')+'"></i>'+
+         '<span style="position:absolute;bottom:-2px;left:-2px;width:9px;height:9px;border-radius:50%;background:'+E(sColor)+';border:2px solid var(--bg2);"></span>'+
+         '</div>';
+      h+='<div style="flex:1;min-width:0;">';
+      h+='<div style="font-weight:600;'+(closed?'color:var(--text3);text-decoration:line-through;':'')+'"><span style="font-size:10px;font-weight:700;color:'+taskCol+';margin-left:6px;text-transform:uppercase;letter-spacing:.03em;">משימה</span>'+gsHl(t.title||'',q)+'</div>';
+      const meta=[];
+      if(t.type_name)meta.push(E(t.type_name));
+      if(t.assigned_to_name)meta.push('<i class="bi bi-person" style="font-size:10px;margin-left:2px;"></i>'+E(t.assigned_to_name));
+      if(meta.length)h+='<div style="font-size:11px;color:var(--text3);display:flex;gap:10px;">'+meta.join('')+'</div>';
+      if(t.description&&t.description.trim()&&t.description.toLowerCase().includes(q.toLowerCase()))h+='<div style="font-size:13px;color:var(--text2);margin-top:3px;"><i class="bi bi-card-text" style="font-size:11px;margin-left:3px;"></i>'+gsHl(t.description,q)+'</div>';
+      h+='</div>';
+      if(t.status_name)h+='<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;color:'+E(sColor)+';background:'+E(sColor)+'22;border:1px solid '+E(sColor)+'44;white-space:nowrap;flex-shrink:0;">'+E(t.status_name)+'</span>';
       h+='</div>';
     });
   }

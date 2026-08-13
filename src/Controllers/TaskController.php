@@ -16,16 +16,16 @@ class TaskController extends Controller
         $userId     = $_SESSION['user_id'];
         $canViewAll = \Core\Auth::can('tasks.viewAll');
 
-        $show  = $this->get('show', 'open');   // 'open' | 'closed'
         $scope = $this->get('scope', 'mine');  // 'mine' | 'all'
         $filter = $this->get('filter', '');    // 'overdue' (legacy)
 
-        $showClosed  = ($show === 'closed');
         $scopeAll    = ($scope === 'all') && $canViewAll;
         $overdueOnly = ($filter === 'overdue');
 
-        $tasks       = TaskModel::forQuery($userId, $showClosed, $scopeAll, $overdueOnly);
-        $recentClosed = $showClosed ? [] : TaskModel::recentClosed($userId, $scopeAll);
+        // The page always shows open tasks, with recently-closed tasks collapsed below.
+        $showClosed   = false;
+        $tasks        = TaskModel::forQuery($userId, false, $scopeAll, $overdueOnly);
+        $recentClosed = TaskModel::recentClosed($userId, $scopeAll);
 
         // Build status lists for ALL types (needed for new-task modal + existing tasks)
         $allTypes = \Core\DB::query('SELECT id, name FROM task_types ORDER BY name');
@@ -47,6 +47,30 @@ class TaskController extends Controller
             'tasks', 'recentClosed', 'statusesByType', 'allTypes', 'filter',
             'showClosed', 'scopeAll', 'canViewAll', 'users'
         ));
+    }
+
+    public function apiSearch(): void
+    {
+        $this->requireAuth();
+        $q = trim($this->get('q', ''));
+        if (mb_strlen($q) < 2) {
+            $this->json([]);
+            return;
+        }
+
+        $userId = $_SESSION['user_id'];
+        $canAll = \Core\Auth::can('tasks.viewAll');
+
+        $results = TaskModel::search($q);
+        if (!$canAll) {
+            $results = array_values(array_filter(
+                $results,
+                fn($t) => (int)($t['assigned_user_id'] ?? 0) === $userId
+                       || (int)($t['open_by'] ?? 0) === $userId
+            ));
+        }
+
+        $this->json($results);
     }
 
     public function create(): void
@@ -143,6 +167,57 @@ class TaskController extends Controller
         }
 
         $this->json(['error' => false, 'msg' => 'כותרת עודכנה']);
+    }
+
+    public function show(string $id): void
+    {
+        $this->requireAuth();
+        $taskId = (int)$id;
+        $userId = $_SESSION['user_id'];
+        $canAll = \Core\Auth::can('tasks.viewAll');
+
+        $task = \Core\DB::row(
+            "SELECT t.id, t.title, t.description, t.sla_days,
+                    t.created_at, t.status_changed_at, t.is_active,
+                    t.status_id, t.task_type_id,
+                    t.assigned_user_id, t.assigned_dept_id, t.open_by,
+                    CONCAT(opener.first_name,' ',opener.last_name) AS opened_by_name,
+                    CONCAT(assignee.first_name,' ',assignee.last_name) AS assigned_to_name,
+                    CONCAT(changer.first_name,' ',changer.last_name) AS changed_by_name,
+                    ts.name    AS status_name,
+                    ts.color   AS status_color,
+                    tt.name    AS type_name,
+                    dept.name_heb AS dept_name
+             FROM tasks t
+             LEFT JOIN users opener    ON opener.id   = t.open_by
+             LEFT JOIN users assignee  ON assignee.id = t.assigned_user_id
+             LEFT JOIN users changer   ON changer.id  = t.status_changed_by
+             LEFT JOIN task_statuses ts ON ts.id      = t.status_id
+             LEFT JOIN task_types    tt ON tt.id      = t.task_type_id
+             LEFT JOIN departments   dept ON dept.id  = t.assigned_dept_id
+             WHERE t.id = ?",
+            [$taskId]
+        );
+
+        if (!$task) {
+            $this->json(['error' => true, 'msg' => 'משימה לא נמצאה'], 404);
+            return;
+        }
+
+        if (!$canAll && (int)$task['assigned_user_id'] !== $userId && (int)$task['open_by'] !== $userId) {
+            $this->json(['error' => true, 'msg' => 'אין הרשאה'], 403);
+            return;
+        }
+
+        $comments = TaskCommentModel::forTask($taskId);
+        $logs     = \Core\ActivityLog::fetch(['entity_type' => 'task', 'entity_id' => $taskId], 100, 0);
+
+        $this->json([
+            'error'    => false,
+            'task'     => $task,
+            'comments' => $comments,
+            'logs'     => $logs,
+        ]);
     }
 
     public function getComments(string $id): void

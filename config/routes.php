@@ -22,7 +22,9 @@ $router->get ('/stores/{sNum}',       'Controllers\StoreController@show');
 
 $router->get('/crm',              'Controllers\CrmController@index');
 
-$router->get ('/tasks',           'Controllers\TaskController@index');
+$router->get ('/tasks',              'Controllers\TaskController@index');
+$router->get ('/api/tasks/search',   'Controllers\TaskController@apiSearch');
+$router->get ('/tasks/{id}',         'Controllers\TaskController@show');
 $router->post('/tasks/create',    'Controllers\TaskController@create');
 $router->post('/tasks/{id}/close','Controllers\TaskController@close');
 $router->post('/tasks/{id}/status', 'Controllers\\TaskController@updateStatus');

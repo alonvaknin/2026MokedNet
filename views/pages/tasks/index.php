@@ -45,19 +45,93 @@ $scopeAll   = $scopeAll ?? false;
   color:var(--text);font-size:14px;font-weight:500;font-family:inherit;
   padding:3px 8px;outline:none;width:100%;
 }
+
+/* ── Task detail modal ── */
+.td-title-editable{
+  font-size:18px;font-weight:700;color:var(--text);cursor:pointer;
+  border-radius:6px;padding:2px 6px;margin:-2px -6px;display:inline-block;
+  transition:background .13s;
+}
+.td-title-editable:hover{background:var(--bg3);}
+.td-close-btn{
+  background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;
+  flex-shrink:0;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;
+  transition:background .13s,color .13s;
+}
+.td-close-btn:hover{background:var(--bg3);color:var(--text);}
+
+.td-messages{display:flex;flex-direction:column;gap:10px;}
+.td-msg{
+  background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+  padding:10px 13px;position:relative;
+}
+.td-msg-head{
+  display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;
+}
+.td-msg-avatar{
+  width:20px;height:20px;border-radius:50%;background:var(--accent-dim);color:var(--accent);
+  display:grid;place-items:center;font-size:10px;font-weight:800;flex-shrink:0;
+}
+.td-msg-body{font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.5;}
+.td-messages-empty{color:var(--text3);font-size:13px;text-align:center;padding:22px 10px;}
+
+.td-composer-input{
+  flex:1;background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;color:var(--text);font-size:13px;
+  font-family:inherit;padding:10px 13px;outline:none;
+  resize:none;box-sizing:border-box;line-height:1.4;max-height:120px;
+  transition:border-color .15s;
+}
+.td-composer-input:focus{border-color:var(--accent);}
+.td-send-btn{
+  background:var(--accent);color:#fff;border:none;border-radius:12px;
+  width:40px;height:40px;flex-shrink:0;display:grid;place-items:center;
+  font-size:15px;cursor:pointer;transition:filter .13s,transform .1s;
+}
+.td-send-btn:hover{filter:brightness(1.1);}
+.td-send-btn:active{transform:scale(.94);}
+
+.td-logs{flex:1;overflow-y:auto;padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;}
+.td-log-entry{
+  position:relative;padding-right:16px;font-size:12px;
+}
+.td-log-entry::before{
+  content:'';position:absolute;right:0;top:5px;width:6px;height:6px;border-radius:50%;
+  background:var(--text3);
+}
+.td-log-entry::after{
+  content:'';position:absolute;right:2.5px;top:13px;bottom:-10px;width:1px;background:var(--border);
+}
+.td-log-entry:last-child::after{display:none;}
+.td-log-detail{color:var(--text2);font-weight:600;line-height:1.4;}
+.td-log-meta{color:var(--text3);font-size:11px;margin-top:2px;}
+.td-logs-empty{color:var(--text3);font-size:12px;text-align:center;padding:18px 8px;}
+
+@media (max-width:720px){
+  .td-modal-box{max-width:100%!important;}
+  .td-modal-box > div:nth-child(2){flex-direction:column!important;}
+  .td-modal-box > div:nth-child(2) > div:first-child{border-left:none!important;border-bottom:1px solid var(--border);}
+  .td-modal-box > div:nth-child(2) > div:last-child{width:100%!important;max-height:180px;}
+}
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
   <div class="page-title" style="margin-bottom:0;">משימות</div>
-  <?php if (!$showClosed): ?>
   <button class="btn btn-primary" onclick="openNewTaskModal()">
     + משימה חדשה
   </button>
-  <?php endif; ?>
 </div>
 
 <!-- Filters bar -->
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+
+  <div style="position:relative;flex:1;min-width:180px;max-width:320px;">
+    <i class="bi bi-search" style="position:absolute;top:50%;right:12px;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;"></i>
+    <input type="text" id="task-search-input" placeholder="חיפוש משימה..." autocomplete="off"
+           oninput="filterTaskRows(this.value)"
+           style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+                  padding:8px 34px 8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">
+  </div>
 
   <?php if ($isOverdueFilter): ?>
   <div style="display:flex;align-items:center;gap:8px;background:rgba(239,68,68,.1);
@@ -69,26 +143,14 @@ $scopeAll   = $scopeAll ?? false;
   </div>
   <?php endif; ?>
 
-  <!-- Open/Closed toggle -->
-  <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
-    <a href="?show=open&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
-       style="padding:6px 14px;text-decoration:none;<?= !$showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
-      פתוחות
-    </a>
-    <a href="?show=closed&scope=<?= $scopeAll ? 'all' : 'mine' ?>"
-       style="padding:6px 14px;text-decoration:none;<?= $showClosed ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
-      סגורות
-    </a>
-  </div>
-
   <?php if ($canViewAll): ?>
   <!-- Mine/All toggle -->
   <div style="display:inline-flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:13px;font-weight:600;">
-    <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=mine"
+    <a href="?scope=mine"
        style="padding:6px 14px;text-decoration:none;<?= !$scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
       שלי
     </a>
-    <a href="?show=<?= $showClosed ? 'closed' : 'open' ?>&scope=all"
+    <a href="?scope=all"
        style="padding:6px 14px;text-decoration:none;<?= $scopeAll ? 'background:var(--accent);color:#fff;' : 'color:var(--text2);' ?>">
       הכל
     </a>
@@ -98,9 +160,7 @@ $scopeAll   = $scopeAll ?? false;
 </div>
 
 <?php if (empty($tasks)): ?>
-  <div class="alert alert-info">
-    <?= $showClosed ? 'אין משימות סגורות' : 'אין משימות פתוחות 🎉' ?>
-  </div>
+  <div class="alert alert-info">אין משימות פתוחות 🎉</div>
 <?php else: ?>
 <div class="card" style="padding:0;overflow:visible;">
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
@@ -131,8 +191,10 @@ $scopeAll   = $scopeAll ?? false;
       $typeId      = (int)($t['task_type_id'] ?? 0);
       $statusId    = (int)($t['status_id']    ?? 0);
     ?>
-    <tr style="border-bottom:1px solid var(--border);<?= $overdue ? 'border-right:3px solid var(--danger);background:rgba(239,68,68,.05);' : '' ?>"
-        id="task-row-<?= (int)$t['id'] ?>">
+    <tr class="task-row" style="border-bottom:1px solid var(--border);cursor:pointer;<?= $overdue ? 'border-right:3px solid var(--danger);background:rgba(239,68,68,.05);' : '' ?>"
+        id="task-row-<?= (int)$t['id'] ?>"
+        data-search="<?= View::e(mb_strtolower(($t['title'] ?? '') . ' ' . ($t['description'] ?? '') . ' ' . ($t['type_name'] ?? '') . ' ' . ($statusName) . ' ' . ($t['dept_name'] ?? ''))) ?>"
+        onclick="openTaskDetail(<?= (int)$t['id'] ?>)">
       <td style="padding:10px 14px;color:var(--text3);"><?= (int)$t['id'] ?></td>
 
       <!-- Title: double-click to edit -->
@@ -159,7 +221,7 @@ $scopeAll   = $scopeAll ?? false;
       </td>
 
       <!-- Status badge with dropdown -->
-      <td style="padding:10px 14px;position:relative;">
+      <td style="padding:10px 14px;position:relative;" onclick="event.stopPropagation()">
         <?php if ($typeId): ?>
           <span class="task-status-badge"
                 data-type-id="<?= $typeId ?>"
@@ -196,9 +258,9 @@ $scopeAll   = $scopeAll ?? false;
         <?= \Core\View::e($t['dept_name'] ?? '—') ?>
       </td>
 
-      <td style="padding:10px 14px;text-align:center;">
-        <button class="btn-icon" onclick="openComments(<?= (int)$t['id'] ?>, <?= \Core\View::e(json_encode($t['title'])) ?>)"
-                title="הערות פנימיות"
+      <td style="padding:10px 14px;text-align:center;" onclick="event.stopPropagation()">
+        <button class="btn-icon" onclick="openTaskDetail(<?= (int)$t['id'] ?>)"
+                title="פרטי משימה"
                 style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;transition:color .15s,background .15s;">
           <i class="bi bi-chat-dots"></i>
         </button>
@@ -235,17 +297,35 @@ $scopeAll   = $scopeAll ?? false;
         <?php foreach ($recentClosed as $c):
           $sColor = $c['status_color'] ?? '#6b7280';
           $sName  = $c['status_name']  ?? '—';
+          $cTypeId   = (int)($c['task_type_id'] ?? 0);
+          $cStatusId = (int)($c['status_id']    ?? 0);
         ?>
-          <tr style="border-bottom:1px solid var(--border);">
+          <tr class="task-row" style="border-bottom:1px solid var(--border);cursor:pointer;"
+              id="task-row-<?= (int)$c['id'] ?>"
+              data-search="<?= View::e(mb_strtolower(($c['title'] ?? '') . ' ' . ($c['type_name'] ?? '') . ' ' . ($sName) . ' ' . ($c['changed_by_name'] ?? ''))) ?>"
+              onclick="openTaskDetail(<?= (int)$c['id'] ?>)">
             <td style="padding:8px 14px;color:var(--text3);"><?= (int)$c['id'] ?></td>
-            <td style="padding:8px 14px;color:var(--text2);"><?= View::e($c['title'] ?? '') ?></td>
-            <td style="padding:8px 14px;">
-              <span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;
-                           font-size:12px;font-weight:700;color:<?= View::e($sColor) ?>;
-                           background:<?= View::e($sColor) ?>22;border:1px solid <?= View::e($sColor) ?>44;">
-                <span style="width:6px;height:6px;border-radius:50%;background:<?= View::e($sColor) ?>;flex-shrink:0;"></span>
-                <?= View::e($sName) ?>
+            <td style="padding:8px 14px;color:var(--text2);" class="task-title-cell">
+              <span class="task-title-text"
+                    id="title-text-<?= (int)$c['id'] ?>"
+                    title="לחץ פעמיים לעריכה"
+                    ondblclick="startTitleEdit(<?= (int)$c['id'] ?>, this)">
+                <?= View::e($c['title'] ?? '') ?>
               </span>
+            </td>
+            <td style="padding:8px 14px;position:relative;" onclick="event.stopPropagation()">
+              <?php if ($cTypeId): ?>
+              <span class="task-status-badge"
+                    data-type-id="<?= $cTypeId ?>"
+                    data-current-status="<?= $cStatusId ?>"
+                    style="color:<?= View::e($sColor) ?>;background:<?= View::e($sColor) ?>22;border-color:<?= View::e($sColor) ?>44;padding:2px 9px;"
+                    onclick="toggleStatusDropdown(event, <?= (int)$c['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
+                <span style="width:6px;height:6px;border-radius:50%;background:<?= View::e($sColor) ?>;flex-shrink:0;"></span>
+                <span id="status-label-<?= (int)$c['id'] ?>"><?= View::e($sName) ?></span>
+              </span>
+              <?php else: ?>
+              <span style="color:var(--text3);font-size:13px;">—</span>
+              <?php endif; ?>
             </td>
             <td style="padding:8px 14px;color:var(--text3);"><?= View::e($c['type_name'] ?? '—') ?></td>
             <td style="padding:8px 14px;color:var(--text3);font-size:12px;">
@@ -321,43 +401,86 @@ $scopeAll   = $scopeAll ?? false;
   </div>
 </div>
 
-<!-- Comment Drawer -->
-<div id="comment-drawer"
-     style="position:fixed;top:0;right:-400px;width:370px;height:100vh;
-            background:var(--bg2);border-left:1px solid var(--border2);
-            box-shadow:var(--shadow);z-index:400;
-            transition:right .25s ease;
-            display:flex;flex-direction:column;padding:0;">
+<!-- Task Detail Modal -->
+<div id="task-detail-modal"
+     onclick="if(event.target===this) closeTaskDetail()"
+     style="display:none;position:fixed;inset:0;background:rgba(10,12,20,.65);backdrop-filter:blur(2px);z-index:400;align-items:center;justify-content:center;padding:24px;">
+  <div class="td-modal-box"
+       style="background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 24px 60px -12px rgba(0,0,0,.5);
+              width:100%;max-width:900px;height:min(88vh,720px);display:flex;flex-direction:column;overflow:hidden;">
 
-  <!-- Header -->
-  <div style="padding:16px 18px;border-bottom:1px solid var(--border);
-              display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-    <div id="comment-drawer-title" style="font-size:15px;font-weight:700;color:var(--text);
-         max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
-    <button onclick="closeCommentDrawer()"
-            style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;">✕</button>
-  </div>
+    <!-- Header -->
+    <div style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-shrink:0;">
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;letter-spacing:.02em;">משימה #<span id="td-id"></span></div>
+        <div id="td-title" class="td-title-editable"
+             title="לחץ פעמיים לעריכה" ondblclick="startDetailTitleEdit(this)"></div>
+      </div>
+      <button onclick="closeTaskDetail()" class="td-close-btn" title="סגור (Esc)">✕</button>
+    </div>
 
-  <!-- Comment list (scrollable) -->
-  <div id="comment-list"
-       style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px;">
-    <div id="comment-loading" style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">טוען...</div>
-  </div>
+    <!-- Two-column body -->
+    <div style="flex:1;display:flex;min-height:0;">
 
-  <!-- Input area -->
-  <div style="padding:14px 18px;border-top:1px solid var(--border);flex-shrink:0;">
-    <textarea id="comment-body" rows="3" placeholder="כתוב עדכון פנימי..."
-              style="width:100%;background:var(--bg3);border:1px solid var(--border);
-                     border-radius:var(--radius);color:var(--text);font-size:13px;
-                     font-family:inherit;padding:9px 12px;outline:none;
-                     resize:vertical;box-sizing:border-box;"></textarea>
-    <button onclick="submitComment()" class="btn btn-primary"
-            style="width:100%;margin-top:8px;">שלח עדכון</button>
+      <!-- Main column (right, RTL-first): meta + description + messages -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;border-left:1px solid var(--border);">
+        <div style="flex:1;overflow-y:auto;padding:18px 24px;">
+          <div id="td-loading" style="color:var(--text3);font-size:13px;text-align:center;padding:30px;">טוען...</div>
+
+          <div id="td-content" style="display:none;">
+            <!-- Meta grid -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 18px;margin-bottom:16px;font-size:13px;">
+              <div><span style="color:var(--text3);">סטטוס: </span>
+                <span id="td-status-badge" class="task-status-badge" style="cursor:pointer;" data-task-id="">
+                  <span id="td-status-dot" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;"></span>
+                  <span id="td-status-label"></span>
+                </span>
+              </div>
+              <div><span style="color:var(--text3);">סוג: </span><span id="td-type"></span></div>
+              <div><span style="color:var(--text3);">SLA: </span><span id="td-sla"></span></div>
+              <div><span style="color:var(--text3);">נפתח: </span><span id="td-created"></span></div>
+              <div><span style="color:var(--text3);">נפתח ע"י: </span><span id="td-opener"></span></div>
+              <div><span style="color:var(--text3);">משויך ל: </span><span id="td-assignee"></span></div>
+              <div><span style="color:var(--text3);">מחלקה: </span><span id="td-dept"></span></div>
+              <div><span style="color:var(--text3);">עדכון אחרון: </span><span id="td-changed"></span></div>
+            </div>
+
+            <div id="td-desc-wrap" style="margin-bottom:20px;display:none;">
+              <div style="color:var(--text3);font-size:12px;margin-bottom:5px;font-weight:600;">תיאור</div>
+              <div id="td-desc" style="font-size:13px;color:var(--text2);white-space:pre-wrap;background:var(--bg3);border-radius:10px;padding:11px 13px;line-height:1.55;"></div>
+            </div>
+
+            <!-- Messages -->
+            <div style="color:var(--text3);font-size:12px;margin-bottom:8px;font-weight:600;display:flex;align-items:center;gap:6px;">
+              <i class="bi bi-chat-left-text"></i> התכתבות פנימית
+            </div>
+            <div id="td-messages" class="td-messages"></div>
+          </div>
+        </div>
+
+        <!-- Comment composer (main column only) -->
+        <div style="padding:14px 24px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg2);">
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <textarea id="td-comment-body" rows="1" placeholder="כתוב עדכון פנימי..." class="td-composer-input"
+                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitDetailComment();}"></textarea>
+            <button onclick="submitDetailComment()" class="td-send-btn" title="שלח (Enter)">
+              <i class="bi bi-send-fill"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs column (left): system activity, own scroller -->
+      <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg1,var(--bg3));">
+        <div style="padding:14px 16px 10px;font-size:12px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <i class="bi bi-clock-history"></i> יומן פעילות
+        </div>
+        <div id="td-logs" class="td-logs"></div>
+      </div>
+
+    </div>
   </div>
 </div>
-<div id="comment-overlay"
-     onclick="closeCommentDrawer()"
-     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:399;"></div>
 
 <script>
 const TASK_CSRF   = <?= json_encode($csrf) ?>;
@@ -518,6 +641,19 @@ async function setStatus(taskId, statusId, name, color, isClosed) {
       }
     }
   }
+
+  // Keep the detail modal's badge in sync if it's open on this task
+  const modalBadge = document.getElementById('td-status-badge');
+  if (modalBadge && modalBadge.dataset.taskId == taskId) {
+    const safeColor = sanitizeColor(color);
+    modalBadge.style.color = safeColor;
+    modalBadge.style.background = safeColor + '22';
+    modalBadge.style.borderColor = safeColor + '44';
+    modalBadge.dataset.currentStatus = statusId;
+    document.getElementById('td-status-dot').style.background = safeColor;
+    document.getElementById('td-status-label').textContent = name;
+  }
+
   v2Toast('סטטוס עודכן: ' + name);
 }
 
@@ -584,6 +720,24 @@ function startTitleEdit(taskId, spanEl) {
   });
 }
 
+/* ── In-page task search ────────────────────────────────── */
+function filterTaskRows(q) {
+  const query = q.trim().toLowerCase();
+  document.querySelectorAll('.task-row').forEach(row => {
+    const hay = row.dataset.search || '';
+    row.style.display = (!query || hay.includes(query)) ? '' : 'none';
+  });
+  // Auto-expand the closed section if the query only matches closed tasks
+  const closedSec = document.getElementById('closed-section');
+  if (closedSec && query) {
+    const closedRows = closedSec.querySelectorAll('.task-row');
+    const anyClosedVisible = Array.from(closedRows).some(r => r.style.display !== 'none');
+    if (anyClosedVisible && closedSec.style.display === 'none') {
+      toggleClosedSection();
+    }
+  }
+}
+
 /* ── Helpers ─────────────────────────────────────────── */
 function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
 function escJs(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
@@ -592,59 +746,153 @@ function sanitizeColor(s) {
     ? String(s).trim() : '#6b7280';
 }
 
-/* ── Comment Drawer ──────────────────────────────────── */
-let _commentTaskId = null;
+/* ── Task Detail Modal ──────────────────────────────────── */
+let _detailTaskId = null;
+let _detailTask    = null;
 
-function openComments(taskId, taskTitle) {
-  _commentTaskId = taskId;
-  document.getElementById('comment-drawer-title').textContent = taskTitle;
-  document.getElementById('comment-list').innerHTML =
-    '<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">טוען...</div>';
-  document.getElementById('comment-body').value = '';
+function openTaskDetail(taskId) {
+  _detailTaskId = taskId;
+  document.getElementById('task-detail-modal').style.display = 'flex';
+  document.getElementById('td-loading').style.display = 'block';
+  document.getElementById('td-content').style.display = 'none';
+  document.getElementById('td-comment-body').value = '';
+  document.getElementById('td-id').textContent = taskId;
+  document.addEventListener('keydown', _tdEscHandler);
 
-  // Slide open
-  document.getElementById('comment-drawer').style.right  = '0';
-  document.getElementById('comment-overlay').style.display = 'block';
-
-  // Load comments
-  fetch(`${TASK_BASE}/tasks/${taskId}/comments`)
+  fetch(`${TASK_BASE}/tasks/${taskId}`)
     .then(r => r.json())
     .then(data => {
       if (data.error) {
-        document.getElementById('comment-list').innerHTML =
-          `<div style="color:var(--danger);font-size:13px;">${esc(data.msg)}</div>`;
+        v2Toast('שגיאה: ' + data.msg);
+        closeTaskDetail();
         return;
       }
-      renderComments(data);
+      renderTaskDetail(data);
     })
     .catch(() => {
-      document.getElementById('comment-list').innerHTML =
-        '<div style="color:var(--danger);font-size:13px;">שגיאה בטעינת הערות</div>';
+      v2Toast('שגיאה בטעינת המשימה');
+      closeTaskDetail();
     });
 }
 
-function renderComments(list) {
-  const container = document.getElementById('comment-list');
-  if (!list.length) {
-    container.innerHTML = '<div id="comment-empty" style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">אין הערות עדיין</div>';
-    return;
-  }
-  container.innerHTML = list.map(c => {
-    const dt = c.created_at ? c.created_at.slice(0,16).replace('T',' ') : '';
-    return `<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">
-        <i class="bi bi-person-fill"></i> ${esc(c.user_name)} &nbsp;·&nbsp; ${esc(dt)}
-      </div>
-      <div style="font-size:13px;color:var(--text);white-space:pre-wrap;">${esc(c.body)}</div>
-    </div>`;
-  }).join('');
-  // scroll to bottom
-  container.scrollTop = container.scrollHeight;
+function closeTaskDetail() {
+  document.getElementById('task-detail-modal').style.display = 'none';
+  document.removeEventListener('keydown', _tdEscHandler);
+  _detailTaskId = null;
+  _detailTask = null;
 }
 
-async function submitComment() {
-  if (!_commentTaskId) return;
-  const body = document.getElementById('comment-body').value.trim();
+function _tdEscHandler(e) {
+  if (e.key === 'Escape') {
+    // Don't steal Escape from the inline title-edit input (it has its own handler)
+    if (document.activeElement && document.activeElement.classList.contains('task-title-input')) return;
+    closeTaskDetail();
+  }
+}
+
+function renderTaskDetail(data) {
+  const t = data.task;
+  _detailTask = t;
+
+  document.getElementById('td-title').textContent = t.title || '';
+  document.getElementById('td-type').textContent  = t.type_name || '—';
+  document.getElementById('td-opener').textContent   = t.opened_by_name || '—';
+  document.getElementById('td-assignee').textContent = t.assigned_to_name || '—';
+  document.getElementById('td-dept').textContent     = t.dept_name || '—';
+  document.getElementById('td-created').textContent  = t.created_at ? t.created_at.slice(0,16).replace('T',' ') : '—';
+  document.getElementById('td-changed').textContent  = t.status_changed_at
+    ? t.status_changed_at.slice(0,16).replace('T',' ') + (t.changed_by_name ? ' · ' + t.changed_by_name : '')
+    : '—';
+
+  const slaTs = t.created_at && t.sla_days
+    ? new Date(t.created_at.replace(' ', 'T')).getTime() + (t.sla_days * 86400000)
+    : 0;
+  document.getElementById('td-sla').textContent = slaTs
+    ? new Date(slaTs).toLocaleDateString('he-IL') + (slaTs < Date.now() ? ' (חריגה)' : '')
+    : '—';
+
+  const descWrap = document.getElementById('td-desc-wrap');
+  if (t.description) {
+    descWrap.style.display = 'block';
+    document.getElementById('td-desc').textContent = t.description;
+  } else {
+    descWrap.style.display = 'none';
+  }
+
+  // Status badge
+  const badge = document.getElementById('td-status-badge');
+  const color = t.status_color || '#6b7280';
+  badge.style.color = color;
+  badge.style.background = color + '22';
+  badge.style.borderColor = color + '44';
+  badge.dataset.typeId = t.task_type_id || '';
+  badge.dataset.currentStatus = t.status_id || '';
+  badge.dataset.taskId = t.id;
+  document.getElementById('td-status-dot').style.background = color;
+  document.getElementById('td-status-label').textContent = t.status_name || '— בחר סטטוס —';
+  badge.onclick = (e) => {
+    toggleStatusDropdown(e, t.id, parseInt(badge.dataset.typeId) || 0, parseInt(badge.dataset.currentStatus) || 0);
+  };
+
+  renderTaskMessages(data.comments || []);
+  renderTaskLogs(data.logs || []);
+
+  document.getElementById('td-loading').style.display = 'none';
+  document.getElementById('td-content').style.display = 'block';
+}
+
+function msgInitial(name) {
+  return esc(String(name || '?').trim().charAt(0) || '?');
+}
+
+function messageEl(c) {
+  const dt = c.created_at ? String(c.created_at).slice(0,16).replace('T',' ') : '';
+  const div = document.createElement('div');
+  div.className = 'td-msg';
+  div.innerHTML = `<div class="td-msg-head">
+      <span class="td-msg-avatar">${msgInitial(c.user_name)}</span>
+      <span>${esc(c.user_name)}</span>
+      <span style="opacity:.5;">·</span>
+      <span>${esc(dt)}</span>
+    </div>
+    <div class="td-msg-body">${esc(c.body)}</div>`;
+  return div;
+}
+
+function renderTaskMessages(comments) {
+  const wrap = document.getElementById('td-messages');
+  if (!comments.length) {
+    wrap.innerHTML = '<div class="td-messages-empty"><i class="bi bi-chat-left"></i><br>אין עדיין הודעות</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  comments
+    .slice()
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    .forEach(c => wrap.appendChild(messageEl(c)));
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function renderTaskLogs(logs) {
+  const wrap = document.getElementById('td-logs');
+  if (!logs.length) {
+    wrap.innerHTML = '<div class="td-logs-empty">אין פעילות רשומה</div>';
+    return;
+  }
+  const sorted = logs.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  wrap.innerHTML = sorted.map(l => {
+    const dt = l.created_at ? String(l.created_at).slice(0,16).replace('T',' ') : '';
+    return `<div class="td-log-entry">
+      <div class="td-log-detail">${esc(l.detail || l.action || 'פעולה')}</div>
+      <div class="td-log-meta">${esc(l.user_name || 'מערכת')} · ${esc(dt)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function submitDetailComment() {
+  if (!_detailTaskId) return;
+  const el = document.getElementById('td-comment-body');
+  const body = el.value.trim();
   if (!body) { v2Toast('כתוב משהו תחילה'); return; }
   if (body.length > 2000) { v2Toast('הערה ארוכה מדי (מקס 2000 תווים)'); return; }
 
@@ -652,33 +900,70 @@ async function submitComment() {
   fd.append('_csrf', TASK_CSRF);
   fd.append('body', body);
 
-  const res  = await fetch(`${TASK_BASE}/tasks/${_commentTaskId}/comments`, {method:'POST', body:fd});
+  const res  = await fetch(`${TASK_BASE}/tasks/${_detailTaskId}/comments`, {method:'POST', body:fd});
   const data = await res.json();
   if (data.error || !data.ok) { v2Toast('שגיאה: ' + (data.msg || 'לא ידוע')); return; }
 
-  document.getElementById('comment-body').value = '';
+  el.value = '';
 
-  // Append new comment to list
-  const container = document.getElementById('comment-list');
-  const emptyMsg  = container.querySelector('#comment-empty');
+  const wrap = document.getElementById('td-messages');
+  const emptyMsg = wrap.querySelector('.td-messages-empty');
   if (emptyMsg) emptyMsg.remove();
-
-  const c   = data.comment;
-  const dt  = (c.created_at || '').slice(0,16).replace('T',' ');
-  const div = document.createElement('div');
-  div.style.cssText = 'background:var(--bg3);border-radius:8px;padding:10px 12px;';
-  div.innerHTML = `<div style="font-size:11px;color:var(--text3);margin-bottom:5px;">
-      <i class="bi bi-person-fill"></i> ${esc(c.user_name)} &nbsp;·&nbsp; ${esc(dt)}
-    </div>
-    <div style="font-size:13px;color:var(--text);white-space:pre-wrap;">${esc(c.body)}</div>`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
+  wrap.appendChild(messageEl(data.comment));
+  wrap.scrollTop = wrap.scrollHeight;
   v2Toast('הערה נשמרה');
 }
 
-function closeCommentDrawer() {
-  document.getElementById('comment-drawer').style.right  = '-400px';
-  document.getElementById('comment-overlay').style.display = 'none';
-  _commentTaskId = null;
+/* ── Inline title edit (detail modal) ─────────────────── */
+function startDetailTitleEdit(titleEl) {
+  if (!_detailTaskId) return;
+  const current = titleEl.textContent.trim();
+  const input = document.createElement('input');
+  input.type  = 'text';
+  input.value = current;
+  input.className = 'task-title-input';
+  input.style.fontSize = '16px';
+  titleEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const taskId = _detailTaskId;
+  const save = async () => {
+    const val = input.value.trim();
+    if (!val || val === current) {
+      input.replaceWith(titleEl);
+      return;
+    }
+    const fd = new FormData();
+    fd.append('_csrf', TASK_CSRF);
+    fd.append('title', val);
+    const res  = await fetch(`${TASK_BASE}/tasks/${taskId}/title`, {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.error) { v2Toast('שגיאה: ' + data.msg); input.replaceWith(titleEl); return; }
+    titleEl.textContent = val;
+    input.replaceWith(titleEl);
+    // keep the row's title text in sync too
+    const rowSpan = document.getElementById(`title-text-${taskId}`);
+    if (rowSpan) rowSpan.textContent = val;
+    v2Toast('כותרת עודכנה');
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = current; input.blur(); }
+  });
 }
+
+/* ── Deep-link: open a task's detail modal from ?openTask=ID (e.g. global search) ── */
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const openTaskId = parseInt(params.get('openTask'), 10);
+  if (openTaskId) {
+    openTaskDetail(openTaskId);
+    params.delete('openTask');
+    const qs = params.toString();
+    history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+  }
+})();
 </script>

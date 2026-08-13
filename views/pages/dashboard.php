@@ -5,6 +5,7 @@ use Core\Auth;
 /** @var array[] $modanStores נקודות מודן */
 /** @var string[] $cities     ערים */
 /** @var array   $stats       open_tasks, stores_total, stores_alert */
+/** @var array[] $alerts      חנויות עם alert_note פעיל (id, name, store_num, alert_note, alert_updated_at, alert_by) */
 /** @var array   $user        משתמש מחובר */
 $base       = rtrim(CFG['app']['url'], '/');
 $csrf       = $_SESSION['csrf_token'] ?? '';
@@ -42,8 +43,53 @@ $newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_a
     </div>
     <?php endif; ?>
     <?php if ($stats['stores_alert']>0): ?>
-    <div class="stat-pill" style="border-color:rgba(245,158,11,.3);color:var(--warning);">
-      <i class="bi bi-exclamation-triangle-fill"></i><span><?= (int)$stats['stores_alert'] ?> התראות</span></div>
+    <div class="stat-pill-wrap">
+      <button type="button" class="stat-pill alert-pill" style="border-color:rgba(245,158,11,.3);color:var(--warning);" onclick="toggleAlertsPopover(event)">
+        <i class="bi bi-exclamation-triangle-fill"></i><span><?= (int)$stats['stores_alert'] ?> התראות</span></button>
+      <div id="alerts-popover" class="alerts-popover">
+        <div class="alerts-popover-hdr">
+          <div class="alerts-popover-hdr-title">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>התראות פעילות</span>
+            <span class="alerts-popover-count"><?= count($alerts) ?></span>
+          </div>
+          <button type="button" class="alerts-popover-close" onclick="closeAlertsPopover(event)" title="סגור"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="alerts-popover-list">
+        <?php foreach ($alerts as $a): ?>
+        <div class="alert-row" onclick="jumpToAlert(<?= (int)$a['id'] ?>)">
+          <span class="alert-row-bar"></span>
+          <div class="alert-row-body">
+            <div class="alert-row-top">
+              <span class="alert-row-store"><?= View::e($a['name']) ?><?= $a['store_num'] ? '<span class="alert-row-num">#'.View::e($a['store_num']).'</span>' : '' ?></span>
+              <i class="bi bi-chevron-left alert-row-go"></i>
+            </div>
+            <div class="alert-row-note"><?= View::e(mb_substr($a['alert_note'],0,80)) ?><?= mb_strlen($a['alert_note'])>80?'…':'' ?></div>
+            <div class="alert-row-by">
+              <span class="alert-row-author"><i class="bi bi-person-fill"></i><?= View::e($a['alert_by']) ?></span>
+              <?php if (!empty($a['alert_updated_at'])): ?>
+              <span class="alert-row-when">
+                <span class="alert-row-date"><?= date('d/m/Y H:i', strtotime($a['alert_updated_at'])) ?></span>
+                <span class="alert-row-rel" data-ts="<?= (int)strtotime($a['alert_updated_at']) ?>"></span>
+              </span>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+        <?php endforeach; ?>
+        </div>
+      </div>
+      <script>
+      (function(){
+        try{
+          var p = JSON.parse(localStorage.getItem('v2_dash')||'{}');
+          if (window.__LOGIN_TOKEN && p['v2_alerts_seen_token'] !== window.__LOGIN_TOKEN) {
+            document.getElementById('alerts-popover').classList.add('open');
+          }
+        }catch(e){}
+      })();
+      </script>
+    </div>
     <?php endif; ?>
     <?php if ($stats['open_tasks']>0): ?>
     <div class="stat-pill" style="border-color:rgba(91,141,238,.3);color:var(--accent);">
@@ -471,6 +517,42 @@ $newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_a
 
 <style>
 .stat-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:500;background:var(--bg3);border:1px solid var(--border);color:var(--text2)}
+.stat-pill-wrap{position:relative;display:inline-block}
+button.stat-pill{cursor:pointer;font-family:var(--font)}
+button.stat-pill:hover{background:var(--bg4)}
+.alerts-popover{display:none;position:absolute;top:calc(100% + 10px);left:0;z-index:50;width:400px;max-height:460px;background:var(--bg2);border:1px solid rgba(245,158,11,.25);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.2);overflow:hidden;flex-direction:column}
+.alerts-popover.open{display:flex;animation:alerts-pop-in .18s cubic-bezier(.2,.8,.3,1)}
+@keyframes alerts-pop-in{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.alerts-popover-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(180deg,rgba(245,158,11,.14),rgba(245,158,11,.03));border-bottom:1px solid var(--border);flex-shrink:0}
+.alerts-popover-hdr-title{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:700;color:var(--text)}
+.alerts-popover-hdr-title>i{color:var(--warning);font-size:15px}
+.alerts-popover-count{background:var(--warning);color:#1a1206;font-size:11.5px;font-weight:800;padding:1px 8px;border-radius:20px;line-height:1.6}
+.alerts-popover-close{background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text2);cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .13s;flex-shrink:0}
+.alerts-popover-close:hover{background:var(--danger);border-color:var(--danger);color:#fff;transform:rotate(90deg)}
+.alerts-popover-list{overflow-y:auto;padding:6px}
+.alert-row{display:flex;gap:10px;padding:11px 10px;border-radius:9px;cursor:pointer;transition:background .13s;position:relative}
+.alert-row:hover{background:var(--bg3)}
+.alert-row:hover .alert-row-go{transform:translateX(-3px);opacity:1}
+.alert-row+.alert-row{margin-top:1px}
+.alert-row+.alert-row::before{content:'';position:absolute;top:-1px;right:10px;left:10px;border-top:1px solid var(--border)}
+.alert-row-bar{flex-shrink:0;width:3px;border-radius:3px;background:linear-gradient(180deg,var(--warning),rgba(245,158,11,.3));align-self:stretch}
+.alert-row-body{flex:1;min-width:0}
+.alert-row-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.alert-row-store{font-size:15px;font-weight:700;color:var(--text)}
+.alert-row-num{font-size:12px;font-weight:600;color:var(--text3);margin-right:5px}
+.alert-row-go{color:var(--text3);font-size:12px;opacity:0;transition:transform .15s,opacity .15s;flex-shrink:0}
+.alert-row-note{font-size:13.5px;color:var(--warning);margin-top:4px;line-height:1.45;overflow-wrap:anywhere}
+.alert-row-by{font-size:12px;color:var(--text3);margin-top:7px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.alert-row-author{display:flex;align-items:center;gap:5px}
+.alert-row-author>i{font-size:11px;opacity:.7}
+.alert-row-when{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.alert-row-date{color:var(--text3);font-weight:400;font-variant-numeric:tabular-nums}
+.alert-row-rel{font-weight:700;white-space:nowrap;padding:1px 7px;border-radius:10px}
+.alert-row-rel.rel-lite{color:var(--text2);background:var(--bg4)}
+.alert-row-rel.rel-medium{color:var(--warning);background:rgba(245,158,11,.14)}
+.alert-row-rel.rel-danger{color:var(--danger);background:rgba(239,68,68,.14)}
+@keyframes alert-flash{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 4px rgba(245,158,11,.55)}}
+.flash-highlight{animation:alert-flash .55s ease-in-out 3}
 .stat-new-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;letter-spacing:.03em;animation:new-pulse 2.5s ease-in-out infinite;}
 .stat-new-badge.modan{background:linear-gradient(135deg,#8b5cf6,#7c3aed);}
 .collapse-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)}
@@ -612,10 +694,74 @@ const ALL_MODAN = <?= json_encode(array_values($modanStores), JSON_UNESCAPED_UNI
 const ALL_STORES_MAP = {};
 [...ALL_BUG,...ALL_MODAN].forEach(s=>{ ALL_STORES_MAP[s.id]=s; });
 
+/* ── alerts popover ── */
+const ALERTS_SEEN_KEY = 'v2_alerts_seen_token';
+
+function relativeAlertTime(ts){
+  const diffSec = Math.max(0, Math.floor(Date.now()/1000) - ts);
+  const day=86400, week=day*7, month=day*30;
+  let text, level;
+  if (diffSec < day) { text='היום'; level='rel-lite'; }
+  else if (diffSec < 2*day) { text='אתמול'; level='rel-lite'; }
+  else if (diffSec < week) { const d=Math.floor(diffSec/day); text=`לפני ${d} ימים`; level='rel-lite'; }
+  else if (diffSec < month) {
+    const w=Math.round(diffSec/week);
+    text = w<=1 ? 'לפני שבוע' : `לפני ${w} שבועות`;
+    level='rel-medium';
+  } else {
+    const m=Math.round(diffSec/month);
+    const remDays=Math.floor((diffSec - m*month)/day);
+    text = m<=1 ? 'לפני חודש' : `לפני ${m} חודשים`;
+    if (remDays>0) text += remDays===1 ? ' ויום' : ` ו-${remDays} ימים`;
+    level='rel-danger';
+  }
+  return {text, level};
+}
+function renderAlertTimes(){
+  document.querySelectorAll('.alert-row-rel[data-ts]').forEach(el=>{
+    const ts = parseInt(el.dataset.ts, 10);
+    if (!ts) return;
+    const {text, level} = relativeAlertTime(ts);
+    el.textContent = text;
+    el.classList.add(level);
+  });
+}
+function openAlertsPopover(){ document.getElementById('alerts-popover')?.classList.add('open'); }
+function closeAlertsPopoverEl(){
+  document.getElementById('alerts-popover')?.classList.remove('open');
+  if (window.__LOGIN_TOKEN) setPref(ALERTS_SEEN_KEY, window.__LOGIN_TOKEN);
+}
+function toggleAlertsPopover(ev){
+  ev.stopPropagation();
+  const pop = document.getElementById('alerts-popover');
+  if (!pop) return;
+  pop.classList.contains('open') ? closeAlertsPopoverEl() : openAlertsPopover();
+}
+function closeAlertsPopover(ev){
+  ev.stopPropagation();
+  closeAlertsPopoverEl();
+}
+function jumpToAlert(storeId){
+  closeAlertsPopoverEl();
+  document.body.classList.remove('section-closed'); // expand stores section if collapsed
+  setPref('collapsed', false);
+  requestAnimationFrame(()=>{
+    const targets = document.querySelectorAll(`[data-id="${storeId}"]`);
+    if (!targets.length) return;
+    const visible = Array.from(targets).find(el => el.offsetParent !== null) || targets[0];
+    visible.scrollIntoView({behavior:'smooth', block:'center'});
+    targets.forEach(el=>{
+      el.classList.add('flash-highlight');
+      setTimeout(()=>el.classList.remove('flash-highlight'), 1800);
+    });
+  });
+}
 /* ── prefs ── */
 const PK='v2_dash';
 function getPref(k,d){try{const p=JSON.parse(localStorage.getItem(PK)||'{}');return k in p?p[k]:d;}catch(e){return d;}}
 function setPref(k,v){try{const p=JSON.parse(localStorage.getItem(PK)||'{}');p[k]=v;localStorage.setItem(PK,JSON.stringify(p));}catch(e){}}
+
+renderAlertTimes();
 
 /* ── copy helper ── */
 let _toastTimer=null;
