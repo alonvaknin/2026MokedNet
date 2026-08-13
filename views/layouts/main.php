@@ -1512,7 +1512,7 @@ async function gsAutoSearch(q){
     })(),
     fetch(BASE+'/api/users/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[])
   ]);
-  const cArr=Array.isArray(contacts)?contacts:[];
+  let cArr=Array.isArray(contacts)?contacts:[];
   const sArr=Array.isArray(stores)?stores:[];
   const uArr=Array.isArray(users)?users:[];
   if(!cArr.length&&!sArr.length&&!uArr.length){
