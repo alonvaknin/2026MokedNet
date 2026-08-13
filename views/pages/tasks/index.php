@@ -22,6 +22,14 @@ $scopeAll   = $scopeAll ?? false;
   transition:filter .15s,transform .12s;user-select:none;
 }
 .task-status-badge:hover{filter:brightness(1.2);transform:scale(1.04);}
+.task-status-cell{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;height:100%;min-height:44px;padding:10px 12px;border-radius:0;
+  font-size:13px;font-weight:700;cursor:pointer;border:none;
+  transition:filter .15s;user-select:none;
+}
+.task-status-cell:hover{filter:brightness(1.12);}
+.task-status-cell .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 @keyframes badge-flip {
   0%   { transform: scaleY(1);   opacity:1; }
   40%  { transform: scaleY(0);   opacity:0; }
@@ -38,8 +46,12 @@ $scopeAll   = $scopeAll ?? false;
 }
 .status-option:hover{background:var(--bg3);}
 .task-title-cell{position:relative;}
-.task-title-text{cursor:pointer;display:inline-block;border-radius:4px;padding:1px 4px;transition:background .13s;}
-.task-title-text:hover{background:var(--bg3);}
+.task-row{transition:background .13s;}
+.task-row:hover{background:var(--bg3);}
+.task-row-title{font-size:15px;font-weight:600;color:var(--text);line-height:1.4;cursor:pointer;display:inline-block;border-radius:5px;padding:2px 5px;margin:-2px -5px;transition:background .13s;}
+.task-row-title:hover{background:var(--bg3);}
+.task-row-desc{font-size:12.5px;color:var(--text3);margin-top:3px;line-height:1.4;}
+.task-row-meta{font-size:12.5px;color:var(--text2);}
 .task-title-input{
   background:var(--bg3);border:1px solid var(--accent);border-radius:6px;
   color:var(--text);font-size:14px;font-weight:500;font-family:inherit;
@@ -163,19 +175,27 @@ $scopeAll   = $scopeAll ?? false;
   <div class="alert alert-info">אין משימות פתוחות 🎉</div>
 <?php else: ?>
 <div class="card" style="padding:0;overflow:visible;">
-  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed;">
+    <colgroup>
+      <col style="width:52px;">
+      <col>
+      <col style="width:110px;">
+      <col style="width:110px;">
+      <col style="width:100px;">
+      <col style="width:140px;">
+      <col style="width:130px;">
+      <col style="width:130px;">
+    </colgroup>
     <thead>
       <tr style="color:var(--text2);">
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">#</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">כותרת</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">סטטוס</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">SLA</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">נפתח</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">עדכון סטטוס</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">עודכן ע"י</th>
-        <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">מחלקה</th>
-        <th style="padding:10px 14px;border-bottom:1px solid var(--border);"></th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">#</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">כותרת</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">SLA</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">נפתח</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">עודכן ע"י</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">מחלקה</th>
+        <th style="text-align:center;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">סטטוס</th>
       </tr>
     </thead>
     <tbody>
@@ -195,75 +215,66 @@ $scopeAll   = $scopeAll ?? false;
         id="task-row-<?= (int)$t['id'] ?>"
         data-search="<?= View::e(mb_strtolower(($t['title'] ?? '') . ' ' . ($t['description'] ?? '') . ' ' . ($t['type_name'] ?? '') . ' ' . ($statusName) . ' ' . ($t['dept_name'] ?? ''))) ?>"
         onclick="openTaskDetail(<?= (int)$t['id'] ?>)">
-      <td style="padding:10px 14px;color:var(--text3);"><?= (int)$t['id'] ?></td>
+      <td style="padding:14px;color:var(--text3);font-size:13px;"><?= (int)$t['id'] ?></td>
 
       <!-- Title: double-click to edit -->
-      <td style="padding:10px 14px;" class="task-title-cell">
-        <div>
-          <span class="task-title-text"
-                id="title-text-<?= (int)$t['id'] ?>"
-                title="לחץ פעמיים לעריכה"
-                ondblclick="startTitleEdit(<?= (int)$t['id'] ?>, this)">
-            <?= View::e($t['title'] ?? '') ?>
-          </span>
+      <td style="padding:14px;" class="task-title-cell">
+        <div class="task-row-title"
+             id="title-text-<?= (int)$t['id'] ?>"
+             title="לחץ פעמיים לעריכה"
+             ondblclick="startTitleEdit(<?= (int)$t['id'] ?>, this)">
+          <?= View::e($t['title'] ?? '') ?>
         </div>
         <?php if (!empty($t['description'])): ?>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px;">
-            <?= View::e(mb_substr($t['description'], 0, 70)) ?><?= mb_strlen($t['description']) > 70 ? '…' : '' ?>
+          <div class="task-row-desc">
+            <?= View::e(mb_substr($t['description'], 0, 90)) ?><?= mb_strlen($t['description']) > 90 ? '…' : '' ?>
           </div>
         <?php endif; ?>
         <?php if (!empty($t['source_type']) && $t['source_type'] === 'invoice_change_name'): ?>
           <a href="<?= $base ?>/invoice-change-name"
-             style="font-size:11px;color:var(--accent);text-decoration:none;margin-top:3px;display:inline-flex;align-items:center;gap:3px;">
+             onclick="event.stopPropagation()"
+             style="font-size:11.5px;color:var(--accent);text-decoration:none;margin-top:4px;display:inline-flex;align-items:center;gap:3px;">
             <i class="bi bi-box-arrow-up-left"></i> צפה בבקשה
           </a>
         <?php endif; ?>
       </td>
 
-      <!-- Status badge with dropdown -->
-      <td style="padding:10px 14px;position:relative;" onclick="event.stopPropagation()">
-        <?php if ($typeId): ?>
-          <span class="task-status-badge"
-                data-type-id="<?= $typeId ?>"
-                data-current-status="<?= $statusId ?>"
-                style="color:<?= View::e($statusColor) ?>;background:<?= View::e($statusColor) ?>22;border-color:<?= View::e($statusColor) ?>44;"
-                onclick="toggleStatusDropdown(event, <?= (int)$t['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
-            <span style="width:7px;height:7px;border-radius:50%;background:<?= View::e($statusColor) ?>;flex-shrink:0;"></span>
-            <span id="status-label-<?= (int)$t['id'] ?>"><?= $statusId ? View::e($statusName) : '— בחר סטטוס —' ?></span>
-          </span>
-        <?php else: ?>
-          <span style="color:var(--text3);font-size:13px;">—</span>
-        <?php endif; ?>
-      </td>
-
-      <td style="padding:10px 14px;color:var(--text2);font-size:13px;">
+      <td class="task-row-meta" style="padding:14px;">
         <?= View::e($t['type_name'] ?? '—') ?>
       </td>
 
-      <td style="padding:10px 14px;">
+      <td style="padding:14px;">
         <?php if ($slaTs): ?>
           <span class="badge <?= $overdue ? 'badge-danger' : 'badge-success' ?>"><?= $slaDate ?></span>
-        <?php else: ?>—<?php endif; ?>
+        <?php else: ?><span class="task-row-meta">—</span><?php endif; ?>
       </td>
 
-      <td style="padding:10px 14px;color:var(--text2);font-size:13px;"><?= $created ?></td>
+      <td class="task-row-meta" style="padding:14px;"><?= $created ?></td>
 
-      <td style="padding:10px 14px;color:var(--text2);font-size:12px;white-space:nowrap;">
-        <?= $t['status_changed_at'] ? date('d/m/Y H:i', strtotime($t['status_changed_at'])) : '—' ?>
-      </td>
-      <td style="padding:10px 14px;color:var(--text2);font-size:13px;">
+      <td class="task-row-meta" style="padding:14px;font-size:12px;">
         <?= \Core\View::e($t['changed_by_name'] ?? '—') ?>
+        <?php if ($t['status_changed_at']): ?>
+          <div style="color:var(--text3);font-size:11px;margin-top:1px;"><?= date('d/m/Y H:i', strtotime($t['status_changed_at'])) ?></div>
+        <?php endif; ?>
       </td>
-      <td style="padding:10px 14px;color:var(--text2);font-size:13px;">
+      <td class="task-row-meta" style="padding:14px;">
         <?= \Core\View::e($t['dept_name'] ?? '—') ?>
       </td>
 
-      <td style="padding:10px 14px;text-align:center;" onclick="event.stopPropagation()">
-        <button class="btn-icon" onclick="openTaskDetail(<?= (int)$t['id'] ?>)"
-                title="פרטי משימה"
-                style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;transition:color .15s,background .15s;">
-          <i class="bi bi-chat-dots"></i>
-        </button>
+      <!-- Status: fills the entire cell, click to open dropdown -->
+      <td style="padding:0;position:relative;" onclick="event.stopPropagation()">
+        <?php if ($typeId): ?>
+          <div class="task-status-cell"
+               data-type-id="<?= $typeId ?>"
+               data-current-status="<?= $statusId ?>"
+               style="color:<?= View::e($statusColor) ?>;background:<?= View::e($statusColor) ?>1a;"
+               onclick="toggleStatusDropdown(event, <?= (int)$t['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
+            <span class="dot" style="background:<?= View::e($statusColor) ?>;"></span>
+            <span id="status-label-<?= (int)$t['id'] ?>"><?= $statusId ? View::e($statusName) : '— בחר —' ?></span>
+          </div>
+        <?php else: ?>
+          <div class="task-status-cell" style="color:var(--text3);cursor:default;">—</div>
+        <?php endif; ?>
       </td>
     </tr>
     <?php endforeach; ?>
@@ -282,15 +293,23 @@ $scopeAll   = $scopeAll ?? false;
   </button>
   <div id="closed-section" style="display:none;">
     <div class="card" style="padding:0;overflow:visible;opacity:.8;">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;">
+        <colgroup>
+          <col style="width:48px;">
+          <col>
+          <col style="width:100px;">
+          <col style="width:100px;">
+          <col style="width:120px;">
+          <col style="width:120px;">
+        </colgroup>
         <thead>
           <tr style="color:var(--text3);">
-            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">#</th>
-            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">כותרת</th>
-            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">סטטוס</th>
-            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
-            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">נסגר</th>
-            <th style="text-align:right;padding:8px 14px;border-bottom:1px solid var(--border);font-weight:500;">סגר</th>
+            <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">#</th>
+            <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">כותרת</th>
+            <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
+            <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">נסגר</th>
+            <th style="text-align:right;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">סגר</th>
+            <th style="text-align:center;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:500;">סטטוס</th>
           </tr>
         </thead>
         <tbody>
@@ -304,35 +323,35 @@ $scopeAll   = $scopeAll ?? false;
               id="task-row-<?= (int)$c['id'] ?>"
               data-search="<?= View::e(mb_strtolower(($c['title'] ?? '') . ' ' . ($c['type_name'] ?? '') . ' ' . ($sName) . ' ' . ($c['changed_by_name'] ?? ''))) ?>"
               onclick="openTaskDetail(<?= (int)$c['id'] ?>)">
-            <td style="padding:8px 14px;color:var(--text3);"><?= (int)$c['id'] ?></td>
-            <td style="padding:8px 14px;color:var(--text2);" class="task-title-cell">
-              <span class="task-title-text"
-                    id="title-text-<?= (int)$c['id'] ?>"
-                    title="לחץ פעמיים לעריכה"
-                    ondblclick="startTitleEdit(<?= (int)$c['id'] ?>, this)">
+            <td style="padding:12px 14px;color:var(--text3);"><?= (int)$c['id'] ?></td>
+            <td style="padding:12px 14px;" class="task-title-cell">
+              <div class="task-row-title" style="font-size:14px;"
+                   id="title-text-<?= (int)$c['id'] ?>"
+                   title="לחץ פעמיים לעריכה"
+                   ondblclick="startTitleEdit(<?= (int)$c['id'] ?>, this)">
                 <?= View::e($c['title'] ?? '') ?>
-              </span>
+              </div>
             </td>
-            <td style="padding:8px 14px;position:relative;" onclick="event.stopPropagation()">
-              <?php if ($cTypeId): ?>
-              <span class="task-status-badge"
-                    data-type-id="<?= $cTypeId ?>"
-                    data-current-status="<?= $cStatusId ?>"
-                    style="color:<?= View::e($sColor) ?>;background:<?= View::e($sColor) ?>22;border-color:<?= View::e($sColor) ?>44;padding:2px 9px;"
-                    onclick="toggleStatusDropdown(event, <?= (int)$c['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
-                <span style="width:6px;height:6px;border-radius:50%;background:<?= View::e($sColor) ?>;flex-shrink:0;"></span>
-                <span id="status-label-<?= (int)$c['id'] ?>"><?= View::e($sName) ?></span>
-              </span>
-              <?php else: ?>
-              <span style="color:var(--text3);font-size:13px;">—</span>
-              <?php endif; ?>
-            </td>
-            <td style="padding:8px 14px;color:var(--text3);"><?= View::e($c['type_name'] ?? '—') ?></td>
-            <td style="padding:8px 14px;color:var(--text3);font-size:12px;">
+            <td class="task-row-meta" style="padding:12px 14px;"><?= View::e($c['type_name'] ?? '—') ?></td>
+            <td class="task-row-meta" style="padding:12px 14px;font-size:12px;">
               <?= $c['status_changed_at'] ? date('d/m/Y', strtotime($c['status_changed_at'])) : '—' ?>
             </td>
-            <td style="padding:8px 14px;color:var(--text3);font-size:12px;">
+            <td class="task-row-meta" style="padding:12px 14px;">
               <?= View::e($c['changed_by_name'] ?? '—') ?>
+            </td>
+            <td style="padding:0;position:relative;" onclick="event.stopPropagation()">
+              <?php if ($cTypeId): ?>
+              <div class="task-status-cell"
+                   data-type-id="<?= $cTypeId ?>"
+                   data-current-status="<?= $cStatusId ?>"
+                   style="color:<?= View::e($sColor) ?>;background:<?= View::e($sColor) ?>1a;min-height:40px;font-size:12.5px;"
+                   onclick="toggleStatusDropdown(event, <?= (int)$c['id'] ?>, parseInt(this.dataset.typeId), parseInt(this.dataset.currentStatus))">
+                <span class="dot" style="background:<?= View::e($sColor) ?>;"></span>
+                <span id="status-label-<?= (int)$c['id'] ?>"><?= View::e($sName) ?></span>
+              </div>
+              <?php else: ?>
+              <div class="task-status-cell" style="color:var(--text3);cursor:default;min-height:40px;">—</div>
+              <?php endif; ?>
             </td>
           </tr>
         <?php endforeach; ?>
@@ -613,8 +632,9 @@ async function setStatus(taskId, statusId, name, color, isClosed) {
   // Update badge in-place with flip animation
   const label = document.getElementById(`status-label-${taskId}`);
   if (label) {
-    const badge = label.closest('.task-status-badge');
+    const badge = label.closest('.task-status-badge, .task-status-cell');
     if (badge) {
+      const isCell = badge.classList.contains('task-status-cell');
       badge.classList.remove('badge-flip');
       void badge.offsetWidth; // force reflow to restart animation
       badge.classList.add('badge-flip');
@@ -622,9 +642,10 @@ async function setStatus(taskId, statusId, name, color, isClosed) {
 
       const safeColor = sanitizeColor(color);
       badge.style.color       = safeColor;
-      badge.style.background  = safeColor + '22';
-      badge.style.borderColor = safeColor + '44';
-      badge.querySelector('span').style.background = safeColor;
+      badge.style.background  = safeColor + (isCell ? '1a' : '22');
+      if (!isCell) badge.style.borderColor = safeColor + '44';
+      const dot = badge.querySelector('.dot') || badge.querySelector('span');
+      if (dot) dot.style.background = safeColor;
       badge.dataset.currentStatus = statusId;
       label.textContent = name;
 
