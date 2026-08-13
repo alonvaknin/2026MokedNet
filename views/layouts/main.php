@@ -1394,7 +1394,7 @@ function gsRenderStores(stores,q){
     h+='</div>';
     if(s.phone_main)h+='<a href="tel:'+E(s.phone_main)+'" onclick="event.stopPropagation()" style="font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap;"><i class="bi bi-telephone-fill"></i> '+gsHl(s.phone_main,q)+'</a>';
     if(s.alert_note)h+='<i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:13px;flex-shrink:0;" title="'+E(s.alert_note)+'"></i>';
-    if(isModan)h+='<span style="font-size:10px;font-weight:600;color:#ef4444;white-space:nowrap;flex-shrink:0;">נקודת מודן</span>';
+    if(isModan)h+='<span style="font-size:10px;font-weight:600;color:#8b5cf6;white-space:nowrap;flex-shrink:0;">נקודת מודן</span>';
     h+='</div>';
   });
   h+='</div>';
@@ -1573,20 +1573,19 @@ async function gsAutoSearch(q){
     h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+((uArr.length||cArr.length)?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-shop" style="margin-left:4px;"></i>חנויות</div>';
     sArr.forEach(s=>{
       const isModan=s.type==='נקודת מודן';
-      const col=isModan?'#ef4444':(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
+      const col=isModan?'#8b5cf6':(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
       const num=E(s.id||'');
       const onclick=typeof openStoreView!=='undefined'
         ?'openStoreView(\''+num+'\')'
         :'window.location.href=BASE+\'/stores/id/\'+encodeURIComponent(\''+num+'\')';
       h+='<div class="gs-row" tabindex="-1" onclick="'+onclick+'">';
-      h+='<span style="font-size:'+(isModan?'13px':'19px')+';font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+
-         (isModan?'נ.מודן':gsHl(s.store_num,q))+'</span>';
+      h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+gsHl(s.store_num,q)+'</span>';
       h+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:14px;">'+gsHl(s.name,q)+'</div>';
       if(s.city)h+='<div style="font-size:11px;color:var(--text3);"><i class="bi bi-geo-alt-fill" style="font-size:10px;"></i> '+gsHl(s.city,q)+'</div>';
       h+='</div>';
+      if(isModan)h+='<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;color:#8b5cf6;border:1px solid #8b5cf644;background:#8b5cf615;white-space:nowrap;flex-shrink:0;">נ.מודן</span>';
       if(s.phone_main)h+='<a href="tel:'+E(s.phone_main)+'" onclick="event.stopPropagation()" style="font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap;"><i class="bi bi-telephone-fill"></i> '+gsHl(s.phone_main,q)+'</a>';
       if(s.alert_note)h+='<i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:13px;flex-shrink:0;" title="'+E(s.alert_note)+'"></i>';
-      if(isModan)h+='<span style="font-size:10px;font-weight:600;color:#ef4444;white-space:nowrap;flex-shrink:0;">נקודת מודן</span>';
       h+='</div>';
     });
   }
