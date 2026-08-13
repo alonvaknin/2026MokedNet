@@ -1379,18 +1379,22 @@ function gsRenderStores(stores,q){
   if(!stores.length){res.innerHTML='<div class="gs-empty"><i class="bi bi-shop"></i>לא נמצאו חנויות עבור "'+E(q)+'"</div>';return;}
   let h='<div>';
   stores.forEach(s=>{
-    const col=(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
+    const isModan=s.type==='נקודת מודן';
+    const col=isModan?'#ef4444':(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
     const num=E(s.id||'');
     const onclick=typeof openStoreView!=='undefined'
       ?'openStoreView(\''+num+'\')'
       :'window.location.href=BASE+\'/stores/id/\'+encodeURIComponent(\''+num+'\')';
-    h+='<div class="gs-row" onclick="'+onclick+'">';
-    h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+gsHl(s.store_num,q)+'</span>';
+    h+='<div class="gs-row" onclick="'+onclick+'"'+(isModan?' style="background:#ef444412;border:1px solid #ef444440;border-radius:8px;"':'')+'>';
+    h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+
+       (isModan?'<i class="bi bi-person-fill" style="font-size:17px;margin-left:2px;"></i>':'')+
+       gsHl(s.store_num,q)+'</span>';
     h+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:14px;">'+gsHl(s.name,q)+'</div>';
     if(s.city)h+='<div style="font-size:11px;color:var(--text3);"><i class="bi bi-geo-alt-fill" style="font-size:10px;"></i> '+gsHl(s.city,q)+'</div>';
     h+='</div>';
     if(s.phone_main)h+='<a href="tel:'+E(s.phone_main)+'" onclick="event.stopPropagation()" style="font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap;"><i class="bi bi-telephone-fill"></i> '+gsHl(s.phone_main,q)+'</a>';
     if(s.alert_note)h+='<i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:13px;flex-shrink:0;" title="'+E(s.alert_note)+'"></i>';
+    if(isModan)h+='<span style="font-size:10px;font-weight:600;color:#ef4444;white-space:nowrap;flex-shrink:0;">נקודת מודן</span>';
     h+='</div>';
   });
   h+='</div>';
@@ -1398,26 +1402,33 @@ function gsRenderStores(stores,q){
 }
 let _gsContacts=[];
 function gsRenderContacts(contacts,q){
-  _gsContacts=contacts;
   const res=document.getElementById('gs-results');
   const E=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   if(!contacts.length){res.innerHTML='<div class="gs-empty"><i class="bi bi-people-fill"></i>לא נמצאו אנשי קשר עבור "'+E(q)+'"</div>';return;}
-  const typeCol={'נותן שירות':'#10b981','פנים ארגוני':'#5b8dee','ספק':'#f59e0b','תמיכה טכנית':'#06b6d4','איש קשר':'#8b5cf6','אחר':'#7c829c'};
+  const typeCol={'נותן שירות':'#10b981','פנים ארגוני':'#5b8dee','ספק':'#f59e0b','תמיכה טכנית':'#06b6d4','איש קשר':'#8b5cf6','רכש':'#ef4444','אחר':'#7c829c'};
   const avatarColors=['#5b8dee','#8b5cf6','#10b981','#f59e0b','#ec4899','#06b6d4','#f97316'];
+  contacts=contacts.slice().sort((a,b)=>((a.contact_type==='נותן שירות')?1:0)-((b.contact_type==='נותן שירות')?1:0));
+  _gsContacts=contacts;
   let h='<div>';
   contacts.forEach((c,i)=>{
     const fullName=((c.first_name||'')+' '+(c.last_name||'')).trim();
-    const col=typeCol[c.contact_type||'איש קשר']||'#8b5cf6';
+    const ctype=c.contact_type||'איש קשר';
+    const isRechesh=ctype==='רכש';
+    const col=typeCol[ctype]||'#8b5cf6';
     const hash=fullName.split('').reduce((a,ch)=>Math.imul(31,a)+ch.charCodeAt(0)|0,0);
-    const acolor=avatarColors[Math.abs(hash)%avatarColors.length];
-    h+='<div class="gs-row" tabindex="-1" onclick="gsOpenContactView(_gsContacts['+i+'])">';
-    h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">'+E((c.first_name||'?').charAt(0))+'</div>';
+    const acolor=isRechesh?'#ef4444':avatarColors[Math.abs(hash)%avatarColors.length];
+    h+='<div class="gs-row" tabindex="-1" onclick="gsOpenContactView(_gsContacts['+i+'])"'+(isRechesh?' style="background:#ef444412;border:1px solid #ef444440;border-radius:8px;"':'')+'>';
+    h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">'+
+       (isRechesh?'<i class="bi bi-person-fill" style="font-size:18px;"></i>':E((c.first_name||'?').charAt(0)))+
+       '</div>';
     h+='<div style="flex:1;min-width:0;">';
     h+='<div style="font-weight:600;">'+gsHl(fullName,q)+'</div>';
     if(c.phone)h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-telephone-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.phone,q)+'</div>';
     if(c.email&&c.email.trim())h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-envelope-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.email,q)+'</div>';
+    h+='<div style="font-size:10px;font-weight:600;margin-top:4px;color:'+col+';">'+
+       (isRechesh?'<i class="bi bi-person-fill" style="font-size:11px;margin-left:3px;"></i>':'')+
+       E(ctype)+'</div>';
     h+='</div>';
-    h+='<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;color:'+col+';border:1px solid '+col+'44;background:'+col+'15;white-space:nowrap;">'+E(c.contact_type||'איש קשר')+'</span>';
     h+='</div>';
   });
   h+='</div>';
@@ -1492,7 +1503,9 @@ async function gsAutoSearch(q){
           (s.name||'').toLowerCase().includes(ql)||
           (s.store_num||'').includes(ql)||
           (s.phone_main||'').includes(ql)||
-          (s.city||'').toLowerCase().includes(ql)
+          (s.city||'').toLowerCase().includes(ql)||
+          (s.note||'').toLowerCase().includes(ql)||
+          (s.alert_note||'').toLowerCase().includes(ql)
         ).slice(0,10));
       }
       return fetch(BASE+'/api/stores?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]);
@@ -1531,38 +1544,49 @@ async function gsAutoSearch(q){
   }
   if(cArr.length){
     h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+(uArr.length?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-people-fill" style="margin-left:4px;"></i>אנשי קשר</div>';
+    cArr=cArr.slice().sort((a,b)=>((a.contact_type==='נותן שירות')?1:0)-((b.contact_type==='נותן שירות')?1:0));
     _gsContacts=cArr;
     cArr.forEach((c,i)=>{
       const fullName=((c.first_name||'')+' '+(c.last_name||'')).trim();
-      const col=typeCol[c.contact_type||'איש קשר']||'#8b5cf6';
+      const ctype=c.contact_type||'איש קשר';
+      const isRechesh=ctype==='רכש';
+      const col=typeCol[ctype]||'#8b5cf6';
       const hash=fullName.split('').reduce((a,ch)=>Math.imul(31,a)+ch.charCodeAt(0)|0,0);
-      const acolor=avatarColors[Math.abs(hash)%avatarColors.length];
-      h+='<div class="gs-row" tabindex="-1" onclick="gsOpenContactView(_gsContacts['+i+'])">';
-      h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">'+E((c.first_name||'?').charAt(0))+'</div>';
+      const acolor=isRechesh?'#ef4444':avatarColors[Math.abs(hash)%avatarColors.length];
+      h+='<div class="gs-row" tabindex="-1" onclick="gsOpenContactView(_gsContacts['+i+'])"'+(isRechesh?' style="background:#ef444412;border:1px solid #ef444440;border-radius:8px;"':'')+'>';
+      h+='<div style="width:36px;height:36px;border-radius:50%;background:'+acolor+';display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">'+
+         (isRechesh?'<i class="bi bi-person-fill" style="font-size:18px;"></i>':E((c.first_name||'?').charAt(0)))+
+         '</div>';
       h+='<div style="flex:1;min-width:0;">';
       h+='<div style="font-weight:600;">'+gsHl(fullName,q)+'</div>';
       if(c.phone)h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-telephone-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.phone,q)+'</div>';
       if(c.email&&c.email.trim())h+='<div style="font-size:12px;color:var(--text3);"><i class="bi bi-envelope-fill" style="font-size:10px;margin-left:3px;"></i>'+gsHl(c.email,q)+'</div>';
+      h+='<div style="font-size:10px;font-weight:600;margin-top:4px;color:'+col+';">'+
+         (isRechesh?'<i class="bi bi-person-fill" style="font-size:11px;margin-left:3px;"></i>':'')+
+         E(ctype)+'</div>';
       h+='</div>';
-      h+='<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;color:'+col+';border:1px solid '+col+'44;background:'+col+'15;white-space:nowrap;">'+E(c.contact_type||'איש קשר')+'</span>';
       h+='</div>';
     });
   }
   if(sArr.length){
     h+='<div style="padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);background:var(--bg3);'+((uArr.length||cArr.length)?'border-top:1px solid var(--border);':'')+'"><i class="bi bi-shop" style="margin-left:4px;"></i>חנויות</div>';
     sArr.forEach(s=>{
-      const col=(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
+      const isModan=s.type==='נקודת מודן';
+      const col=isModan?'#ef4444':(s.type==='סניף באג')?'var(--accent)':'#8b5cf6';
       const num=E(s.id||'');
       const onclick=typeof openStoreView!=='undefined'
         ?'openStoreView(\''+num+'\')'
         :'window.location.href=BASE+\'/stores/id/\'+encodeURIComponent(\''+num+'\')';
-      h+='<div class="gs-row" tabindex="-1" onclick="'+onclick+'">';
-      h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+gsHl(s.store_num,q)+'</span>';
+      h+='<div class="gs-row" tabindex="-1" onclick="'+onclick+'"'+(isModan?' style="background:#ef444412;border:1px solid #ef444440;border-radius:8px;"':'')+'>';
+      h+='<span style="font-size:19px;font-weight:800;color:'+col+';min-width:50px;flex-shrink:0;">'+
+         (isModan?'<i class="bi bi-person-fill" style="font-size:17px;margin-left:2px;"></i>':'')+
+         gsHl(s.store_num,q)+'</span>';
       h+='<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:14px;">'+gsHl(s.name,q)+'</div>';
       if(s.city)h+='<div style="font-size:11px;color:var(--text3);"><i class="bi bi-geo-alt-fill" style="font-size:10px;"></i> '+gsHl(s.city,q)+'</div>';
       h+='</div>';
       if(s.phone_main)h+='<a href="tel:'+E(s.phone_main)+'" onclick="event.stopPropagation()" style="font-size:12px;color:var(--accent);text-decoration:none;white-space:nowrap;"><i class="bi bi-telephone-fill"></i> '+gsHl(s.phone_main,q)+'</a>';
       if(s.alert_note)h+='<i class="bi bi-exclamation-triangle-fill" style="color:var(--warning);font-size:13px;flex-shrink:0;" title="'+E(s.alert_note)+'"></i>';
+      if(isModan)h+='<span style="font-size:10px;font-weight:600;color:#ef4444;white-space:nowrap;flex-shrink:0;">נקודת מודן</span>';
       h+='</div>';
     });
   }

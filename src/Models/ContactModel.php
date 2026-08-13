@@ -34,9 +34,9 @@ class ContactModel
                    AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?
                         OR phone LIKE ? OR phone2 LIKE ? OR role LIKE ?
                         OR department LIKE ? OR contact_type LIKE ?
-                        OR tags LIKE ? OR address LIKE ?
+                        OR tags LIKE ? OR address LIKE ? OR note LIKE ?
                         OR CONCAT(first_name,' ',last_name) LIKE ?)";
-        $params = [$like,$like,$like,$like,$like,$like,$like,$like,$like,$like,$like];
+        $params = [$like,$like,$like,$like,$like,$like,$like,$like,$like,$like,$like,$like];
         if ($dept) { $sql .= ' AND department=?'; $params[] = $dept; }
         if ($type) { $sql .= ' AND contact_type=?'; $params[] = $type; }
         return DB::query($sql . ' ORDER BY first_name ASC LIMIT 80', $params);

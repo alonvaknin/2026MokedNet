@@ -56,12 +56,13 @@ class StoreModel
         $like   = '%' . trim($q) . '%';
         $sql    = "SELECT id,store_num,name,type,city,phone_main,phone_cell,
                           manager_name,manager_cell,mvoice_queue,telephone_line_num,
-                          alert_note,is_active,is_display,tags
+                          alert_note,is_active,is_display,tags,note
                    FROM stores
                    WHERE is_active=1
                      AND (name LIKE ? OR store_num LIKE ? OR phone_main LIKE ?
-                          OR phone_cell LIKE ? OR manager_name LIKE ? OR city LIKE ?)";
-        $params = [$like,$like,$like,$like,$like,$like];
+                          OR phone_cell LIKE ? OR manager_name LIKE ? OR city LIKE ?
+                          OR note LIKE ? OR alert_note LIKE ?)";
+        $params = [$like,$like,$like,$like,$like,$like,$like,$like];
         if ($type) { $sql .= ' AND type=?';  $params[] = $type; }
         if ($city) { $sql .= ' AND city=?';  $params[] = $city; }
         return DB::query($sql . ' ORDER BY store_num ASC LIMIT 100', $params);
