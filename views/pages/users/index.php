@@ -206,6 +206,28 @@ $groupMap = array_column($permGroups, 'permmisionsGroupHeb', 'id');
   </div>
 </div>
 
+<!-- Modal אישור שליחת מייל איפוס -->
+<div id="reset-email-modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:400;
+            align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+              width:100%;max-width:380px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:16px 20px;border-bottom:1px solid var(--border);">
+      <div style="font-size:16px;font-weight:600;">✉️ שליחת קישור איפוס</div>
+      <button onclick="closeResetEmailModal()"
+              style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <p id="reset-email-modal-text" style="font-size:14px;color:var(--text2);margin:0 0 18px;"></p>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" style="flex:1;" onclick="confirmSendResetEmail()">שלח</button>
+        <button class="btn btn-ghost" onclick="closeResetEmailModal()">ביטול</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
 .flabel { display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500; }
 .finput { width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;
@@ -363,17 +385,34 @@ function showErr(msg) {
   el.textContent = msg; el.style.display = 'block';
 }
 
-async function sendResetEmail(userId, userName) {
-  if (!confirm(`לשלוח קישור לאיפוס סיסמא למשתמש ${userName}?`)) return;
+let resetEmailUserId = null;
+
+function sendResetEmail(userId, userName) {
+  resetEmailUserId = userId;
+  document.getElementById('reset-email-modal-text').textContent =
+    `לשלוח קישור לאיפוס סיסמא למשתמש ${userName}?`;
+  document.getElementById('reset-email-modal').style.display = 'flex';
+}
+
+function closeResetEmailModal() {
+  document.getElementById('reset-email-modal').style.display = 'none';
+  resetEmailUserId = null;
+}
+
+async function confirmSendResetEmail() {
+  const userId = resetEmailUserId;
+  closeResetEmailModal();
+  if (!userId) return;
+
   const res  = await fetch(`${BASE_URL}/users/send-reset-email`, {
     method: 'POST',
     body: new URLSearchParams({ _csrf: CSRF, id: userId })
   });
   const data = await res.json();
   if (data.ok) {
-    alert(`קישור איפוס סיסמא נשלח למשתמש ${userName}.`);
+    showToast('קישור איפוס סיסמא נשלח בהצלחה');
   } else {
-    alert('שגיאה: ' + (data.error || 'לא ניתן לשלוח'));
+    showToast('שגיאה: ' + (data.error || 'לא ניתן לשלוח'));
   }
 }
 

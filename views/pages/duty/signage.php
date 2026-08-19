@@ -7,25 +7,27 @@ $base = rtrim(CFG['app']['url'], '/');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>שילוט דיגיטלי – מוקד</title>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
 :root {
-  --c1: #ff6b6b;   /* coral */
-  --c2: #ffd93d;   /* yellow */
-  --c3: #6bcb77;   /* mint */
-  --c4: #4d96ff;   /* sky blue */
-  --c5: #ff9f43;   /* orange */
-  --c6: #a29bfe;   /* lavender */
-  --bg:    #0d1117;
-  --bg2:   #161b22;
-  --bg3:   #1c2230;
-  --border: rgba(255,255,255,0.08);
-  --text:   #e8eaf0;
-  --text2:  rgba(232,234,240,0.65);
-  --text3:  rgba(232,234,240,0.35);
-  --font:   'Rubik', sans-serif;
-  --radius: 16px;
+  --accent: #007aff;      /* single HIG-style accent (system blue) */
+  --accent-soft: rgba(0,122,255,0.10);
+  --accent-border: rgba(0,122,255,0.24);
+  --warn: #c2410c;        /* semantic — used only for the guidance callout */
+  --warn-soft: rgba(255,159,10,0.12);
+  --warn-border: rgba(255,159,10,0.30);
+  --danger: #d70015;
+
+  --bg:     #f2f2f5;
+  --bg2:    rgba(255,255,255,0.66);   /* translucent card surface — lets blobs show through */
+  --bg3:    rgba(255,255,255,0.55);
+  --border: rgba(0,0,0,0.07);
+  --text:   #1c1c1e;
+  --text2:  rgba(28,28,30,0.65);
+  --text3:  rgba(28,28,30,0.42);
+  --font:   'Assistant', sans-serif;
+  --radius: 18px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,27 +40,79 @@ html, body {
   color: var(--text);
 }
 
-/* ── animated gradient bg ── */
+/* ── Ambient animated background ── */
+/* soft, blurred color blobs drifting slowly. Cards are translucent + backdrop-blurred
+   so the color glow reads through them (frosted-glass, HIG-style), never behind opaque fills. */
 #bg-layer {
   position: fixed; inset: 0; z-index: 0;
   background: var(--bg);
+  overflow: hidden;
+  animation: hueDrift 60s linear infinite;
 }
-#bg-layer::before {
-  content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 55% 50% at 15% 20%, rgba(77,150,255,0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 45% 40% at 85% 80%, rgba(255,107,107,0.10) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 45% at 50% 50%, rgba(107,203,119,0.07) 0%, transparent 70%);
-  animation: bgShift 20s ease-in-out infinite alternate;
+#bg-layer .blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.8;
+  will-change: transform;
 }
-@keyframes bgShift {
-  0%   { opacity: 1; }
-  50%  { opacity: 0.6; }
-  100% { opacity: 1; }
+#bg-layer .blob-1 {
+  width: 48vw; height: 48vw;
+  top: -16vw; right: -12vw;
+  background: radial-gradient(circle, rgba(0,122,255,0.58) 0%, transparent 72%);
+  animation: drift1 22s ease-in-out infinite;
+}
+#bg-layer .blob-2 {
+  width: 42vw; height: 42vw;
+  bottom: -18vw; left: -10vw;
+  background: radial-gradient(circle, rgba(191,90,242,0.46) 0%, transparent 72%);
+  animation: drift2 26s ease-in-out infinite;
+}
+#bg-layer .blob-3 {
+  width: 36vw; height: 36vw;
+  bottom: 8vh; right: 20vw;
+  background: radial-gradient(circle, rgba(52,199,89,0.42) 0%, transparent 72%);
+  animation: drift3 30s ease-in-out infinite;
+}
+#bg-layer .blob-4 {
+  width: 30vw; height: 30vw;
+  top: 20vh; left: 22vw;
+  background: radial-gradient(circle, rgba(255,159,10,0.34) 0%, transparent 72%);
+  animation: drift4 24s ease-in-out infinite;
+}
+@keyframes drift1 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-8vw, 6vh) scale(1.15); }
+  66%  { transform: translate(-3vw, 10vh) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes drift2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(7vw, -8vh) scale(1.12); }
+  66%  { transform: translate(3vw, -3vh) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes drift3 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-6vw, -6vh) scale(0.88); }
+  66%  { transform: translate(4vw, 4vh) scale(1.1); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes drift4 {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(6vw, 5vh) scale(1.18); }
+  66%  { transform: translate(-5vw, -4vh) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+@keyframes hueDrift {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #bg-layer, #bg-layer .blob { animation: none; }
 }
 
-/* bg-slide/orb — keep DOM, hide visually */
+/* bg-slide/orb — keep DOM, hide visually (legacy JS compat) */
 .bg-slide, .orb { display: none !important; }
 
 /* ── App grid — fills viewport, scales with it ── */
@@ -74,85 +128,81 @@ html, body {
 /* ── Card base ── */
 .card {
   background: var(--bg2);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   position: relative;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
-/* top color accent bar */
-.card-accent {
-  height: 3px;
-  background: linear-gradient(90deg, var(--c4), var(--c3), var(--c2), var(--c1));
-  background-size: 300% 100%;
-  animation: accentMove 6s linear infinite;
-}
-@keyframes accentMove { 0%{background-position:0%} 100%{background-position:300%} }
 
 .section-label {
   font-size: clamp(9px, 0.9vw, 11px);
-  font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
   color: var(--text3);
   display: flex; align-items: center; gap: 6px;
   margin-bottom: clamp(4px, 0.6vh, 8px);
 }
+.section-label i { color: var(--text3); font-size: 1em; }
 
 /* ── HEADER ── */
+/* explicit left/center/right slots — independent of DOM order or RTL flow */
 #header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
+  grid-template-areas: "left center right";
   align-items: center;
   padding: clamp(8px, 1vh, 14px) clamp(14px, 2vw, 28px);
   gap: 10px;
 }
+/* no content in the right slot anymore — kept as an empty spacer so
+   the clock stays visually centered against the left badge */
 
-/* logo */
-#logo-area {
-  display: flex; align-items: center; gap: clamp(6px, 0.8vw, 12px);
-}
+#logo-area { grid-area: left; display: flex; align-items: center; gap: clamp(6px, 0.8vw, 12px); }
 .logo-pill {
   display: flex; align-items: center; gap: 8px;
-  background: linear-gradient(135deg, rgba(77,150,255,0.2), rgba(162,155,254,0.2));
-  border: 1px solid rgba(77,150,255,0.3);
+  background: var(--bg3);
+  border: 1px solid var(--border);
   border-radius: 50px;
   padding: clamp(5px,0.6vh,9px) clamp(12px,1.4vw,20px);
 }
-.logo-pill i { font-size: clamp(18px, 2.2vw, 28px); color: var(--c4); }
+.logo-pill i { font-size: clamp(16px, 1.9vw, 24px); color: var(--accent); }
 .logo-pill span {
-  font-size: clamp(14px, 1.6vw, 22px); font-weight: 800; letter-spacing: 1px;
-  background: linear-gradient(90deg, var(--c4), var(--c6));
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  font-size: clamp(13px, 1.5vw, 19px); font-weight: 700; letter-spacing: 0.2px;
+  color: var(--text);
 }
 
 /* clock */
-#clock-area { text-align: center; }
+#clock-area { grid-area: center; text-align: center; }
 #clock {
-  font-size: clamp(52px, 7.5vw, 100px);
-  font-weight: 800; letter-spacing: 3px; line-height: 1;
-  background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.7));
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  font-family: 'Outfit', var(--font);
+  font-size: clamp(72px, 10.5vw, 148px);
+  font-weight: 800; letter-spacing: 2px; line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 #clock-date {
-  font-size: clamp(11px, 1.1vw, 15px); color: var(--text2); margin-top: 3px;
-}
-#clock-date-hebrew {
-  font-size: clamp(10px, 0.9vw, 13px); color: var(--text3); margin-top: 2px;
+  font-size: clamp(12px, 1.2vw, 16px); color: var(--text2); margin-top: 6px;
 }
 
-/* day badge */
-#today-badge {
-  justify-self: end;
-  background: linear-gradient(135deg, rgba(255,217,61,0.18), rgba(255,159,67,0.18));
-  border: 1px solid rgba(255,217,61,0.3);
+/* left badge — day of week + Hebrew date, stacked */
+#hebrew-date-badge {
+  grid-area: left;
+  justify-self: start;
+  background: var(--bg3);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: clamp(6px,0.8vh,12px) clamp(14px,1.6vw,24px);
   text-align: center;
-}
-.badge-label {
-  font-size: clamp(9px,0.8vw,11px); color: var(--text3); display: block;
-  margin-bottom: 2px; letter-spacing: 1.5px; text-transform: uppercase;
+  display: flex; flex-direction: column; gap: 2px;
 }
 #day-name {
-  font-size: clamp(18px, 2.2vw, 28px); font-weight: 800; color: var(--c2);
+  font-size: clamp(20px, 2.4vw, 30px); font-weight: 700; color: var(--text);
+}
+#clock-date-hebrew {
+  font-size: clamp(12px, 1.2vw, 16px); font-weight: 500; color: var(--text2);
 }
 
 /* ── DUTY BAR ── */
@@ -166,28 +216,28 @@ html, body {
 .duty-avatar {
   width: clamp(44px, 5vw, 68px); height: clamp(44px, 5vw, 68px);
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--c4), var(--c6));
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 0 0 3px rgba(77,150,255,0.25), 0 4px 20px rgba(77,150,255,0.3);
 }
-.duty-avatar i { font-size: clamp(22px, 2.5vw, 34px); color: #fff; }
+.duty-avatar i { font-size: clamp(20px, 2.3vw, 30px); color: var(--accent); }
 
 #duty-info { flex: 1; min-width: 0; }
 #duty-name {
-  font-size: clamp(20px, 2.8vw, 38px); font-weight: 800; line-height: 1.05;
+  font-size: clamp(20px, 2.8vw, 38px); font-weight: 700; line-height: 1.05;
   color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 #duty-dept {
   font-size: clamp(12px, 1.2vw, 17px); font-weight: 500;
-  color: var(--c4); margin-top: 2px;
+  color: var(--accent); margin-top: 3px;
 }
 #duty-week { font-size: clamp(10px, 0.9vw, 13px); color: var(--text3); margin-top: 2px; }
 #duty-status {
   display: none; margin-top: 4px; padding: 2px 10px; border-radius: 20px;
   font-size: clamp(10px,0.9vw,12px); font-weight: 600;
-  background: rgba(77,150,255,0.2); border: 1px solid rgba(77,150,255,0.4); color: var(--c4);
+  background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent);
 }
 #no-duty {
   font-size: clamp(14px, 1.4vw, 20px); color: var(--text3); padding: 8px 0; display: none;
@@ -198,15 +248,15 @@ html, body {
 #guidance-inline {
   flex-shrink: 0;
   width: clamp(200px, 22vw, 340px);
-  background: linear-gradient(135deg, rgba(255,159,67,0.1), rgba(255,107,107,0.08));
-  border: 1px solid rgba(255,159,67,0.25);
-  border-radius: 12px;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  border-radius: 14px;
   padding: clamp(8px,1vh,14px) clamp(12px,1.2vw,18px);
   display: flex; flex-direction: column; justify-content: center;
 }
 #guidance-text {
   font-size: clamp(12px, 1.3vw, 17px); font-weight: 600;
-  color: var(--c5); line-height: 1.5;
+  color: var(--warn); line-height: 1.5;
 }
 #guidance-empty { font-size: clamp(11px,0.9vw,13px); color: var(--text3); display: none; }
 
@@ -226,12 +276,12 @@ html, body {
 
 #news-timer-wrap {
   height: 3px; border-radius: 3px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.06);
   overflow: hidden; margin-bottom: clamp(5px,0.7vh,9px); flex-shrink: 0;
 }
 #news-timer-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--c4), var(--c3));
+  background: var(--accent);
   width: 100%; transform-origin: right; border-radius: 3px;
 }
 
@@ -249,7 +299,6 @@ html, body {
   border: 1px solid var(--border);
   border-radius: 12px;
   flex-shrink: 0; overflow: hidden;
-  transition: background .15s;
 }
 .news-item img {
   width: clamp(60px, 6.5vw, 88px);
@@ -262,8 +311,8 @@ html, body {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: clamp(9px, 0.75vw, 11px); font-weight: 600;
   padding: 1px 8px; border-radius: 20px;
-  background: rgba(255,107,107,0.15); border: 1px solid rgba(255,107,107,0.3);
-  color: var(--c1); margin-bottom: clamp(3px, 0.4vh, 5px);
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--text3); margin-bottom: clamp(3px, 0.4vh, 5px);
 }
 .news-title {
   font-size: clamp(13px, 1.35vw, 18px);
@@ -274,7 +323,7 @@ html, body {
 /* ── RIGHT COL ── */
 #right-col { display: flex; flex-direction: column; gap: clamp(5px,0.8vh,10px); min-height: 0; }
 
-/* ── WEATHER ── */
+/* ── WEATHER — now fills the entire right column ── */
 #weather-card {
   flex: 1; min-height: 0;
   padding: clamp(8px,1vh,14px) clamp(10px,1.2vw,16px);
@@ -282,66 +331,23 @@ html, body {
 }
 #weather-body {
   flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
-  gap: clamp(4px, 0.6vh, 8px);
+  gap: clamp(6px, 1vh, 12px);
 }
 #w-temp {
-  font-size: clamp(40px, 5.5vw, 72px); font-weight: 800; line-height: 1;
-  background: linear-gradient(135deg, var(--c2), var(--c5));
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  font-size: clamp(48px, 6.5vw, 88px); font-weight: 700; line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
-#w-icon { font-size: clamp(26px, 3vw, 42px); }
-#w-desc { font-size: clamp(12px, 1.1vw, 15px); color: var(--text2); text-align: center; }
+#w-icon { font-size: clamp(30px, 3.6vw, 50px); }
+#w-desc { font-size: clamp(13px, 1.2vw, 17px); color: var(--text2); text-align: center; }
 #w-details {
-  display: flex; gap: clamp(8px, 1vw, 14px);
-  font-size: clamp(10px, 0.9vw, 13px); color: var(--text3);
+  display: flex; gap: clamp(10px, 1.2vw, 18px);
+  font-size: clamp(11px, 1vw, 14px); color: var(--text3);
   flex-wrap: wrap; justify-content: center;
+  margin-top: clamp(4px, 0.8vh, 10px);
 }
 #w-details span { display: flex; align-items: center; gap: 4px; }
 #w-loading { color: var(--text3); font-size: clamp(11px,1vw,13px); }
-
-/* ── GIF CARD ── */
-#fact-card {
-  flex-shrink: 0;
-  padding: 0;
-  overflow: hidden;
-  display: flex; flex-direction: column;
-  height: clamp(130px, 18vh, 230px);
-  max-height: clamp(130px, 18vh, 230px);
-}
-#gif-label {
-  padding: clamp(5px,0.7vh,9px) clamp(10px,1.2vw,14px);
-  font-size: clamp(9px,0.75vw,11px); font-weight: 700; letter-spacing: 1.5px;
-  text-transform: uppercase; color: var(--text3);
-  display: flex; align-items: center; gap: 6px;
-  flex-shrink: 0;
-}
-#gif-wrap {
-  flex: 1; min-height: 0;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden; position: relative;
-  background: #000;
-}
-#gif-img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  display: none;
-  transition: opacity 0.4s;
-}
-#gif-img.loaded { display: block; }
-#gif-loading {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text3); font-size: clamp(11px,1vw,13px); gap: 8px;
-}
-#gif-timer-wrap { height: 3px; background: rgba(255,255,255,0.06); flex-shrink: 0; }
-#gif-timer-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--c1), var(--c5), var(--c2));
-  transform-origin: right;
-}
-/* keep old ids so nothing breaks */
-#fact-loading, #fact-title, #fact-text, #fact-timer-wrap, #fact-timer-bar,
-#fact-header, #fact-icon, #fact-category, #fact-source-link { display: none !important; }
 
 /* ── FOOTER ── */
 #footer {
@@ -356,8 +362,8 @@ html, body {
 /* ── Spinner ── */
 .spinner {
   width: clamp(14px,1.4vw,20px); height: clamp(14px,1.4vw,20px);
-  border: 2px solid rgba(255,255,255,0.08);
-  border-top-color: var(--c4);
+  border: 2px solid rgba(0,0,0,0.08);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   flex-shrink: 0;
@@ -368,6 +374,10 @@ html, body {
 <body>
 
 <div id="bg-layer">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="blob blob-4"></div>
   <!-- keep DOM elements for JS compat -->
   <div class="bg-slide active"></div>
   <div class="bg-slide"></div><div class="bg-slide"></div>
@@ -380,24 +390,15 @@ html, body {
 
   <!-- ── HEADER ── -->
   <div id="header" class="card">
-    <div class="card-accent" style="position:absolute;top:0;left:0;right:0;height:3px;"></div>
 
-    <div id="logo-area">
-      <div class="logo-pill">
-        <i class="bi bi-headset"></i>
-        <span>מוקד נט</span>
-      </div>
+    <div id="hebrew-date-badge">
+      <span id="day-name">—</span>
+      <span id="clock-date-hebrew">—</span>
     </div>
 
     <div id="clock-area">
       <div id="clock">00:00:00</div>
       <div id="clock-date"></div>
-      <div id="clock-date-hebrew"></div>
-    </div>
-
-    <div id="today-badge">
-      <span class="badge-label">היום</span>
-      <span id="day-name">—</span>
     </div>
   </div>
 
@@ -409,7 +410,7 @@ html, body {
       </div>
       <div id="duty-info" style="flex:1;min-width:0;">
         <div class="section-label">
-          <i class="bi bi-calendar-week" style="color:var(--c4)"></i>
+          <i class="bi bi-calendar-week"></i>
           תורנות השבוע
         </div>
         <div id="loading"><div class="spinner"></div> טוען...</div>
@@ -425,7 +426,7 @@ html, body {
 
     <div id="guidance-inline">
       <div class="section-label">
-        <i class="bi bi-lightning-charge-fill" style="color:var(--c5)"></i>
+        <i class="bi bi-lightning-charge-fill"></i>
         הנחיית היום
       </div>
       <div id="guidance-text"></div>
@@ -439,7 +440,7 @@ html, body {
     <!-- News -->
     <div id="news-card" class="card">
       <div class="section-label" style="margin-bottom:clamp(4px,0.5vh,7px)">
-        <i class="bi bi-newspaper" style="color:var(--c1)"></i>
+        <i class="bi bi-newspaper"></i>
         חדשות
         <span id="news-counter" style="color:var(--text3);font-weight:400"></span>
       </div>
@@ -453,7 +454,7 @@ html, body {
       <!-- Weather -->
       <div id="weather-card" class="card">
         <div class="section-label">
-          <i class="bi bi-cloud-sun" style="color:var(--c2)"></i>
+          <i class="bi bi-cloud-sun"></i>
           מזג אוויר · חדרה
         </div>
         <div id="weather-body">
@@ -463,28 +464,6 @@ html, body {
           <div id="w-desc" style="display:none"></div>
           <div id="w-details" style="display:none"></div>
         </div>
-      </div>
-
-      <!-- GIF -->
-      <div id="fact-card" class="card">
-        <div id="gif-label">
-          <i class="bi bi-emoji-laughing" style="color:var(--c2)"></i>
-          GIF של הרגע 😄
-        </div>
-        <div id="gif-wrap">
-          <div id="gif-loading"><div class="spinner"></div> טוען...</div>
-          <img id="gif-img" src="" alt="funny cat gif">
-        </div>
-        <div id="gif-timer-wrap"><div id="gif-timer-bar"></div></div>
-        <!-- compat stubs -->
-        <div id="fact-loading" style="display:none"></div>
-        <div id="fact-title" style="display:none"></div>
-        <div id="fact-text" style="display:none"></div>
-        <div id="fact-timer-wrap" style="display:none"><div id="fact-timer-bar"></div></div>
-        <div id="fact-header" style="display:none"></div>
-        <span id="fact-icon" style="display:none"></span>
-        <span id="fact-category" style="display:none"></span>
-        <a id="fact-source-link" style="display:none"></a>
       </div>
 
     </div>
@@ -502,9 +481,9 @@ html, body {
 const BASE    = '<?= $base ?>';
 const DAYS_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const DEPT_ICONS = {
-  'אינטרנט ותוכן': { icon: 'bi-globe',   color: '#4d96ff' },
-  'תמיכה טכנית':   { icon: 'bi-tools',   color: '#6bcb77' },
-  'שירות לקוחות':  { icon: 'bi-headset', color: '#a29bfe' },
+  'אינטרנט ותוכן': { icon: 'bi-globe' },
+  'תמיכה טכנית':   { icon: 'bi-tools' },
+  'שירות לקוחות':  { icon: 'bi-headset' },
 };
 const NEWS_INTERVAL = 18;
 const BG_INTERVAL   = 22;
@@ -539,7 +518,7 @@ function toHebrewNumerals(n) {
 }
 function getHebrewDate() {
   try {
-    const raw=new Date().toLocaleDateString('he-IL-u-ca-hebrew',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const raw=new Date().toLocaleDateString('he-IL-u-ca-hebrew',{day:'numeric',month:'long',year:'numeric'});
     return raw.replace(/\d+/g,m=>toHebrewNumerals(parseInt(m,10)));
   } catch { return ''; }
 }
@@ -575,10 +554,8 @@ async function loadDuty() {
     $('loading').style.display='none';
     if(data.schedule) {
       const s=data.schedule;
-      const meta=DEPT_ICONS[s.department]||{icon:'bi-person-badge',color:'#4d96ff'};
-      $('duty-avatar-wrap').innerHTML=`<i class="bi ${meta.icon}" style="font-size:clamp(22px,2.5vw,34px);color:#fff"></i>`;
-      $('duty-avatar-wrap').style.background=`linear-gradient(135deg,${meta.color},${meta.color}99)`;
-      $('duty-avatar-wrap').style.boxShadow=`0 0 0 3px ${meta.color}33,0 4px 20px ${meta.color}44`;
+      const meta=DEPT_ICONS[s.department]||{icon:'bi-person-badge'};
+      $('duty-avatar-wrap').innerHTML=`<i class="bi ${meta.icon}"></i>`;
       $('duty-name').textContent=s.rep_name||'—';
       $('duty-dept').textContent=s.department||'';
       $('duty-week').textContent=fmtDateRange(data.week_start);
@@ -599,7 +576,7 @@ async function loadDuty() {
     const now=new Date();
     $('update-time').textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   } catch {
-    $('loading').innerHTML='<span style="color:var(--c1)">שגיאה בטעינת נתונים</span>';
+    $('loading').innerHTML='<span style="color:var(--danger)">שגיאה בטעינת נתונים</span>';
   }
 }
 loadDuty(); setInterval(loadDuty,5*60*1000);
@@ -668,14 +645,38 @@ function startNewsTimer() {
   newsTimerRaf=requestAnimationFrame(animate);
 }
 
+/* pull the most relevant image for an RSS <item>, trying the common
+   image-carrying fields in order of reliability before giving up */
+function extractItemImage(item) {
+  const enc = item.getElementsByTagName('enclosure')[0];
+  if (enc) {
+    const type = enc.getAttribute('type') || '';
+    const url = enc.getAttribute('url');
+    if (url && (!type || type.startsWith('image'))) return url;
+  }
+  const media = item.getElementsByTagNameNS('*','content')[0]
+    || item.getElementsByTagNameNS('*','thumbnail')[0];
+  if (media) {
+    const url = media.getAttribute('url');
+    if (url) return url;
+  }
+  const htmlFields = ['description','encoded'];
+  for (const tag of htmlFields) {
+    const el = item.getElementsByTagNameNS('*', tag)[0] || item.getElementsByTagName(tag)[0];
+    if (!el || !el.textContent) continue;
+    const m = el.textContent.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (m) return m[1];
+  }
+  return null;
+}
+
 async function loadNews() {
   try {
     const r=await fetch('https://rss.walla.co.il/feed/22');
     const text=await r.text();
     const xml=new DOMParser().parseFromString(text,'text/xml');
     newsItems=Array.from(xml.getElementsByTagName('item')).slice(0,40).map(item=>{
-      const enc=item.getElementsByTagName('enclosure')[0];
-      const image=enc?enc.getAttribute('url'):null;
+      const image=extractItemImage(item);
       return {
         title:item.getElementsByTagName('title')[0]?.textContent||'',
         time:getRelativeTime(item.getElementsByTagName('pubDate')[0]?.textContent||''),
@@ -732,87 +733,6 @@ async function loadWeather() {
   }
 }
 loadWeather(); setInterval(loadWeather,10*60*1000);
-
-/* ── GIF — cataas.com (ללא API key) ── */
-const GIF_INTERVAL = 12;
-let gifTimerRaf = null, gifTimerStart = null;
-
-function startGifTimer() {
-  const bar = $('gif-timer-bar');
-  if (!bar) return;
-  if (gifTimerRaf) cancelAnimationFrame(gifTimerRaf);
-  gifTimerStart = performance.now();
-  const dur = GIF_INTERVAL * 1000;
-  function anim(now) {
-    const p = Math.min((now - gifTimerStart) / dur, 1);
-    bar.style.transform = `scaleX(${1 - p})`;
-    if (p < 1) gifTimerRaf = requestAnimationFrame(anim);
-  }
-  gifTimerRaf = requestAnimationFrame(anim);
-}
-
-/* GIF URLs ישירים — ללא API key, מגוון קטגוריות */
-const GIF_POOL = [
-  /* חתולים */
-  'https://cataas.com/cat/gif',
-  /* כלבים — random.dog מחזיר gif ישיר */
-  'https://random.dog/woof.json',
-  /* פנדות — עדכני ב-giphy public */
-  'https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif',
-  'https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif',
-  /* תינוקות מצחיקים */
-  'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
-  /* חיות שונות */
-  'https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif',
-  'https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif',
-  /* כלבים נוספים */
-  'https://media.giphy.com/media/mCRJDo24UvJMA/giphy.gif',
-  /* קופים */
-  'https://media.giphy.com/media/5i7umUqAOYYEw/giphy.gif',
-  /* ציפורים */
-  'https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif',
-];
-let gifPoolIdx = 0;
-
-async function resolveGifUrl() {
-  const entry = GIF_POOL[gifPoolIdx % GIF_POOL.length];
-  gifPoolIdx++;
-  if (entry.includes('random.dog/woof.json')) {
-    try {
-      const d = await fetch(entry).then(r => r.json());
-      if (d.url && d.url.match(/\.gif(\?|$)/i)) return d.url;
-      return resolveGifUrl(); /* דלג אם mp4 */
-    } catch { return resolveGifUrl(); }
-  }
-  if (entry.includes('cataas.com')) {
-    return `${entry}?t=${Date.now()}`;
-  }
-  return entry;
-}
-
-async function loadGif() {
-  const img = $('gif-img');
-  const loading = $('gif-loading');
-  if (!img) return;
-  try {
-    const url = await resolveGifUrl();
-    if (!url) { setTimeout(loadGif, 1000); return; }
-    const finalUrl = url.includes('?') ? url : url + `?t=${Date.now()}`;
-    img.classList.remove('loaded');
-    if (loading) loading.style.display = 'flex';
-    const tmp = new Image();
-    tmp.onload = () => {
-      img.src = tmp.src;
-      img.classList.add('loaded');
-      if (loading) loading.style.display = 'none';
-      startGifTimer();
-    };
-    tmp.onerror = () => { setTimeout(loadGif, 3000); };
-    tmp.src = finalUrl;
-  } catch { setTimeout(loadGif, 3000); }
-}
-loadGif();
-setInterval(loadGif, GIF_INTERVAL * 1000);
 </script>
 </body>
 </html>
