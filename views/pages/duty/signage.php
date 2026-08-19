@@ -156,8 +156,7 @@ html, body {
   padding: clamp(8px, 1vh, 14px) clamp(14px, 2vw, 28px);
   gap: 10px;
 }
-/* no content in the right slot anymore — kept as an empty spacer so
-   the clock stays visually centered against the left badge */
+/* right slot — Gregorian date badge, mirrors the left Hebrew badge */
 
 #logo-area { grid-area: left; display: flex; align-items: center; gap: clamp(6px, 0.8vw, 12px); }
 .logo-pill {
@@ -183,26 +182,34 @@ html, body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
+/* date badges — left (Hebrew) + right (Gregorian), identical bold styling
+   with a slow-drifting accent-tinted gradient behind them */
+@keyframes badgeGlow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+#hebrew-date-badge,
 #clock-date {
-  font-size: clamp(12px, 1.2vw, 16px); color: var(--text2); margin-top: 6px;
-}
-
-/* left badge — day of week + Hebrew date, stacked */
-#hebrew-date-badge {
-  grid-area: left;
-  justify-self: start;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: clamp(6px,0.8vh,12px) clamp(14px,1.6vw,24px);
+  background: linear-gradient(120deg, var(--accent-soft), var(--bg3) 45%, var(--accent-soft) 100%);
+  background-size: 220% 220%;
+  animation: badgeGlow 8s ease-in-out infinite;
+  border: 1px solid var(--accent-border);
+  border-radius: 16px;
+  padding: clamp(10px,1.2vh,16px) clamp(18px,2vw,32px);
   text-align: center;
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 4px;
+  box-shadow: 0 2px 10px rgba(0,122,255,0.08);
 }
+#hebrew-date-badge { grid-area: left; justify-self: start; }
+#clock-date { grid-area: right; justify-self: end; justify-content: center; }
+
 #day-name {
-  font-size: clamp(20px, 2.4vw, 30px); font-weight: 700; color: var(--text);
+  font-size: clamp(22px, 2.6vw, 32px); font-weight: 800; color: var(--text);
 }
-#clock-date-hebrew {
-  font-size: clamp(12px, 1.2vw, 16px); font-weight: 500; color: var(--text2);
+#clock-date-hebrew,
+#clock-date {
+  font-size: clamp(20px, 2.2vw, 28px); font-weight: 800; color: var(--accent);
 }
 
 /* ── DUTY BAR ── */
@@ -398,8 +405,9 @@ html, body {
 
     <div id="clock-area">
       <div id="clock">00:00:00</div>
-      <div id="clock-date"></div>
     </div>
+
+    <div id="clock-date"></div>
   </div>
 
   <!-- ── DUTY BAR ── -->
