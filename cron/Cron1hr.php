@@ -239,17 +239,17 @@ function mailWrap(string $title, string $body): string
     return '<!DOCTYPE html>'
         . '<html lang="he" dir="rtl">'
         . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#0f1117;color:#e8eaf0;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:32px 0;">'
+        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
+        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
         . '<tr><td align="center">'
-        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#181b23;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;">'
+        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
         . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
         . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.75);margin-right:12px;">התראה אוטומטית</span>'
+        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">התראה אוטומטית</span>'
         . '</td></tr>'
         . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#13161e;padding:16px 32px;text-align:right;">'
-        . '<span style="font-size:12px;color:#5a5e78;">מופעל באמצעות מערכת מוקד-נט</span>'
+        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
+        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
         . '</td></tr>'
         . '</table></td></tr></table></body></html>';
 }
@@ -257,8 +257,8 @@ function mailWrap(string $title, string $body): string
 function row(string $label, string $value): string
 {
     return '<tr>'
-        . '<td style="font-size:13px;color:#5a5e78;padding:6px 0;width:120px;">' . $label . '</td>'
-        . '<td style="font-size:14px;color:#e8eaf0;padding:6px 0;font-weight:600;">' . $value . '</td>'
+        . '<td style="font-size:13px;color:#8a8fa3;padding:6px 0;width:120px;">' . $label . '</td>'
+        . '<td style="font-size:14px;color:#20232e;padding:6px 0;font-weight:600;">' . $value . '</td>'
         . '</tr>';
 }
 
@@ -268,16 +268,16 @@ function sendMailNotifyOnChange(array $job, string $savedLabel, string $currentL
     $subject = '[התראה אוטומטית] השתנה סטטוס עבור: ' . $job['value_of_type'];
 
     $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 24px;">אוטומציית התראה על שינוי סטטוס הופעלה.</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציית התראה על שינוי סטטוס הופעלה.</p>';
     $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
     $body .= row('מספר קריאה', htmlspecialchars($job['value_of_type']));
     if ($savedLabel) $body .= row('סטטוס קודם', htmlspecialchars($savedLabel));
     $body .= row('סטטוס נוכחי', '<span style="color:#4f7fff;">' . htmlspecialchars($currentLabel) . '</span>');
     $body .= '</table>';
     if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#1e2435;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#5a5e78;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#e8eaf0;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
+        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
+        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
+        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
         $body .= '</div>';
     }
 
@@ -290,15 +290,15 @@ function sendMailOpenByPhone(array $job, string $callsList): bool
     $subject = '[התראה אוטומטית] נפתחה קריאה עפ"י טלפון: ' . $job['value_of_type'];
 
     $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 24px;">אוטומציית התראה על פתיחת קריאה לפי טלפון הופעלה.</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציית התראה על פתיחת קריאה לפי טלפון הופעלה.</p>';
     $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
     $body .= row('טלפון', htmlspecialchars($job['value_of_type']));
     $body .= row('קריאות שנפתחו', '<span style="color:#4f7fff;">' . htmlspecialchars($callsList) . '</span>');
     $body .= '</table>';
     if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#1e2435;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#5a5e78;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#e8eaf0;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
+        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
+        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
+        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
         $body .= '</div>';
     }
 
@@ -312,15 +312,15 @@ function sendMailTechCare(array $job, string $techAnswer): bool
     $subject = '[התראה אוטומטית] טכנאי עדכן טיפול עבור: ' . $job['value_of_type'];
 
     $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 24px;">אוטומציית התראה על עדכון טכנאי הופעלה.</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציית התראה על עדכון טכנאי הופעלה.</p>';
     $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
     $body .= row('מספר קריאה', '<a href="' . htmlspecialchars($link) . '" style="color:#4f7fff;text-decoration:none;">' . htmlspecialchars($job['value_of_type']) . '</a>');
     $body .= row('עדכון הטכנאי', htmlspecialchars($techAnswer));
     $body .= '</table>';
     if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#1e2435;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#5a5e78;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#e8eaf0;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
+        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
+        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
+        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
         $body .= '</div>';
     }
 
@@ -333,15 +333,15 @@ function sendMailExpired(array $job): bool
     $subject = '[התראה אוטומטית] ' . $job['value_of_type'] . ' — משימה נסגרה ללא ביצוע';
 
     $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 24px;">אוטומציה עבורך הסתיימה ללא ביצוע.</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציה עבורך הסתיימה ללא ביצוע.</p>';
     $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
     $body .= row('אוטומציה', htmlspecialchars($job['value_of_type']));
     $body .= row('סיבה', '<span style="color:#e74c3c;">עבר תאריך התפוגה</span>');
     $body .= '</table>';
     if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#1e2435;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#5a5e78;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#e8eaf0;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
+        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
+        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
+        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
         $body .= '</div>';
     }
 
@@ -386,7 +386,7 @@ function notifyOverdueTasks(PDO $pdo, array &$runLog): void
 
         $subject = "[SLA] משימה #{$taskId} עברה את מועד הטיפול";
         $mbody  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($task['assignee_name']) . '</b></p>';
-        $mbody .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 24px;">המשימה הבאה עברה את יעד ה-SLA ומחכה לטיפול.</p>';
+        $mbody .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">המשימה הבאה עברה את יעד ה-SLA ומחכה לטיפול.</p>';
         $mbody .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
         $mbody .= row('משימה', '#' . $taskId . ' — ' . htmlspecialchars($title));
         $mbody .= row('יעד SLA', $slaDays . ' ימים');

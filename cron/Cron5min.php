@@ -39,17 +39,17 @@ if ($changeCount > 0) {
         $storeName  = $row['entity_label'];
         $user       = $row['user_name'] ?? 'לא ידוע';
         $action     = ($row['new_value'] === '1')
-            ? "<span style='color:green;'>פעילה</span>"
-            : "<span style='color:red;'>לא פעילה</span>";
+            ? "<span style='color:#2e9e5b;'>פעילה</span>"
+            : "<span style='color:#d13c3c;'>לא פעילה</span>";
         $temp      .= "חנות: {$storeName}" . ($storeNum ? " - {$storeNum}" : '') . " עברה ל: <strong>{$action}</strong> ע''י {$user}<br>";
     }
 
     $to      = 'gild@bug.co.il,eyal@bug.co.il,web8@bug.co.il,web4@bug.co.il,amir@bug.co.il,sharone@bug.co.il,sagih@bug.co.il,roei@bug.co.il,nissimh@bug.co.il,haim@bug.co.il,oritc@bug.co.il,modan@modan.co.il,mebah@bug.co.il,talb@bug.co.il,alex@bug.co.il,yehonatan@bug.co.il,gal@bug.co.il,ayman@bug.co.il,avitala@bug.co.il';
     $subject = 'בוצע עדכון זמינות לחנות\יות באג ' . date('d/m/yy H:i');
 
-    $mbody  = '<p style="font-size:16px;font-weight:700;color:#e8eaf0;margin:0 0 8px;">עדכוני זמינות חנויות</p>';
-    $mbody .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 20px;">ב-5 דקות האחרונות בוצעו ' . $changeCount . ' שינויים:</p>';
-    $mbody .= '<div style="background:#1e2435;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:16px;margin:0 0 20px;line-height:2;">';
+    $mbody  = '<p style="font-size:16px;font-weight:700;color:#20232e;margin:0 0 8px;">עדכוני זמינות חנויות</p>';
+    $mbody .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 20px;">ב-5 דקות האחרונות בוצעו ' . $changeCount . ' שינויים:</p>';
+    $mbody .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:16px;margin:0 0 20px;line-height:2;">';
     $mbody .= $temp;
     $mbody .= '</div>';
     $mbody .= '<table cellpadding="0" cellspacing="0" style="margin:0 0 8px;">';
@@ -77,17 +77,17 @@ function mailWrap(string $title, string $body): string
     return '<!DOCTYPE html>'
         . '<html lang="he" dir="rtl">'
         . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#0f1117;color:#e8eaf0;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:32px 0;">'
+        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
+        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
         . '<tr><td align="center">'
-        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#181b23;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;">'
+        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
         . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
         . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.75);margin-right:12px;">עדכון אוטומטי</span>'
+        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">עדכון אוטומטי</span>'
         . '</td></tr>'
         . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#13161e;padding:16px 32px;text-align:right;">'
-        . '<span style="font-size:12px;color:#5a5e78;">מופעל באמצעות מערכת מוקד-נט</span>'
+        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
+        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
         . '</td></tr>'
         . '</table></td></tr></table></body></html>';
 }

@@ -14,7 +14,19 @@ $data = json_decode(file_get_contents($url), true);
 
 if (empty($data)) {
     cron_log('run', 'error', 'לא התקבלו נתונים מה-API');
-    mail('gild@bug.co.il', 'לא מצליח לשלוח LAB CRON ' . date('d/m/y'), '', '');
+
+    $headers  = 'From: ' . mimeHeader('מוקד-נט') . " <moked-net-noreply@alexisdeveloping.com>\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $headers .= "Content-Transfer-Encoding: base64\r\n";
+
+    mail(
+        'gild@bug.co.il',
+        mimeHeader('לא מצליח לשלוח LAB CRON ' . date('d/m/y')),
+        chunk_split(base64_encode('לא התקבלו נתונים מה-API')),
+        $headers
+    );
+
     exit(json_encode(['mail_send' => false, 'calls_count' => 0]));
 }
 
@@ -23,16 +35,23 @@ $rows    = '';
 
 foreach ($data as $call) {
     $createDate = date_create_from_format('d/m/Y H:i:s', $call['createDate'])->format('d/m/y');
-    $callNum    = strip($call['CallID']);
-    $callNote   = strip($call['comments']);
-    $Cemail     = strip($call['Cemail']);
-    $Cname      = strip($call['Cname']);
+    $callNum    = strip((string) $call['CallID']);
+    $callNote   = strip((string) $call['comments']);
+    $Cemail     = strip((string) $call['Cemail']);
+    $Cname      = strip((string) $call['Cname']);
+
+    $callNumHtml = htmlspecialchars($callNum, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $callNoteHtml = htmlspecialchars($callNote, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $CemailHtml = htmlspecialchars($Cemail, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $CnameHtml = htmlspecialchars($Cname, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $callUrl = $wizeUrl . rawurlencode($callNum);
+    $mailSubject = rawurlencode('לא הוספת מקט להערות בקריאה ' . $callNum . ' נא לשלוח מקט דחוף');
 
     $rows .= '<tr>'
-        . "<td>{$createDate}</td>"
-        . "<td><a href='{$wizeUrl}{$callNum}' target='_blank'>{$callNum}</a></td>"
-        . "<td>{$callNote}</td>"
-        . "<td class='opener'><a href='mailto:{$Cemail}?subject=לא הוספת מקט להערות בקריאה {$callNum} נא לשלוח מקט דחוף'>{$Cname}</a></td>"
+        . '<td>' . htmlspecialchars($createDate, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>'
+        . "<td><a href=\"{$callUrl}\" target=\"_blank\">{$callNumHtml}</a></td>"
+        . "<td>{$callNoteHtml}</td>"
+        . "<td class=\"opener\"><a href=\"mailto:{$CemailHtml}?subject={$mailSubject}\">{$CnameHtml}</a></td>"
         . '</tr>';
 }
 
@@ -41,7 +60,13 @@ $table = '<table><thead><tr><th>פתיחה</th><th>קריאה</th><th>הערות
 
 $callsCount = count($data);
 $sent = sendReport($table, $callsCount);
-cron_log('run', $sent ? 'ok' : 'error', "קריאות: {$callsCount}" . ($sent ? '' : ' | שליחת מייל נכשלה'));
+
+cron_log(
+    'run',
+    $sent ? 'ok' : 'error',
+    "קריאות: {$callsCount}" . ($sent ? '' : ' | שליחת מייל נכשלה')
+);
+
 exit(json_encode(['mail_send' => $sent, 'calls_count' => $callsCount]));
 
 function cron_log(string $action, string $status = 'ok', string $details = ''): void
@@ -57,49 +82,66 @@ function strip(string $val): string
     return str_replace(['\\', '/', '"'], '', $val);
 }
 
+function mimeHeader(string $value): string
+{
+    return mb_encode_mimeheader($value, 'UTF-8', 'B', "\r\n");
+}
+
 function sendReport(string $tableHtml, int $callsCount): bool
 {
     $subject = '[דוח אוטומטי] מקט 123456 — ' . date('d/m/y H:i') . ' — שבוע אחרון';
 
     $css = '<style>'
-        . 'table.data-tbl { direction:RTL; border-collapse:collapse; width:100%; }'
-        . 'table.data-tbl th { background:#1e2435; color:#b0b3c6; font-size:12px; font-weight:600; text-align:right; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.1); }'
-        . 'table.data-tbl td { font-size:13px; color:#e8eaf0; text-align:right; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.05); }'
-        . 'table.data-tbl td a { color:#4f7fff; text-decoration:none; }'
+        . 'table.data-tbl { direction:RTL; border-collapse:collapse; width:90%; margin:0 auto; }'
+        . 'table.data-tbl th { background:#eef0f5; color:#4a4f66; font-size:12px; font-weight:600; text-align:right; padding:10px 12px; border-bottom:1px solid #dcdfe6; }'
+        . 'table.data-tbl td { font-size:13px; color:#2b2e3b; text-align:right; padding:10px 12px; border-bottom:1px solid #eceef2; }'
+        . 'table.data-tbl tbody tr:nth-child(even) { background:#f7f8fa; }'
+        . 'table.data-tbl tbody tr:nth-child(odd) { background:#ffffff; }'
+        . 'table.data-tbl td a { color:#3a63d8; text-decoration:none; }'
         . 'table.data-tbl .opener { font-size:11px; }'
         . '</style>';
 
     $body  = $css;
-    $body .= '<p style="font-size:16px;font-weight:700;color:#e8eaf0;margin:0 0 8px;">דוח מקט 123456</p>';
-    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 20px;">נמצאו <b>' . $callsCount . '</b> קריאות ב-7 ימים האחרונים.</p>';
+    $body .= '<p style="font-size:16px;font-weight:700;color:#20232e;margin:0 0 8px;">דוח מקט 123456</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 20px;">נמצאו <b>'
+        . $callsCount
+        . '</b> קריאות ב-7 ימים האחרונים.</p>';
     $body .= str_replace('<table>', '<table class="data-tbl">', $tableHtml);
 
     $message = mailWrap($subject, $body);
 
-    $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
+    $headers  = 'From: ' . mimeHeader('מוקד-נט') . " <moked-net-noreply@alexisdeveloping.com>\r\n";
     $headers .= "Reply-To: no_reply@bug.co.il\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=utf-8\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $headers .= "Content-Transfer-Encoding: base64\r\n";
 
-    return mail('gild@bug.co.il, chaim@modan.co.il', $subject, $message, $headers);
+    return mail(
+        'gild@bug.co.il, chaim@modan.co.il',
+        mimeHeader($subject),
+        chunk_split(base64_encode($message)),
+        $headers
+    );
 }
 
 function mailWrap(string $title, string $body): string
 {
+    $safeTitle = htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
     return '<!DOCTYPE html>'
         . '<html lang="he" dir="rtl">'
-        . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#0f1117;color:#e8eaf0;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:32px 0;">'
+        . '<head><meta charset="utf-8"><title>' . $safeTitle . '</title></head>'
+        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
+        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
         . '<tr><td align="center">'
-        . '<table width="600" cellpadding="0" cellspacing="0" style="background:#181b23;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;">'
+        . '<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
         . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
         . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.75);margin-right:12px;">דוח אוטומטי</span>'
+        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">דוח אוטומטי</span>'
         . '</td></tr>'
         . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#13161e;padding:16px 32px;text-align:right;">'
-        . '<span style="font-size:12px;color:#5a5e78;">מופעל באמצעות מערכת מוקד-נט</span>'
+        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
+        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
         . '</td></tr>'
         . '</table></td></tr></table></body></html>';
 }

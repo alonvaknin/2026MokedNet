@@ -111,51 +111,50 @@ function mailWrap(string $title, string $body): string
     return '<!DOCTYPE html>'
         . '<html lang="he" dir="rtl">'
         . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#0f1117;color:#e8eaf0;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f1117;padding:32px 0;">'
+        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
+        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
         . '<tr><td align="center">'
-        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#181b23;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;">'
+        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
         . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
         . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.75);margin-right:12px;">מערכת ניהול פנים-ארגונית</span>'
+        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">מערכת ניהול פנים-ארגונית</span>'
         . '</td></tr>'
         . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#13161e;padding:16px 32px;text-align:right;">'
-        . '<span style="font-size:12px;color:#5a5e78;">מופעל באמצעות מערכת מוקד-נט</span>'
+        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
+        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
         . '</td></tr>'
         . '</table></td></tr></table></body></html>';
 }
 
 function sendAlertMail(string $to, string $subject): bool
 {
-    $body  = '<p style="font-size:18px;font-weight:700;color:#e8eaf0;margin:0 0 16px;">שלוחת הטלפון בחנות לא מצליחה להתחבר למרכזייה</p>';
-    $body .= '<p style="font-size:14px;color:#b0b3c6;margin:0 0 16px;">לוודא אם שלושת הנוריות פועלות באופן קבוע על גבי ה-GATEWAY כמתואר בתמונה.</p>';
+    $body  = '<p style="font-size:18px;font-weight:700;color:#20232e;margin:0 0 16px;">שלוחת הטלפון בחנות לא מצליחה להתחבר למרכזייה</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 16px;">לוודא אם שלושת הנוריות פועלות באופן קבוע על גבי ה-GATEWAY כמתואר בתמונה.</p>';
 
     // כרטיסית אזהרה — נוריות דלוקות
-    $body .= '<div style="background:#2a2310;border-right:4px solid #e67e22;border-radius:8px;padding:14px 16px;margin:0 0 12px;">';
-    $body .= '<p style="font-size:14px;color:#f0a040;font-weight:700;margin:0 0 6px;">אם הנוריות דלוקות קבוע</p>';
-    $body .= '<p style="font-size:13px;color:#b0b3c6;margin:0;">התקלה ככל הנראה בציוד/תשתית האינטרנט — נא לדבר עם ולדימיר.</p>';
+    $body .= '<div style="background:#fdf3e3;border-right:4px solid #e67e22;border-radius:8px;padding:14px 16px;margin:0 0 12px;">';
+    $body .= '<p style="font-size:14px;color:#b5680f;font-weight:700;margin:0 0 6px;">אם הנוריות דלוקות קבוע</p>';
+    $body .= '<p style="font-size:13px;color:#5a5e78;margin:0;">התקלה ככל הנראה בציוד/תשתית האינטרנט — נא לדבר עם ולדימיר.</p>';
     $body .= '</div>';
 
     // כרטיסית שגיאה — נורית כבויה
-    $body .= '<div style="background:#251515;border-right:4px solid #e74c3c;border-radius:8px;padding:14px 16px;margin:0 0 20px;">';
-    $body .= '<p style="font-size:14px;color:#e74c3c;font-weight:700;margin:0 0 6px;">אם אחת הנוריות אינה דלוקה באופן קבוע</p>';
-    $body .= '<p style="font-size:13px;color:#b0b3c6;margin:0;">יש לנתק את ה-GATEWAY מהחשמל ולהחזיר לאחר 15 שניות. להמתין 2 דקות ולנסות להוציא/לקבל. אם עדיין אין קו — התקשר אל גיל דגון.</p>';
+    $body .= '<div style="background:#fdeeee;border-right:4px solid #e74c3c;border-radius:8px;padding:14px 16px;margin:0 0 20px;">';
+    $body .= '<p style="font-size:14px;color:#c0392b;font-weight:700;margin:0 0 6px;">אם אחת הנוריות אינה דלוקה באופן קבוע</p>';
+    $body .= '<p style="font-size:13px;color:#5a5e78;margin:0;">יש לנתק את ה-GATEWAY מהחשמל ולהחזיר לאחר 15 שניות. להמתין 2 דקות ולנסות להוציא/לקבל. אם עדיין אין קו — התקשר אל גיל דגון.</p>';
     $body .= '</div>';
 
     $body .= '<p style="margin:0 0 20px;"><img src="https://i.imgur.com/co1fjRx.png" height="150" alt="gateway" style="border-radius:8px;"></p>';
 
     // CTA — גיל דגון
-    $body .= '<div style="background:#1e2435;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 16px;">';
-    $body .= '<p style="font-size:15px;font-weight:700;color:#f0a040;margin:0;">אם הנ"ל לא עובד — נא להתקשר אל גיל דגון</p>';
-    $body .= '<p style="font-size:20px;font-weight:700;color:#4f7fff;margin:6px 0 0;letter-spacing:1px;">054-4744758</p>';
+    $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
+    $body .= '<p style="font-size:15px;font-weight:700;color:#b5680f;margin:0;">אם הנ"ל לא עובד — נא להתקשר אל גיל דגון</p>';
+    $body .= '<p style="font-size:20px;font-weight:700;color:#3a63d8;margin:6px 0 0;letter-spacing:1px;">054-4744758</p>';
     $body .= '</div>';
 
     $message = mailWrap($subject, $body);
     $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
     $headers .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= 'Bcc: aloncomputer@gmail.com' . "\r\n";
     $headers .= "Content-Type: text/html; charset=utf-8\r\n";
 
     return mail($to, $subject, $message, $headers);
