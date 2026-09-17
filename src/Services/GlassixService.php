@@ -54,36 +54,30 @@ class GlassixService
         }
 
         // Glassix API אינו תומך בחיפוש לפי טלפון — שולפים לפי טווח תאריכים ומסננים
-        $since = date('d/m/Y H:i:s:00', strtotime('-30 days'));
-        $until = date('d/m/Y H:i:s:00');
+        $since = gmdate('d/m/Y H:i:s:00', strtotime('-30 days'));
+        $until = gmdate('d/m/Y H:i:s:00');
 
         $matchedTickets = [];
-        $page = 1;
-        do {
-            $res = $this->curl('GET', '/tickets/list?' . http_build_query([
-                'since'     => $since,
-                'until'     => $until,
-                'sortOrder' => 'DESC',
-                'page'      => $page,
-            ]), [], $token);
+        $res = $this->curl('GET', '/tickets/list?' . http_build_query([
+            'since'     => $since,
+            'until'     => $until,
+            'sortOrder' => 'DESC',
+        ]), [], $token);
 
-            if (!is_array($res)) break;
-            $batch = is_array($res['data'] ?? null) ? $res['data'] : (is_array($res) ? $res : []);
+        $batch = is_array($res['tickets'] ?? null) ? $res['tickets'] : [];
 
-            foreach ($batch as $t) {
-                if (!is_array($t)) continue;
-                foreach ($t['participants'] ?? [] as $p) {
-                    if (($p['type'] ?? '') === 'Client') {
-                        $pPhone = preg_replace('/\D/', '', $p['identifier'] ?? '');
-                        if ($pPhone === $phone) {
-                            $matchedTickets[] = $t;
-                            break;
-                        }
+        foreach ($batch as $t) {
+            if (!is_array($t)) continue;
+            foreach ($t['participants'] ?? [] as $p) {
+                if (($p['type'] ?? '') === 'Client') {
+                    $pPhone = preg_replace('/\D/', '', $p['identifier'] ?? '');
+                    if ($pPhone === $phone) {
+                        $matchedTickets[] = $t;
+                        break;
                     }
                 }
             }
-            $page++;
-        } while (count($batch) === 100 && $page <= 10);
+        }
 
         $result = [];
         foreach ($matchedTickets as $t) {
@@ -196,7 +190,297 @@ class GlassixService
         return ['ok' => true, 'ticket_url' => $ticketUrl, 'ticket_id' => $ticketId];
     }
 
+    /**
+     * מחזיר ספירת טיקטים פתוחים (state != Closed) לפי נציג, על פני כל המחלקות.
+     * מחזיר ['ok' => true, 'data' => [['agent' => .., 'count' => .., 'byDept' => [...]], ...]]
+     */
+    public const STATS_VERSION = 'v22-' . '2026-09-17-19';
+    private const STATS_DAYS   = 30;
+    private const STATS_MAX    = 550;
+    private const PAGE_CAP     = 100;
+    private const CACHE_TTL    = 600; // שניות — התוצאה משותפת לכל המשתמשים
+    private const MAX_CALLS     = 40; // בקשות מקסימום למחלקה
+    private const THROTTLE_US   = 120000; // 0.12 שניות בין בקשות
+    private const COOLDOWN      = 900; // שניות המתנה אחרי rate limit
+
+    private const DEPT_LABELS = [
+        'service' => 'שירות',
+        'support' => 'תמיכה',
+        'sales'   => 'מכירות',
+    ];
+
+    /**
+     * מחזיר את הסטטיסטיקה. כברירת מחדל מגיש מהמטמון גם אם פג תוקפו (stale-while-revalidate)
+     * ומסמן `stale` כדי שה-frontend יבקש רענון ברקע.
+     */
+    public static function getOpenTicketCountsByAgent(string $userEmail, int $userId, bool $force = false): array
+    {
+        [$cached, $isFresh] = self::readStatsCache();
+
+        // הצינון נבדק תמיד ומדווח תמיד — אחרת ה-frontend מציג כפתור עדכון
+        // שהשרת ידחה, והמשתמש מקבל "חריגה ממכסה" רק אחרי לחיצה
+        $cooldownUntil = self::cooldownUntil();
+
+        if ($cached !== null && (!$force || $cooldownUntil !== null)) {
+            $cached['stale']          = !$isFresh;
+            $cached['ttl']            = self::CACHE_TTL;
+            $cached['errors']         = [];
+            $cached['cooldown_until'] = $cooldownUntil;
+            return $cached;
+        }
+
+        if ($cooldownUntil !== null) {
+            return [
+                'ok'             => true,
+                'version'        => self::STATS_VERSION,
+                'depts'          => [],
+                'errors'         => [],
+                'cached_at'      => date('c'),
+                'stale'          => true,
+                'cooldown_until' => $cooldownUntil,
+                'ttl'            => self::CACHE_TTL,
+            ];
+        }
+
+        $depts  = [];
+        $errors = [];
+
+        foreach (array_keys(self::DEPT_KEYS) as $deptSlug) {
+            $service = new self($deptSlug, $userEmail, $userId);
+            [$token, $tokenErr] = $service->getToken();
+            if (!$token) {
+                $errors[] = ['dept' => $deptSlug, 'error' => $tokenErr];
+                continue;
+            }
+
+            [$dept, $err] = $service->collectOpenTickets($deptSlug, $token);
+            if ($dept === null) {
+                $errors[] = ['dept' => $deptSlug, 'error' => $err];
+                continue;
+            }
+            $depts[] = $dept;
+        }
+
+        foreach ($errors as $e) {
+            if (is_string($e['error'] ?? null) && stripos($e['error'], 'rate limit') !== false) {
+                self::startCooldown();
+                break;
+            }
+        }
+
+        $result = [
+            'ok'             => true,
+            'version'        => self::STATS_VERSION,
+            'depts'          => $depts,
+            'errors'         => $errors,
+            'cached_at'      => date('c'),
+            'stale'          => false,
+            'ttl'            => self::CACHE_TTL,
+            'cooldown_until' => self::cooldownUntil(),
+        ];
+
+        // שמירה גם כשחלק מהמחלקות נכשלו — אחרת כשלון חלקי (rate limit) גורם
+        // לסריקה מלאה בכל טעינה ומנציח את הכשלון
+        if ($depts) {
+            $result['partial_fetch'] = (bool)$errors;
+
+            // cooldown_until הוא מצב רגעי — לא נשמר במטמון כדי שלא יוגש מיושן
+            $toCache = $result;
+            unset($toCache['cooldown_until']);
+            self::writeStatsCache($toCache);
+
+            return $result;
+        }
+
+        // לא התקבל דבר — עדיף להגיש מטמון ישן מאשר מסך ריק
+        [$cached] = self::readStatsCache(true);
+        if ($cached !== null && !empty($cached['depts'])) {
+            $cached['stale']         = true;
+            $cached['refresh_error'] = true;
+            $cached['errors']        = $errors;
+            $cached['ttl']           = self::CACHE_TTL;
+            return $cached;
+        }
+
+        return $result;
+    }
+
+    /**
+     * סורק את חלון הזמן למחלקה אחת. מתחיל בחלון רחב ומצמצם רק כשנתקלים בתקרת ה-100,
+     * כדי לצמצם את מספר הבקשות ל-API (rate limit).
+     *
+     * @return array{0: ?array, 1: ?string}
+     */
+    private function collectOpenTickets(string $deptSlug, string $token): array
+    {
+        $now = time();
+
+        // תורים של [from, to] לסריקה; מתחילים בחלון שלם
+        $queue  = [[strtotime('-' . self::STATS_DAYS . ' days'), $now]];
+        $seen   = [];
+        $agents = [];
+        $total  = 0;
+        $capped = false;
+        $failed = null;
+        $calls  = 0;
+
+        while ($queue && $total < self::STATS_MAX && $calls < self::MAX_CALLS) {
+            [$from, $to] = array_shift($queue);
+            if ($from >= $to) continue;
+
+            if ($calls > 0) usleep(self::THROTTLE_US); // ריווח בין בקשות — מניעת rate limit
+
+            $calls++;
+            $res = $this->curl('GET', '/tickets/list?' . http_build_query([
+                'since' => gmdate('d/m/Y H:i:s:00', $from),
+                'until' => gmdate('d/m/Y H:i:s:00', $to),
+                'state' => 'Open',
+            ]), [], $token);
+
+            if (isset($res['message'])) {
+                $failed = $res['message'];
+                break;
+            }
+
+            $batch = is_array($res['tickets'] ?? null) ? $res['tickets'] : [];
+
+            // התקרה נגעה — התוצאה חתוכה ולא אמינה. מפצלים את הטווח וסורקים
+            // מחדש, בלי לספור את האצווה החלקית (אחרת ה-ids ייכנסו ל-seen
+            // והסריקה החוזרת תדלג עליהם)
+            if (count($batch) >= self::PAGE_CAP && ($to - $from) > 3600) {
+                $mid = intdiv($from + $to, 2);
+                array_unshift($queue, [$from, $mid], [$mid, $to]);
+                $capped = true;
+                continue;
+            }
+
+            foreach ($batch as $t) {
+                if (!is_array($t)) continue;
+
+                $ticketId = $t['id'] ?? null;
+                if ($ticketId === null || isset($seen[$ticketId])) continue;
+                $seen[$ticketId] = true;
+
+                if (($t['owner']['type'] ?? '') === 'BOT') continue;
+
+                // since/until מסננים לפי פעילות, לא לפי מצב — טיקט שנסגר
+                // מאז עדיין חוזר בתוצאות, ולכן בודקים את המצב בפועל
+                if (($t['state'] ?? '') !== 'Open') continue;
+
+                $agent = self::agentName($t);
+                $agents[$agent] = ($agents[$agent] ?? 0) + 1;
+                $total++;
+            }
+        }
+
+        if ($failed !== null && $total === 0) {
+            return [null, $failed];
+        }
+
+        arsort($agents);
+
+        $agentList = [];
+        foreach ($agents as $name => $count) {
+            $agentList[] = ['agent' => $name, 'count' => $count];
+        }
+
+        return [[
+            'slug'    => $deptSlug,
+            'label'   => self::DEPT_LABELS[$deptSlug] ?? $deptSlug,
+            'total'   => $total,
+            'agents'  => $agentList,
+            'partial' => ($capped && $queue) || $total >= self::STATS_MAX || $failed !== null,
+        ], null];
+    }
+
+    /** מחזיר את זמן סיום הצינון (ISO) או null אם אין צינון פעיל */
+    private static function cooldownUntil(): ?string
+    {
+        try {
+            $val = DB::value(
+                'SELECT expires_at FROM glassix_stats_cache
+                  WHERE cache_key = ? AND expires_at > NOW() LIMIT 1',
+                ['cooldown']
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $val ? date('c', strtotime((string)$val)) : null;
+    }
+
+    private static function startCooldown(): void
+    {
+        try {
+            DB::execute(
+                'INSERT INTO glassix_stats_cache (cache_key, payload, expires_at)
+                 VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+                 ON DUPLICATE KEY UPDATE expires_at = VALUES(expires_at)',
+                ['cooldown', '1', self::COOLDOWN]
+            );
+        } catch (\Throwable) {}
+    }
+
+    /**
+     * @param bool $allowStale האם להחזיר גם רשומה שפג תוקפה
+     * @return array{0: ?array, 1: bool} [payload, isFresh]
+     */
+    private static function readStatsCache(bool $allowStale = true): array
+    {
+        try {
+            $row = DB::row(
+                'SELECT payload, expires_at > NOW() AS is_fresh
+                   FROM glassix_stats_cache
+                  WHERE cache_key = ? LIMIT 1',
+                [self::STATS_VERSION]
+            );
+        } catch (\Throwable) {
+            return [null, false];
+        }
+
+        if (!$row) return [null, false];
+
+        $isFresh = (bool)($row['is_fresh'] ?? false);
+        if (!$isFresh && !$allowStale) return [null, false];
+
+        $data = json_decode((string)$row['payload'], true);
+        if (!is_array($data)) return [null, false];
+
+        $data['from_cache'] = true;
+        return [$data, $isFresh];
+    }
+
+    private static function writeStatsCache(array $result): void
+    {
+        try {
+            DB::execute(
+                'INSERT INTO glassix_stats_cache (cache_key, payload, expires_at)
+                 VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+                 ON DUPLICATE KEY UPDATE payload = VALUES(payload), expires_at = VALUES(expires_at)',
+                [self::STATS_VERSION, json_encode($result, JSON_UNESCAPED_UNICODE), self::CACHE_TTL]
+            );
+        } catch (\Throwable) {}
+    }
+
     // ── Private methods ──────────────────────────────────────
+
+    /**
+     * שם הנציג של הטיקט. owner מחזיק רק מייל, השם המלא נמצא ב-participants לפי אותו id.
+     */
+    private static function agentName(array $ticket): string
+    {
+        $ownerId = $ticket['owner']['id'] ?? '';
+        if ($ownerId) {
+            foreach ($ticket['participants'] ?? [] as $p) {
+                if (($p['identifier'] ?? '') === $ownerId) {
+                    $name = trim((string)($p['name'] ?? ''));
+                    if ($name !== '') return $name;
+                }
+            }
+        }
+
+        return trim((string)($ticket['owner']['UserName'] ?? '')) ?: 'לא משויך';
+    }
 
     private function normalizePhone(string $phone): ?string
     {

@@ -26,8 +26,9 @@ if (empty($phones)) {
     exit;
 }
 
-$failLines  = [];
-$mailErrors = 0;
+$failLines    = [];
+$mailErrors   = 0;
+$unresolved   = [];
 foreach ($phones as $phone) {
     if ((int)$phone['registered'] === 0 && (int)$phone['expect_registered'] === 1) {
         $line  = $phone['name'];
@@ -39,15 +40,36 @@ foreach ($phones as $phone) {
         $subject = '[מוקד-נט] שלוחת טלפון - ' . $desc . ' לא מחוברת';
         $subject = preg_replace('/[\r\n\0]/', '', $subject);
 
-        if ($debug) {
-            $failLines[] = "<b>" . htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') . "</b> (" . htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . ")\nחנות: " . ($sNum ?: 'לא נמצא') . " | מייל: " . htmlspecialchars($sMail ?: '—', ENT_QUOTES, 'UTF-8');
-            continue;
+        if ($sMail === '') {
+            $unresolved[] = ['line' => $line, 'desc' => $desc, 'store_num' => $sNum];
         }
 
         $recipients = array_filter([$sMail]);
+
+        if ($debug) {
+            error_clear_last();
+            $sent = sendAlertMail(implode(',', $recipients), $subject);
+            $err  = error_get_last();
+            $failLines[] =
+                "<b>" . htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') . "</b> (" . htmlspecialchars($line, ENT_QUOTES, 'UTF-8') . ")\n"
+                . "חנות: " . ($sNum ?: 'לא נמצא') . "\n"
+                . "מייל יעד: '" . htmlspecialchars(implode(',', $recipients) ?: '—', ENT_QUOTES, 'UTF-8') . "'\n"
+                . "mail() החזיר: " . ($sent ? 'true (נשלח)' : 'false (נכשל)') . "\n"
+                . "PHP error_get_last: " . htmlspecialchars($err['message'] ?? 'אין', ENT_QUOTES, 'UTF-8') . "\n"
+                . "sendmail_from php.ini: " . htmlspecialchars(ini_get('sendmail_from') ?: '—', ENT_QUOTES, 'UTF-8') . "\n"
+                . "sendmail_path php.ini: " . htmlspecialchars(ini_get('sendmail_path') ?: '—', ENT_QUOTES, 'UTF-8');
+            continue;
+        }
+
         $sent = sendAlertMail(implode(',', $recipients), $subject);
         $failLines[] = $desc;
-        if (!$sent) $mailErrors++;
+        if (!$sent) {
+            $mailErrors++;
+            $err = error_get_last();
+            cronLog('mail', 'error', "שליחה נכשלה | תיאור: {$desc} | חנות: " . ($sNum ?: 'לא נמצא')
+                . " | נמענים: '" . implode(',', $recipients) . "'"
+                . " | mail() error: " . ($err['message'] ?? 'אין מידע'));
+        }
     }
 }
 
@@ -60,7 +82,24 @@ if ($debug) {
         echo implode("\n\n", $failLines);
         echo '</pre>';
     }
+    if (!empty($unresolved)) {
+        echo '<pre style="font-family:monospace;line-height:1.8;direction:rtl;text-align:right;">';
+        echo "FALLBACK — " . count($unresolved) . " שלוחות ללא חנות/מייל, ישלח סיכום ל-gild@bug.co.il:\n\n";
+        echo htmlspecialchars(buildUnresolvedSummary($unresolved), ENT_QUOTES, 'UTF-8');
+        echo '</pre>';
+    }
     exit;
+}
+
+$fallbackSent = null;
+if (!empty($unresolved)) {
+    $fallbackSent = sendFallbackMail($unresolved);
+    if (!$fallbackSent) {
+        $err = error_get_last();
+        cronLog('mail-fallback', 'error', "שליחת סיכום נכשלה | mail() error: " . ($err['message'] ?? 'אין מידע'));
+    } else {
+        cronLog('mail-fallback', 'ok', count($unresolved) . " שלוחות ללא חנות/מייל נשלחו ל-gild@bug.co.il");
+    }
 }
 
 $totalLines = count($phones);
@@ -124,6 +163,45 @@ function mailWrap(string $title, string $body): string
         . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
         . '</td></tr>'
         . '</table></td></tr></table></body></html>';
+}
+
+function buildUnresolvedSummary(array $unresolved): string
+{
+    $lines = [];
+    foreach ($unresolved as $u) {
+        $lines[] = "שלוחה: {$u['line']} | תיאור: {$u['desc']} | חנות: " . ($u['store_num'] ?: 'לא נמצא');
+    }
+    return implode("\n", $lines);
+}
+
+function sendFallbackMail(array $unresolved): bool
+{
+    $subject = '[מוקד-נט] שלוחות טלפון ללא חנות/מייל מקושרים';
+    $subject = preg_replace('/[\r\n\0]/', '', $subject);
+
+    $rows = '';
+    foreach ($unresolved as $u) {
+        $rows .= '<tr>'
+            . '<td style="padding:8px 12px;border-bottom:1px solid #eceef2;">' . htmlspecialchars($u['line'], ENT_QUOTES, 'UTF-8') . '</td>'
+            . '<td style="padding:8px 12px;border-bottom:1px solid #eceef2;">' . htmlspecialchars($u['desc'], ENT_QUOTES, 'UTF-8') . '</td>'
+            . '<td style="padding:8px 12px;border-bottom:1px solid #eceef2;">' . htmlspecialchars((string)($u['store_num'] ?: 'לא נמצא'), ENT_QUOTES, 'UTF-8') . '</td>'
+            . '</tr>';
+    }
+
+    $body  = '<p style="font-size:18px;font-weight:700;color:#20232e;margin:0 0 16px;">שלוחות טלפון לא מחוברות ללא חנות/מייל מזוהים</p>';
+    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 16px;">לא נמצאה חנות פעילה עם מייל עבור השלוחות הבאות, ולכן לא נשלחה אליהן התראה ישירה:</p>';
+    $body .= '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#2b2e3b;">';
+    $body .= '<tr style="background:#f7f8fa;"><th style="padding:8px 12px;text-align:right;">שלוחה</th><th style="padding:8px 12px;text-align:right;">תיאור</th><th style="padding:8px 12px;text-align:right;">חנות</th></tr>';
+    $body .= $rows;
+    $body .= '</table>';
+
+    $message = mailWrap($subject, $body);
+    $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
+    $headers .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=utf-8\r\n";
+
+    return mail('gild@bug.co.il', $subject, $message, $headers);
 }
 
 function sendAlertMail(string $to, string $subject): bool

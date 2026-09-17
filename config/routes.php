@@ -28,6 +28,7 @@ $router->get ('/tasks/{id}',         'Controllers\TaskController@show');
 $router->post('/tasks/create',    'Controllers\TaskController@create');
 $router->post('/tasks/{id}/close','Controllers\TaskController@close');
 $router->post('/tasks/{id}/status', 'Controllers\\TaskController@updateStatus');
+$router->post('/tasks/bulk-status', 'Controllers\\TaskController@bulkUpdateStatus');
 $router->post('/tasks/{id}/title',  'Controllers\\TaskController@updateTitle');
 $router->get ('/tasks/{id}/comments',  'Controllers\\TaskController@getComments');
 $router->post('/tasks/{id}/comments',  'Controllers\\TaskController@addComment');
@@ -149,6 +150,9 @@ $router->get ('/api/duty/guidance',             'Controllers\\DutyController@api
 $router->post('/api/duty/guidance',             'Controllers\\DutyController@apiGuidanceSave');
 $router->get ('/api/duty/current',              'Controllers\\DutyController@apiCurrentWeek');
 $router->get ('/duty/signage',                  'Controllers\\DutyController@signage');
+$router->get ('/api/duty/daily-roles',          'Controllers\\DutyController@apiDailyRolesList');
+$router->post('/api/duty/daily-roles',          'Controllers\\DutyController@apiDailyRolesSave');
+$router->get ('/api/duty/my-role',              'Controllers\\DutyController@apiMyRole');
 
 // Lab Inventory
 $router->get ('/includes/lab_dashboard.php', fn() => header('Location: /lab', true, 301));
@@ -167,6 +171,10 @@ $router->post('/api/lab/user/add',           'Controllers\\LabController@apiAddU
 $router->post('/api/lab/user/toggle',        'Controllers\\LabController@apiToggleUser');
 $router->get ('/api/lab/report-preview',    'Controllers\\LabController@apiReportInventoryPreview');
 $router->post('/api/lab/report-mark',       'Controllers\\LabController@apiMarkReported');
+
+// Glassix Agent Stats (ניסיוני)
+$router->get ('/glassix-agent-stats',        'Controllers\\GlassixStatsController@index');
+$router->get ('/api/glassix/agent-stats',    'Controllers\\GlassixStatsController@apiAgentStats');
 
 // Invoice Change Name
 $router->get ('/invoice-change-name',                 'Controllers\\InvoiceChangeNameController@index');

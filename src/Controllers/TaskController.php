@@ -43,9 +43,13 @@ class TaskController extends Controller
             []
         );
 
+        $departments = \Core\DB::query('SELECT id, name_heb AS name FROM departments ORDER BY name_heb', []);
+
+        $allStatuses = \Core\DB::query('SELECT id, name, color FROM task_statuses ORDER BY name', []);
+
         $this->view('pages/tasks/index', compact(
             'tasks', 'recentClosed', 'statusesByType', 'allTypes', 'filter',
-            'showClosed', 'scopeAll', 'canViewAll', 'users'
+            'showClosed', 'scopeAll', 'canViewAll', 'users', 'departments', 'allStatuses'
         ));
     }
 
@@ -147,6 +151,31 @@ class TaskController extends Controller
 
         ActivityLog::log('task.status', 'task', (int)$id, "משימה #{$id}", "status_id → {$statusId}");
         $this->json(['error' => false, 'msg' => 'סטטוס עודכן']);
+    }
+
+    public function bulkUpdateStatus(): void
+    {
+        $this->requireAuth();
+        $this->verifyCsrf();
+
+        $statusId = (int)$this->post('status_id', 0);
+        $idsRaw   = $this->post('task_ids', '');
+        $ids      = array_filter(array_map('intval', explode(',', (string)$idsRaw)));
+
+        if ($statusId <= 0 || empty($ids)) {
+            $this->json(['error' => true, 'msg' => 'נתונים חסרים'], 422);
+            return;
+        }
+
+        $updated = 0;
+        foreach ($ids as $taskId) {
+            if (TaskModel::updateStatus($taskId, $statusId, $_SESSION['user_id'])) {
+                ActivityLog::log('task.status', 'task', $taskId, "משימה #{$taskId}", "status_id → {$statusId}");
+                $updated++;
+            }
+        }
+
+        $this->json(['error' => false, 'updated' => $updated]);
     }
 
     public function updateTitle(string $id): void

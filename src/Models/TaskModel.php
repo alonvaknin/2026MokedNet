@@ -65,6 +65,7 @@ class TaskModel
                     t.status_changed_by,
                     CONCAT(opener.first_name,' ',opener.last_name) AS opened_by_name,
                     CONCAT(changer.first_name,' ',changer.last_name) AS changed_by_name,
+                    CONCAT(assignee.first_name,' ',assignee.last_name) AS assigned_to_name,
                     ts.name    AS status_name,
                     ts.color   AS status_color,
                     ts.is_closed AS status_is_closed,
@@ -73,6 +74,7 @@ class TaskModel
              FROM tasks t
              LEFT JOIN users opener    ON opener.id  = t.open_by
              LEFT JOIN users changer   ON changer.id = t.status_changed_by
+             LEFT JOIN users assignee  ON assignee.id = t.assigned_user_id
              LEFT JOIN task_statuses ts ON ts.id     = t.status_id
              LEFT JOIN task_types    tt ON tt.id     = t.task_type_id
              LEFT JOIN departments   dept ON dept.id = t.assigned_dept_id
@@ -95,6 +97,7 @@ class TaskModel
                     t.status_id, t.task_type_id,
                     CONCAT(opener.first_name,' ',opener.last_name) AS opened_by_name,
                     CONCAT(changer.first_name,' ',changer.last_name) AS changed_by_name,
+                    CONCAT(assignee.first_name,' ',assignee.last_name) AS assigned_to_name,
                     ts.name  AS status_name,
                     ts.color AS status_color,
                     tt.name  AS type_name,
@@ -102,6 +105,7 @@ class TaskModel
              FROM tasks t
              LEFT JOIN users opener    ON opener.id  = t.open_by
              LEFT JOIN users changer   ON changer.id = t.status_changed_by
+             LEFT JOIN users assignee  ON assignee.id = t.assigned_user_id
              LEFT JOIN task_statuses ts ON ts.id     = t.status_id
              LEFT JOIN task_types    tt ON tt.id     = t.task_type_id
              LEFT JOIN departments   dept ON dept.id = t.assigned_dept_id

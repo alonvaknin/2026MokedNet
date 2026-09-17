@@ -121,6 +121,52 @@ class DutyController extends Controller
         $this->json(['ok' => true]);
     }
 
+    // ── Daily roles (גלאס / שיחות / שניהם) ───────────────────
+    public function apiDailyRolesList(): void
+    {
+        $this->requireAuth();
+        $week = $this->get('week', '') ?: date('Y-m-d');
+        $weekStart = DutyModel::weekStartOf($week);
+        $this->json([
+            'week_start' => $weekStart,
+            'reps'       => DutyModel::allReps(),
+            'roles'      => DutyModel::weekRoles($weekStart),
+        ]);
+    }
+
+    public function apiDailyRolesSave(): void
+    {
+        $this->requirePermission('canManageDuty');
+        $this->verifyCsrf();
+        $repId = (int)$this->post('representative_id', 0);
+        $date  = $this->post('duty_date', '');
+        $role  = $this->post('role', '');
+
+        if (!$repId || !$date || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $this->json(['error' => 'חסרים פרטים'], 400);
+            return;
+        }
+        if ($role === '') {
+            DutyModel::clearDailyRole($repId, $date);
+            $this->json(['ok' => true, 'cleared' => true]);
+            return;
+        }
+        if (!in_array($role, DutyModel::ROLES, true)) {
+            $this->json(['error' => 'תפקיד לא תקין'], 400);
+            return;
+        }
+        DutyModel::saveDailyRole($repId, $date, $role);
+        $this->json(['ok' => true]);
+    }
+
+    /** התפקיד של המשתמש המחובר להיום — לכרטיס בדשבורד */
+    public function apiMyRole(): void
+    {
+        $this->requireAuth();
+        $user = \Core\Auth::user();
+        $this->json(DutyModel::myRoleToday((int)($user['id'] ?? 0)) ?? ['role' => null]);
+    }
+
     // ── Current week (for dashboard / digital signage) ───────
     public function apiCurrentWeek(): void
     {

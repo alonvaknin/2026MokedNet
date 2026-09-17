@@ -13,6 +13,10 @@ $users        = $users ?? [];
 $showClosed   = $showClosed ?? false;
 $canViewAll  = $canViewAll ?? false;
 $scopeAll   = $scopeAll ?? false;
+$departments  = $departments ?? [];
+$allStatuses  = $allStatuses ?? [];
+$departmentsJson = json_encode($departments, JSON_UNESCAPED_UNICODE);
+$allStatusesJson = json_encode($allStatuses, JSON_UNESCAPED_UNICODE);
 
 ?>
 <style>
@@ -169,6 +173,49 @@ $scopeAll   = $scopeAll ?? false;
   </div>
   <?php endif; ?>
 
+  <select id="task-filter-status" onchange="applyTaskFilters()"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+                 padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;">
+    <option value="">כל הסטטוסים</option>
+    <?php foreach ($allStatuses as $s): ?>
+      <option value="<?= (int)$s['id'] ?>"><?= View::e($s['name']) ?></option>
+    <?php endforeach; ?>
+  </select>
+
+  <select id="task-filter-user" onchange="applyTaskFilters()"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+                 padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;">
+    <option value="">כל הנציגים</option>
+    <?php foreach ($users as $u): ?>
+      <option value="<?= (int)$u['id'] ?>"><?= View::e($u['name']) ?></option>
+    <?php endforeach; ?>
+  </select>
+
+  <select id="task-filter-dept" onchange="applyTaskFilters()"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+                 padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;">
+    <option value="">כל המחלקות</option>
+    <?php foreach ($departments as $d): ?>
+      <option value="<?= (int)$d['id'] ?>"><?= View::e($d['name']) ?></option>
+    <?php endforeach; ?>
+  </select>
+
+</div>
+
+<!-- Bulk action bar -->
+<div id="bulk-action-bar" style="display:none;align-items:center;gap:12px;background:var(--bg3);
+            border:1px solid var(--accent);border-radius:var(--radius);padding:10px 16px;margin-bottom:14px;">
+  <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+  <select id="bulk-status-select"
+          style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+                 padding:6px 10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;">
+    <option value="">בחר סטטוס לשינוי גורף...</option>
+    <?php foreach ($allStatuses as $s): ?>
+      <option value="<?= (int)$s['id'] ?>"><?= View::e($s['name']) ?></option>
+    <?php endforeach; ?>
+  </select>
+  <button class="btn btn-primary" onclick="applyBulkStatus()" style="padding:6px 16px;font-size:13px;">החל</button>
+  <button onclick="clearBulkSelection()" style="background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer;">בטל בחירה</button>
 </div>
 
 <?php if (empty($tasks)): ?>
@@ -177,28 +224,34 @@ $scopeAll   = $scopeAll ?? false;
 <div class="card" style="padding:0;overflow:visible;">
   <table style="width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed;">
     <colgroup>
+      <col style="width:36px;">
       <col style="width:52px;">
       <col>
       <col style="width:110px;">
       <col style="width:110px;">
       <col style="width:100px;">
+      <col style="width:120px;">
       <col style="width:140px;">
       <col style="width:130px;">
       <col style="width:130px;">
     </colgroup>
     <thead>
       <tr style="color:var(--text2);">
+        <th style="text-align:center;padding:12px 8px;border-bottom:1px solid var(--border);">
+          <input type="checkbox" id="select-all-tasks" onchange="toggleSelectAllTasks(this)">
+        </th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">#</th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">כותרת</th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">סוג</th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">SLA</th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">נפתח</th>
+        <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">משויך ל</th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">עודכן ע"י</th>
         <th style="text-align:right;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">מחלקה</th>
         <th style="text-align:center;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;">סטטוס</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="task-table-body">
     <?php foreach ($tasks as $t):
       $created = $t['created_at'] ? date('d/m/Y', strtotime($t['created_at'])) : '—';
       $slaTs   = $t['created_at'] && $t['sla_days']
@@ -214,7 +267,13 @@ $scopeAll   = $scopeAll ?? false;
     <tr class="task-row" style="border-bottom:1px solid var(--border);cursor:pointer;<?= $overdue ? 'border-right:3px solid var(--danger);background:rgba(239,68,68,.05);' : '' ?>"
         id="task-row-<?= (int)$t['id'] ?>"
         data-search="<?= View::e(mb_strtolower(($t['title'] ?? '') . ' ' . ($t['description'] ?? '') . ' ' . ($t['type_name'] ?? '') . ' ' . ($statusName) . ' ' . ($t['dept_name'] ?? ''))) ?>"
+        data-status-id="<?= $statusId ?>"
+        data-user-id="<?= (int)($t['assigned_user_id'] ?? 0) ?>"
+        data-dept-id="<?= (int)($t['assigned_dept_id'] ?? 0) ?>"
         onclick="openTaskDetail(<?= (int)$t['id'] ?>)">
+      <td style="padding:14px;text-align:center;" onclick="event.stopPropagation()">
+        <input type="checkbox" class="task-select-cb" data-task-id="<?= (int)$t['id'] ?>" onchange="onTaskCbChange()">
+      </td>
       <td style="padding:14px;color:var(--text3);font-size:13px;"><?= (int)$t['id'] ?></td>
 
       <!-- Title: double-click to edit -->
@@ -250,6 +309,10 @@ $scopeAll   = $scopeAll ?? false;
       </td>
 
       <td class="task-row-meta" style="padding:14px;"><?= $created ?></td>
+
+      <td class="task-row-meta" style="padding:14px;">
+        <?= \Core\View::e($t['assigned_to_name'] ?? '—') ?>
+      </td>
 
       <td class="task-row-meta" style="padding:14px;font-size:12px;">
         <?= \Core\View::e($t['changed_by_name'] ?? '—') ?>
@@ -507,6 +570,8 @@ const TASK_BASE   = <?= json_encode($base) ?>;
 const STATUSES_BY_TYPE = <?= $statusesJson ?>;
 const ALL_TASK_TYPES   = <?= $allTypesJson ?>;
 const TASK_USERS  = <?= $usersJson ?>;
+const TASK_DEPARTMENTS = <?= $departmentsJson ?>;
+const ALL_TASK_STATUSES = <?= $allStatusesJson ?>;
 
 /* ── User search in new-task modal ── */
 let _selectedUserId = <?= (int)($_SESSION['user_id'] ?? 0) ?>;
@@ -742,12 +807,32 @@ function startTitleEdit(taskId, spanEl) {
 }
 
 /* ── In-page task search ────────────────────────────────── */
+let _lastSearchQuery = '';
 function filterTaskRows(q) {
-  const query = q.trim().toLowerCase();
-  document.querySelectorAll('.task-row').forEach(row => {
+  _lastSearchQuery = q;
+  applyTaskFilters();
+}
+
+function applyTaskFilters() {
+  const query    = (_lastSearchQuery || '').trim().toLowerCase();
+  const statusId = document.getElementById('task-filter-status')?.value || '';
+  const userId   = document.getElementById('task-filter-user')?.value || '';
+  const deptId   = document.getElementById('task-filter-dept')?.value || '';
+
+  document.querySelectorAll('#task-table-body .task-row').forEach(row => {
     const hay = row.dataset.search || '';
-    row.style.display = (!query || hay.includes(query)) ? '' : 'none';
+    let show = !query || hay.includes(query);
+    if (show && statusId) show = row.dataset.statusId === statusId;
+    if (show && userId)   show = row.dataset.userId === userId;
+    if (show && deptId)   show = row.dataset.deptId === deptId;
+    row.style.display = show ? '' : 'none';
+    if (!show) {
+      const cb = row.querySelector('.task-select-cb');
+      if (cb && cb.checked) { cb.checked = false; }
+    }
   });
+  onTaskCbChange();
+
   // Auto-expand the closed section if the query only matches closed tasks
   const closedSec = document.getElementById('closed-section');
   if (closedSec && query) {
@@ -757,6 +842,67 @@ function filterTaskRows(q) {
       toggleClosedSection();
     }
   }
+}
+
+/* ── Bulk selection & bulk status change ───────────────── */
+function toggleSelectAllTasks(cb) {
+  document.querySelectorAll('#task-table-body .task-row').forEach(row => {
+    if (row.style.display === 'none') return;
+    const rowCb = row.querySelector('.task-select-cb');
+    if (rowCb) rowCb.checked = cb.checked;
+  });
+  onTaskCbChange();
+}
+
+function getSelectedTaskIds() {
+  return Array.from(document.querySelectorAll('.task-select-cb'))
+    .filter(cb => cb.checked)
+    .map(cb => cb.dataset.taskId);
+}
+
+function onTaskCbChange() {
+  const ids = getSelectedTaskIds();
+  const bar = document.getElementById('bulk-action-bar');
+  const countEl = document.getElementById('bulk-count');
+  if (ids.length > 0) {
+    bar.style.display = 'flex';
+    countEl.textContent = `${ids.length} משימות נבחרו`;
+  } else {
+    bar.style.display = 'none';
+  }
+  const selectAll = document.getElementById('select-all-tasks');
+  if (selectAll) {
+    const visibleCbs = Array.from(document.querySelectorAll('#task-table-body .task-row'))
+      .filter(r => r.style.display !== 'none')
+      .map(r => r.querySelector('.task-select-cb'));
+    selectAll.checked = visibleCbs.length > 0 && visibleCbs.every(cb => cb && cb.checked);
+  }
+}
+
+function clearBulkSelection() {
+  document.querySelectorAll('.task-select-cb').forEach(cb => cb.checked = false);
+  const selectAll = document.getElementById('select-all-tasks');
+  if (selectAll) selectAll.checked = false;
+  onTaskCbChange();
+}
+
+async function applyBulkStatus() {
+  const statusId = document.getElementById('bulk-status-select').value;
+  const ids = getSelectedTaskIds();
+  if (!statusId) { v2Toast('בחר סטטוס תחילה'); return; }
+  if (!ids.length) { v2Toast('לא נבחרו משימות'); return; }
+
+  const fd = new FormData();
+  fd.append('_csrf', TASK_CSRF);
+  fd.append('status_id', statusId);
+  fd.append('task_ids', ids.join(','));
+
+  const res  = await fetch(`${TASK_BASE}/tasks/bulk-status`, {method:'POST', body:fd});
+  const data = await res.json();
+  if (data.error) { v2Toast('שגיאה: ' + (data.msg || 'לא ידוע')); return; }
+
+  v2Toast(`עודכנו ${data.updated} משימות`);
+  setTimeout(() => window.location.reload(), 600);
 }
 
 /* ── Helpers ─────────────────────────────────────────── */

@@ -17,12 +17,36 @@ $newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_a
 ?>
 
 <!-- Header -->
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-  <div>
-    <div class="page-title" style="margin-bottom:4px;">שלום, <?= View::e($user['first_name'] ?? '') ?> 👋</div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+  <div id="greet-block">
+    <div class="page-title" style="margin-bottom:3px;">שלום, <?= View::e($user['first_name'] ?? '') ?> 👋</div>
     <div style="font-size:13px;color:var(--text3);">
-      <?= date('d/m/Y l') ?>
+      <?php
+        $daysHe = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        echo date('d/m/Y') . ' · יום ' . $daysHe[(int)date('w')];
+      ?>
       <span id="dw-inline" style="display:none;"> · תורן: <?php if (Auth::can('canManageDuty')): ?><a id="dw-link" href="<?= $base ?>/duty" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><?php endif; ?><span id="dw-name"></span>, <span id="dw-dept"></span> (<span id="dw-week"></span>)<?php if (Auth::can('canManageDuty')): ?></a><?php endif; ?></span>
+    </div>
+
+    <!-- ── שורת תורנויות (מוזרקת ב-JS) ── -->
+<?php $dutyHref = Auth::can('canManageDuty') ? $base . '/duty' : null; ?>
+    <div id="duty-row" style="display:none;">
+      <<?= $dutyHref ? 'a href="'.$dutyHref.'"' : 'div' ?> id="myrole-tag" class="duty-card" title="">
+        <span class="duty-card-ico"><i id="myrole-tag-icon" class="bi bi-layers-fill"></i></span>
+        <span class="duty-card-body">
+          <span class="duty-card-kicker">התורנות שלי היום</span>
+          <span class="duty-card-label" id="myrole-tag-label"></span>
+        </span>
+        <span class="duty-card-flag" id="myrole-default-flag" style="display:none;">ברירת מחדל</span>
+      </<?= $dutyHref ? 'a' : 'div' ?>>
+
+      <<?= $dutyHref ? 'a href="'.$dutyHref.'"' : 'div' ?> id="clean-tag" class="duty-card duty-card-clean" style="display:none;" title="אתה התורן השבועי בניקיון">
+        <span class="duty-card-ico"><i class="bi bi-stars"></i></span>
+        <span class="duty-card-body">
+          <span class="duty-card-kicker">תורנות ניקיון</span>
+          <span class="duty-card-label">התורן השבוע — זה אתה</span>
+        </span>
+      </<?= $dutyHref ? 'a' : 'div' ?>>
     </div>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -97,6 +121,78 @@ $newModanCount = count(array_filter($modanStores, fn($s) => !empty($s['created_a
     <?php endif; ?>
   </div>
 </div>
+
+<style>
+/* ── שורת תורנויות בדשבורד ── */
+#duty-row{
+  display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;
+}
+.duty-card{
+  display:flex;align-items:center;gap:11px;
+  padding:10px 16px 10px 14px;border-radius:14px;
+  text-decoration:none;font-family:var(--font);
+  background:
+    linear-gradient(135deg,var(--dc-tint,rgba(91,141,238,.16)) 0%,transparent 70%),
+    var(--bg2);
+  border:1px solid var(--dc-line,rgba(91,141,238,.38));
+  position:relative;overflow:hidden;
+  transition:transform .14s ease,box-shadow .14s ease,filter .14s ease;
+}
+.duty-card::before{
+  content:'';position:absolute;inset-inline-start:0;top:0;bottom:0;width:3px;
+  background:var(--dc-accent,var(--accent));
+}
+.duty-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 22px rgba(0,0,0,.28);
+  filter:brightness(1.06);
+}
+.duty-card-ico{
+  width:38px;height:38px;flex:none;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  color:var(--dc-accent,var(--accent));
+  background:var(--dc-tint,rgba(91,141,238,.16));
+}
+.duty-card-body{display:flex;flex-direction:column;min-width:0;}
+.duty-card-kicker{
+  font-size:10.5px;font-weight:700;letter-spacing:.05em;
+  color:var(--text3);text-transform:uppercase;line-height:1.3;
+}
+.duty-card-label{
+  font-size:15.5px;font-weight:800;line-height:1.25;white-space:nowrap;
+  color:var(--dc-accent,var(--text));
+}
+.duty-card-flag{
+  flex:none;align-self:center;margin-inline-start:4px;
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;
+  color:var(--text3);background:var(--bg3);border:1px dashed var(--border);
+}
+/* ברירת מחדל — לא שובץ ידנית */
+.duty-card.is-default{border-style:dashed;}
+/* תורנות ניקיון — בולטת יותר, עם הילה פועמת */
+.duty-card-clean{
+  --dc-accent:#f59e0b;
+  --dc-tint:rgba(245,158,11,.20);
+  --dc-line:rgba(245,158,11,.55);
+  animation:dutyCleanPulse 2.8s ease-out infinite;
+}
+@keyframes dutyCleanPulse{
+  0%{box-shadow:0 0 0 0 rgba(245,158,11,.38);}
+  70%{box-shadow:0 0 0 9px rgba(245,158,11,0);}
+  100%{box-shadow:0 0 0 0 rgba(245,158,11,0);}
+}
+.duty-card-clean:hover{animation:none;}
+@media (prefers-reduced-motion:reduce){
+  .duty-card-clean{animation:none;}
+  .duty-card:hover{transform:none;}
+}
+@media (max-width:560px){
+  #duty-row{width:100%;}
+  .duty-card{flex:1 1 100%;padding:9px 13px;}
+  .duty-card-ico{width:34px;height:34px;font-size:16px;}
+  .duty-card-label{font-size:14px;white-space:normal;}
+}
+</style>
 
 <!-- Stores section -->
 <div class="collapse-section card" id="stores-section" style="padding:0;overflow:hidden;">
@@ -1152,6 +1248,40 @@ async function syncBugWorkHours(){
     btn.innerHTML='<i class="bi bi-clock-history"></i> סנכרון שעות';
   }
 }
+
+// ── שורת תורנויות (תורנות יומית + תורנות ניקיון) ─────────────────────
+(async function () {
+  const MY_ROLE_INFO = {
+    glassix: { label:'גלאס בלבד',    icon:'bi-chat-dots-fill', accent:'#a855f7', tint:'rgba(168,85,247,.20)', line:'rgba(168,85,247,.52)' },
+    calls:   { label:'שיחות בלבד',   icon:'bi-telephone-fill', accent:'#38bdf8', tint:'rgba(56,189,248,.20)', line:'rgba(56,189,248,.52)' },
+    both:    { label:'גלאס + שיחות', icon:'bi-layers-fill',    accent:'#22c55e', tint:'rgba(34,197,94,.20)',  line:'rgba(34,197,94,.52)'  },
+  };
+  try {
+    const d = await fetch(DASH_BASE + '/api/duty/my-role').then(r => r.json());
+    if (!d || !d.role) return;                    // לא נציג תורנות — אין שורה
+
+    // כרטיס התורנות היומית
+    const info = MY_ROLE_INFO[d.role] || MY_ROLE_INFO.both;
+    const tag  = document.getElementById('myrole-tag');
+    tag.style.setProperty('--dc-accent', info.accent);
+    tag.style.setProperty('--dc-tint',   info.tint);
+    tag.style.setProperty('--dc-line',   info.line);
+    tag.classList.toggle('is-default', !!d.is_default);
+    tag.title = d.is_default ? info.label + ' — ברירת מחדל, לא שובץ ידנית' : info.label;
+    document.getElementById('myrole-tag-icon').className   = 'bi ' + info.icon;
+    document.getElementById('myrole-tag-label').textContent = info.label;
+    if (d.is_default) document.getElementById('myrole-default-flag').style.display = '';
+
+    // כרטיס תורנות ניקיון — רק אם הנציג הוא התורן השבועי
+    if (d.is_cleaning) {
+      const ct = document.getElementById('clean-tag');
+      ct.title = 'אתה התורן השבועי בניקיון' + (d.cleaning_dept ? ' · ' + d.cleaning_dept : '');
+      ct.style.display = '';
+    }
+
+    document.getElementById('duty-row').style.display = '';
+  } catch { }
+})();
 
 // ── Duty inline ───────────────────────────────────────────────────────
 (async function () {

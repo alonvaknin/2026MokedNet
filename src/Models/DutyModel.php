@@ -181,6 +181,85 @@ class DutyModel
         );
     }
 
+    // ── Daily roles (גלאס / שיחות / שניהם) ──────────────────────────────────
+    public const ROLES = ['glassix', 'calls', 'both'];
+
+    /** ראשון של השבוע עבור תאריך נתון */
+    public static function weekStartOf(string $date): string
+    {
+        $ts  = strtotime($date);
+        $dow = (int)date('w', $ts);
+        return date('Y-m-d', strtotime("-{$dow} days", $ts));
+    }
+
+    /** כל השיבוצים היומיים לשבוע, ממופים rep_id => [date => role] */
+    public static function weekRoles(string $weekStart): array
+    {
+        $weekEnd = date('Y-m-d', strtotime($weekStart . ' +6 days'));
+        $rows = DB::query(
+            'SELECT representative_id, DATE_FORMAT(duty_date, "%Y-%m-%d") AS duty_date, role
+             FROM duty_daily_roles
+             WHERE duty_date BETWEEN ? AND ?',
+            [$weekStart, $weekEnd]
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int)$r['representative_id']][$r['duty_date']] = $r['role'];
+        }
+        return $out;
+    }
+
+    public static function saveDailyRole(int $repId, string $date, string $role): void
+    {
+        DB::execute(
+            'INSERT INTO duty_daily_roles (representative_id, duty_date, role) VALUES (?,?,?)
+             ON DUPLICATE KEY UPDATE role=?',
+            [$repId, $date, $role, $role]
+        );
+    }
+
+    public static function clearDailyRole(int $repId, string $date): void
+    {
+        DB::execute('DELETE FROM duty_daily_roles WHERE representative_id=? AND duty_date=?', [$repId, $date]);
+    }
+
+    /**
+     * התפקיד של המשתמש המחובר להיום.
+     * ללא שיבוץ — ברירת המחדל היא 'both' (גלאס + שיחות).
+     * מחזיר null אם המשתמש אינו נציג תורנות פעיל.
+     */
+    public static function myRoleToday(int $userId): ?array
+    {
+        $rep = DB::row(
+            'SELECT id, name FROM duty_representatives WHERE user_id=? AND is_active=1 LIMIT 1',
+            [$userId]
+        );
+        if (!$rep) return null;
+
+        $today = date('Y-m-d');
+        $row = DB::row(
+            'SELECT role FROM duty_daily_roles WHERE representative_id=? AND duty_date=? LIMIT 1',
+            [(int)$rep['id'], $today]
+        );
+
+        // האם הוא גם התורן השבועי (ניקיון) של השבוע הנוכחי
+        $sunday  = self::weekStartOf($today);
+        $weekly  = DB::row(
+            'SELECT department FROM duty_schedule WHERE week_start=? AND representative_id=? LIMIT 1',
+            [$sunday, (int)$rep['id']]
+        );
+
+        return [
+            'rep_name'      => $rep['name'],
+            'date'          => $today,
+            'role'          => $row['role'] ?? 'both',
+            'is_default'    => $row ? false : true,
+            'is_cleaning'   => (bool)$weekly,
+            'cleaning_dept' => $weekly['department'] ?? null,
+            'week_start'    => $sunday,
+        ];
+    }
+
     // ── Current week (dashboard + signage) ──────────────────────────────────
     public static function currentWeek(): array
     {
@@ -189,7 +268,8 @@ class DutyModel
         $today  = date('l');
 
         $schedule = DB::row(
-            "SELECT ds.department, ds.status, ds.notes, dr.name AS rep_name
+            "SELECT ds.department, ds.status, ds.notes,
+                    dr.name AS rep_name, dr.id AS rep_id, dr.user_id AS rep_user_id
              FROM duty_schedule ds
              JOIN duty_representatives dr ON dr.id = ds.representative_id
              WHERE ds.week_start = ? LIMIT 1",
