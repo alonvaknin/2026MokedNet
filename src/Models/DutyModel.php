@@ -228,6 +228,12 @@ class DutyModel
      * ללא שיבוץ — ברירת המחדל היא 'both' (גלאס + שיחות).
      * מחזיר null אם המשתמש אינו נציג תורנות פעיל.
      */
+    /**
+     * התפקיד של המשתמש המחובר להיום.
+     * כל מי שמקושר לנציג תורנות פעיל (נציג או מנהל) מקבל תפקיד:
+     * שיבוץ מפורש אם יש, אחרת ברירת המחדל 'both' (גלאס + שיחות).
+     * מוחזר null רק למשתמש שאינו נציג תורנות כלל.
+     */
     public static function myRoleToday(int $userId): ?array
     {
         $rep = DB::row(
@@ -249,12 +255,18 @@ class DutyModel
             [$sunday, (int)$rep['id']]
         );
 
+        // 'both' שקול לברירת המחדל — אינו שיבוץ שיש עליו מה לדווח
+        $role       = $row['role'] ?? null;
+        $hasRole    = $role === 'glassix' || $role === 'calls';
+        $isCleaning = (bool)$weekly;
+
+        // כל נציג רואה את התפקיד שלו — ללא שיבוץ זו ברירת המחדל: גלאס + שיחות
         return [
             'rep_name'      => $rep['name'],
             'date'          => $today,
-            'role'          => $row['role'] ?? 'both',
-            'is_default'    => $row ? false : true,
-            'is_cleaning'   => (bool)$weekly,
+            'role'          => $hasRole ? $role : 'both',
+            'is_default'    => !$hasRole,
+            'is_cleaning'   => $isCleaning,
             'cleaning_dept' => $weekly['department'] ?? null,
             'week_start'    => $sunday,
         ];

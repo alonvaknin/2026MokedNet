@@ -55,18 +55,19 @@ $canEdit = Auth::can('canManageDuty');
       <span id="duty-roles-dirty" class="duty-dirty" style="display:none;"><i class="bi bi-dot"></i><span id="duty-dirty-count"></span></span>
     </div>
     <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:var(--text2);flex-wrap:wrap;">
-      <div class="dept-filter" id="dept-filter">
-        <button type="button" class="dept-filter-btn" onclick="dutyToggleDeptMenu(event)">
-          <i class="bi bi-funnel-fill"></i><span id="dept-filter-label">כל המחלקות</span>
-          <i class="bi bi-chevron-down" style="font-size:10px;"></i>
-        </button>
-        <div class="dept-filter-menu" id="dept-filter-menu"></div>
-      </div>
       <span><i class="bi bi-chat-dots-fill" style="color:#a855f7;"></i> גלאס</span>
       <span><i class="bi bi-telephone-fill" style="color:#38bdf8;"></i> שיחות</span>
-      <span style="opacity:.7;border:1px dashed var(--border);border-radius:6px;padding:2px 8px;"><i class="bi bi-layers-fill" style="color:#22c55e;"></i> גלאס + שיחות (ברירת מחדל)</span>
+      <span style="opacity:.7;border:1px dashed var(--border);border-radius:6px;padding:2px 8px;"><i class="bi bi-layers-fill" style="color:#22c55e;"></i> גלאס + שיחות</span>
       <span style="color:#f59e0b;">● שינוי לא שמור</span>
     </div>
+  </div>
+
+  <!-- ── סרגל סינון מחלקות ── -->
+  <div class="filter-bar">
+    <span class="filter-bar-title"><i class="bi bi-funnel-fill"></i> סינון לפי מחלקה</span>
+    <span class="filter-bar-sep"></span>
+    <div class="dept-filter" id="dept-filter"></div>
+    <span class="filter-bar-hint" id="dept-filter-hint"></span>
   </div>
   <div id="duty-roles-content">
     <div style="text-align:center;padding:40px;color:var(--text3);"><i class="bi bi-hourglass-split" style="font-size:24px;display:block;margin-bottom:8px;"></i>טוען...</div>
@@ -277,122 +278,162 @@ $canEdit = Auth::can('canManageDuty');
   #duty-savebar.show{transform:translateY(0);}
 }
 
-/* ── מסנן מחלקות ── */
-.dept-filter{position:relative;}
-.dept-filter-btn{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--bg3);border:1px solid var(--border);border-radius:8px;
-  padding:6px 11px;font-size:12px;font-weight:600;font-family:var(--font);
-  color:var(--text2);cursor:pointer;white-space:nowrap;
-  transition:border-color .13s,color .13s;
+/* ── סרגל סינון ── */
+.filter-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:14px;padding:9px 14px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:10px;
+  border-inline-start:3px solid var(--accent);
 }
-.dept-filter-btn:hover{border-color:var(--text3);color:var(--text);}
-.dept-filter.is-active .dept-filter-btn{
-  border-color:var(--accent);color:var(--accent);background:rgba(91,141,238,.1);
+.filter-bar-title{
+  display:inline-flex;align-items:center;gap:6px;flex:none;
+  font-size:11.5px;font-weight:800;letter-spacing:.02em;
+  color:var(--text2);white-space:nowrap;
 }
-.dept-filter-menu{
-  display:none;position:absolute;top:calc(100% + 6px);inset-inline-start:0;
-  min-width:210px;z-index:60;padding:6px;
-  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-  box-shadow:0 10px 30px rgba(0,0,0,.45);
+.filter-bar-title i{color:var(--accent);font-size:12px;}
+.filter-bar-sep{width:1px;align-self:stretch;background:var(--border);flex:none;margin:1px 2px;}
+.filter-bar-hint{
+  font-size:11px;color:var(--text3);margin-inline-start:auto;
+  white-space:nowrap;flex:none;
 }
-.dept-filter.open .dept-filter-menu{display:block;}
-.dept-filter-row{
-  display:flex;align-items:center;gap:9px;
-  padding:7px 9px;border-radius:7px;cursor:pointer;
-  font-size:13px;color:var(--text);user-select:none;
+@media (max-width:620px){
+  .filter-bar{padding:9px 11px;}
+  .filter-bar-sep{display:none;}
+  .filter-bar-hint{margin-inline-start:0;width:100%;}
 }
-.dept-filter-row:hover{background:var(--bg3);}
-.dept-filter-row input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex:none;}
-.dept-filter-sep{height:1px;background:var(--border);margin:5px 2px;}
-.dept-filter-all{font-size:12px;font-weight:700;color:var(--text2);}
+
+/* ── מסנן מחלקות — כפתורי toggle ── */
+.dept-filter{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.dept-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--border);border-radius:999px;
+  padding:4px 11px 4px 9px;
+  font-size:11.5px;font-weight:700;font-family:var(--font);
+  cursor:pointer;white-space:nowrap;
+  background:var(--bg3);color:var(--text2);
+  transition:opacity .13s,border-color .13s,background .13s,filter .13s;
+}
+.dept-btn i{font-size:11px;flex:none;}
+.dept-btn:hover{filter:brightness(1.15);}
+/* מחלקה מוצגת — צבע מלא של המחלקה */
+.dept-btn.dept-service{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.45);color:#ef4444;}
+.dept-btn.dept-support{background:rgba(91,141,238,.16);border-color:rgba(91,141,238,.45);color:var(--accent);}
+.dept-btn.dept-internet{background:rgba(34,197,94,.16);border-color:rgba(34,197,94,.45);color:#22c55e;}
+/* מחלקה מוסתרת — אפור, מקווקו, עם ✕ אדום */
+.dept-btn.off{
+  background:transparent !important;
+  border-color:var(--border) !important;
+  border-style:dashed;
+  color:var(--text3) !important;
+  opacity:.65;
+}
+.dept-btn.off:hover{opacity:1;}
+.dept-btn.off span{text-decoration:line-through;text-decoration-thickness:1px;}
+.dept-btn .dept-btn-x{color:#ef4444 !important;font-weight:900;}
+/* כפתור איפוס */
+.dept-btn-reset{
+  background:transparent;border-style:dashed;color:var(--text3);
+  padding:4px 11px;
+}
+.dept-btn-reset:hover{color:var(--text);border-color:var(--text3);}
 
 /* ── תאי בחירה (select) בטבלה היומית ── */
-.role-cell{padding:5px 4px;text-align:center;}
+.role-cell{padding:3px 7px;text-align:center;}
 .role-sel-wrap{
-  position:relative;display:flex;align-items:center;gap:6px;
-  border:1px solid var(--border);border-radius:8px;background:var(--bg3);
-  padding:0 8px;min-height:34px;transition:border-color .12s,background .12s,opacity .12s;
+  position:relative;display:flex;align-items:center;justify-content:center;gap:5px;
+  border:1px solid var(--border);border-radius:7px;background:var(--bg3);
+  padding:0 6px;min-height:26px;
+  transition:border-color .12s,background .12s,opacity .12s;
 }
-.role-sel-ico{font-size:13px;flex:none;pointer-events:none;}
+.role-sel-ico{font-size:11px;flex:none;pointer-events:none;}
 .role-sel{
-  flex:1;min-width:0;appearance:none;-webkit-appearance:none;
+  flex:0 1 auto;min-width:0;appearance:none;-webkit-appearance:none;
   background:transparent;border:none;outline:none;cursor:pointer;
-  color:inherit;font-family:var(--font);font-size:12px;font-weight:600;
-  padding:6px 0;text-align:right;text-overflow:ellipsis;
+  color:inherit;font-family:var(--font);font-size:15px;font-weight:600;
+  padding:3px 0;text-overflow:ellipsis;
+  /* text-align לבדו לא ממרכז את הערך הסגור ב-select */
+  text-align:center;text-align-last:center;
 }
-.role-sel option{background:var(--bg2);color:var(--text);font-weight:500;}
-.role-sel:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px;}
+.role-sel option{background:var(--bg2);color:var(--text);font-weight:500;font-size:13px;}
+.role-sel:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:4px;}
 .role-sel-wrap:hover{border-color:var(--text3);}
 .role-sel-wrap.on-glassix{background:rgba(168,85,247,.16);border-color:rgba(168,85,247,.5);color:#a855f7;}
 .role-sel-wrap.on-calls{background:rgba(56,189,248,.16);border-color:rgba(56,189,248,.5);color:#38bdf8;}
 .role-sel-wrap.on-both{background:rgba(34,197,94,.16);border-color:rgba(34,197,94,.5);color:#22c55e;}
 /* ללא שיבוץ ידני — אותו תפקיד (גלאס + שיחות) אך מעומעם ומקווקו */
-.role-sel-wrap.is-default{background:transparent;border-style:dashed;opacity:.6;}
+.role-sel-wrap.is-default{background:transparent;border-style:dashed;opacity:.5;}
 .role-sel-wrap.is-default:hover{opacity:1;}
 /* שינוי שטרם נשמר */
 .role-sel-wrap.is-dirty{box-shadow:0 0 0 2px rgba(245,158,11,.5);border-color:rgba(245,158,11,.7);}
 .role-sel-wrap.is-dirty::after{
-  content:'';position:absolute;top:-4px;inset-inline-end:-4px;
-  width:8px;height:8px;border-radius:50%;background:#f59e0b;
+  content:'';position:absolute;top:-3px;inset-inline-end:-3px;
+  width:7px;height:7px;border-radius:50%;background:#f59e0b;
 }
 .role-sel-wrap:has(.role-sel:disabled){cursor:default;}
 .role-sel:disabled{cursor:default;}
 
 /* ── תא הנציג: ספירה (שמאל) | שם | מחלקה אנכית (ימין) ── */
 .rep-cell{
-  padding:8px 10px 8px 12px;
-  display:flex;align-items:center;gap:10px;
+  padding:3px 8px 3px 6px;
+  display:flex;align-items:center;gap:7px;
   flex-direction:row-reverse;   /* RTL: המחלקה בקצה הימני, הספירה בשמאלי */
 }
 .rep-cell .rep-name{
-  flex:1;min-width:0;font-weight:600;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;
+  flex:1;min-width:0;font-weight:600;font-size:13px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;text-align:center;
 }
 /* שם המחלקה — מסובב אנכית, קטן, בקצה ימין */
 .dept-vert{
   flex:none;writing-mode:vertical-rl;transform:rotate(180deg);
-  font-size:9.5px;font-weight:700;letter-spacing:.03em;
-  line-height:1;padding:3px 2px;border-radius:4px;
-  max-height:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:8.5px;font-weight:700;letter-spacing:.02em;
+  line-height:1;padding:2px 1px;border-radius:3px;
+  max-height:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 /* ספירות — טקסט צבעוני בלבד, בלי באדג' */
 .rep-counts{
-  flex:none;display:flex;flex-direction:column;align-items:flex-start;
-  gap:1px;min-width:52px;
+  flex:none;display:flex;flex-direction:column;align-items:center;
+  gap:0;min-width:44px;
 }
 .rep-counts .cnt{
-  font-size:11px;font-weight:800;line-height:1.35;
+  font-size:10px;font-weight:800;line-height:1.25;
   white-space:nowrap;background:none;padding:0;border-radius:0;
 }
 .cnt-glassix{color:#a855f7;}
 .cnt-calls{color:#38bdf8;}
 
 /* ── כפתורי מיון בכותרת ── */
-.rep-th{display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
-.rep-th .sort-btns{display:flex;gap:4px;}
+.rep-th{display:flex;align-items:center;justify-content:center;gap:8px;}
+.rep-th .sort-btns{display:flex;gap:3px;}
 .sort-btn{
-  display:inline-flex;align-items:center;gap:3px;
-  background:transparent;border:1px solid var(--border);border-radius:6px;
-  padding:2px 7px;font-size:10.5px;font-weight:700;font-family:var(--font);
+  display:inline-flex;align-items:center;gap:2px;
+  background:transparent;border:1px solid var(--border);border-radius:5px;
+  padding:1px 5px;font-size:9.5px;font-weight:700;font-family:var(--font);
   color:var(--text3);cursor:pointer;white-space:nowrap;
   transition:color .12s,border-color .12s,background .12s;
 }
-.sort-btn i{font-size:11px;}
+.sort-btn i{font-size:10px;}
 .sort-btn:hover{color:var(--text);border-color:var(--text3);}
 .sort-btn.on{color:var(--accent);border-color:var(--accent);background:rgba(91,141,238,.1);}
+.sort-glassix i:first-child{color:#a855f7;}
+.sort-calls i:first-child{color:#38bdf8;}
 
-/* ── חיווי שינויים שלא נשמרו ── */
-.duty-dirty{
-  display:inline-flex;align-items:center;gap:2px;
-  font-size:12px;font-weight:700;color:#f59e0b;
-  background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);
-  border-radius:999px;padding:3px 10px 3px 6px;white-space:nowrap;
-}
-.duty-dirty i{font-size:18px;line-height:1;}
-
+/* ── טבלה קומפקטית ── */
+.roles-table th{padding:6px 8px !important;text-align:center;}
 .roles-table th,.roles-table td{border-bottom:1px solid var(--border);}
+.roles-table tbody tr{transition:background .1s;}
+.roles-table tbody tr:hover{background:rgba(255,255,255,.028);}
+.roles-table tbody tr:last-child td{border-bottom:none;}
+/* קו עדין מפריד בין ימי השבוע.
+   הקו על הקצה המתחיל (RTL = ימין) של כל תא יום,
+   כלומר גם מפריד את עמודת הנציג מהיום הראשון. */
+.roles-table th:not(:first-child),
+.roles-table td.role-cell{border-inline-start:1px solid var(--border);}
 .roles-table td.role-today,.roles-table th.role-today{background:rgba(91,141,238,.07);}
+.roles-table th.role-today{box-shadow:inset 0 -2px 0 var(--accent);}
+.roles-table .day-num{font-weight:500;opacity:.6;font-size:10px;}
+
 .dept-chip{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;}
 .dept-service{background:rgba(239,68,68,.12);color:#ef4444;}
 .dept-support{background:rgba(91,141,238,.12);color:var(--accent);}
@@ -400,6 +441,20 @@ $canEdit = Auth::can('canManageDuty');
 </style>
 
 <script>
+// ── העדפות מקומיות (סינון / מיון) ──
+const DUTY_PK = 'v2_duty';
+function dutyGetPref(k, d) {
+  try { const p = JSON.parse(localStorage.getItem(DUTY_PK) || '{}'); return k in p ? p[k] : d; }
+  catch (e) { return d; }
+}
+function dutySetPref(k, v) {
+  try {
+    const p = JSON.parse(localStorage.getItem(DUTY_PK) || '{}');
+    p[k] = v;
+    localStorage.setItem(DUTY_PK, JSON.stringify(p));
+  } catch (e) {}
+}
+
 const DUTY_BASE    = '<?= $base ?>';
 const DUTY_CSRF    = '<?= View::e($csrf) ?>';
 const DUTY_CAN_EDIT = <?= $canEdit ? 'true' : 'false' ?>;
@@ -497,9 +552,9 @@ function dutyRoleSelectHtml(repId, date) {
   const info      = ROLE_INFO[isDefault ? 'both' : role];
   const sel = v => (isDefault ? '' : role) === v ? ' selected' : '';
   const opts =
-    `<option value=""${isDefault ? ' selected' : ''}>גלאס + שיחות (ברירת מחדל)</option>` +
-    `<option value="glassix"${sel('glassix')}>גלאס בלבד</option>` +
-    `<option value="calls"${sel('calls')}>שיחות בלבד</option>`;
+    `<option value=""${isDefault ? ' selected' : ''}>גלאס + שיחות</option>` +
+    `<option value="glassix"${sel('glassix')}>גלאס</option>` +
+    `<option value="calls"${sel('calls')}>שיחות</option>`;
   return `<div class="role-sel-wrap ${info.cls}${isDefault ? ' is-default' : ''}${isDirty ? ' is-dirty' : ''}">
     <i class="bi ${info.icon} role-sel-ico"></i>
     <select class="role-sel"${DUTY_CAN_EDIT ? '' : ' disabled'}
@@ -618,7 +673,7 @@ async function dutyRolesSave() {
 
 /** מרנדר את הטבלה מהנתונים שכבר נטענו (בלי פנייה לשרת) */
 // ── מיון הטבלה לפי ספירת גלאס / שיחות ─────────────────────────────
-let _rolesSort = { key: null, dir: 'desc' };   // key: 'glassix' | 'calls' | null
+let _rolesSort = dutyGetPref('sort', { key: null, dir: 'desc' });   // key: 'glassix' | 'calls' | null
 
 function dutySortRoles(key) {
   if (_rolesSort.key === key) {
@@ -628,6 +683,7 @@ function dutySortRoles(key) {
   } else {
     _rolesSort = { key, dir: 'desc' };
   }
+  dutySetPref('sort', _rolesSort);
   dutyRenderRoles();
 }
 
@@ -653,8 +709,6 @@ function dutyRenderRoles() {
   const days = _rolesDays;
   if (!el || !days.length) return;
 
-  dutyUpdateDeptLabel([...new Set(_rolesReps.map(r => r.department).filter(Boolean))]);
-
   if (!_rolesReps.length) {
     el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);">
       <i class="bi bi-people" style="font-size:32px;display:block;margin-bottom:10px;opacity:.35;"></i>
@@ -677,25 +731,25 @@ function dutyRenderRoles() {
   const reps  = dutySortedReps(visible, days);
   const today = dutyLocalIso(new Date());
   el.innerHTML = `<div class="card" style="padding:0;overflow-x:auto;">
-    <table class="roles-table" style="width:100%;border-collapse:collapse;font-size:14px;min-width:1060px;table-layout:fixed;">
+    <table class="roles-table" style="width:100%;border-collapse:collapse;font-size:14px;min-width:800px;table-layout:fixed;">
       <thead><tr style="background:var(--bg3);font-size:12px;font-weight:700;color:var(--text3);">
-        <th style="padding:10px 16px;text-align:right;width:250px;">
+        <th style="width:215px;">
           <div class="rep-th">
             <span>נציג</span>
             <span class="sort-btns">
-              <button type="button" class="sort-btn ${_rolesSort.key === 'glassix' ? 'on' : ''}"
+              <button type="button" class="sort-btn sort-glassix ${_rolesSort.key === 'glassix' ? 'on' : ''}"
                       onclick="dutySortRoles('glassix')" title="מיון לפי מספר ימי גלאס">
-                <i class="bi ${dutySortIcon('glassix')}"></i> גלאס
+                <i class="bi bi-chat-dots-fill"></i><i class="bi ${dutySortIcon('glassix')}"></i>
               </button>
-              <button type="button" class="sort-btn ${_rolesSort.key === 'calls' ? 'on' : ''}"
+              <button type="button" class="sort-btn sort-calls ${_rolesSort.key === 'calls' ? 'on' : ''}"
                       onclick="dutySortRoles('calls')" title="מיון לפי מספר ימי שיחות">
-                <i class="bi ${dutySortIcon('calls')}"></i> שיחות
+                <i class="bi bi-telephone-fill"></i><i class="bi ${dutySortIcon('calls')}"></i>
               </button>
             </span>
           </div>
         </th>
-        ${days.map((d, i) => `<th class="${d === today ? 'role-today' : ''}" style="padding:10px 6px;text-align:center;white-space:nowrap;">
-          ${DAY_SHORT[i]}&#1523;<div style="font-weight:500;opacity:.7;">${d.slice(8)}/${d.slice(5,7)}</div>
+        ${days.map((d, i) => `<th class="${d === today ? 'role-today' : ''}" style="text-align:center;white-space:nowrap;">
+          ${DAY_SHORT[i]}&#1523; <span class="day-num">${d.slice(8)}/${d.slice(5,7)}</span>
         </th>`).join('')}
       </tr></thead>
       <tbody>${reps.map(rep => {
@@ -739,81 +793,77 @@ async function dutyLoadRoles() {
   }
 }
 
-// ── מסנן מחלקות (בחירה מרובה) ─────────────────────────────────────
-let _deptFilter = null;   // null = הכול; אחרת Set של שמות מחלקות
+// ── מסנן מחלקות (כפתורי toggle + שמירה ב-localStorage) ────────────
+// null = הכול מוצג; אחרת Set של המחלקות המוסתרות
+let _deptHidden = new Set(dutyGetPref('deptHidden', []));
 
-function dutyToggleDeptMenu(e) {
-  e.stopPropagation();
-  document.getElementById('dept-filter').classList.toggle('open');
+function dutyPersistDeptFilter() {
+  dutySetPref('deptHidden', [..._deptHidden]);
 }
-document.addEventListener('click', e => {
-  const f = document.getElementById('dept-filter');
-  if (f && !f.contains(e.target)) f.classList.remove('open');
-});
 
-/** בונה את רשימת הצ'קבוקסים לפי המחלקות שקיימות בפועל */
+/** בונה את כפתורי המחלקות לפי מה שקיים בפועל */
 function dutyBuildDeptMenu(reps) {
-  const menu = document.getElementById('dept-filter-menu');
-  if (!menu) return;
+  const box = document.getElementById('dept-filter');
+  if (!box) return;
   const depts = [...new Set(reps.map(r => r.department).filter(Boolean))].sort();
 
-  // מחלקה שנעלמה מהרשימה לא צריכה להישאר בסינון
-  if (_deptFilter) {
-    _deptFilter = new Set([..._deptFilter].filter(d => depts.includes(d)));
-    if (!_deptFilter.size) _deptFilter = null;
-  }
+  // אין מחלקות — אין מה לסנן, מסתירים את כל הסרגל
+  const bar = box.closest('.filter-bar');
+  if (bar) bar.style.display = depts.length ? '' : 'none';
+  if (!depts.length) { box.innerHTML = ''; return; }
 
-  menu.innerHTML =
-    `<label class="dept-filter-row dept-filter-all">
-       <input type="checkbox" ${!_deptFilter ? 'checked' : ''} onchange="dutySetAllDepts(this.checked)">
-       <span>כל המחלקות</span>
-     </label>
-     <div class="dept-filter-sep"></div>` +
+  // מחלקה שנעלמה מהרשימה לא צריכה להישאר מוסתרת
+  const before = _deptHidden.size;
+  _deptHidden = new Set([..._deptHidden].filter(d => depts.includes(d)));
+  if (_deptHidden.size !== before) dutyPersistDeptFilter();
+
+  const anyHidden = _deptHidden.size > 0;
+  box.innerHTML =
     depts.map(d => {
-      const on = !_deptFilter || _deptFilter.has(d);
-      const dc = DEPT_INFO[d] || { cls:'' };
-      return `<label class="dept-filter-row">
-        <input type="checkbox" ${on ? 'checked' : ''} onchange="dutyToggleDept('${dutyEsc(d).replace(/'/g, "\\'")}',this.checked)">
-        <span class="dept-chip ${dc.cls}">${dutyEsc(d)}</span>
-      </label>`;
-    }).join('');
+      const off = _deptHidden.has(d);
+      const dc  = DEPT_INFO[d] || { cls:'', icon:'' };
+      return `<button type="button" class="dept-btn ${dc.cls}${off ? ' off' : ''}"
+                      onclick="dutyToggleDept('${dutyEsc(d).replace(/'/g, "\\'")}')"
+                      title="${off ? 'מוסתר — לחץ להצגה' : 'מוצג — לחץ להסתרה'}">
+        <i class="bi ${off ? 'bi-x-lg dept-btn-x' : 'bi-check-lg'}"></i>
+        <span>${dutyEsc(d)}</span>
+      </button>`;
+    }).join('') +
+    (anyHidden
+      ? `<button type="button" class="dept-btn dept-btn-reset" onclick="dutyResetDepts()" title="הצג את כל המחלקות">
+           <i class="bi bi-arrow-counterclockwise"></i><span>הצג הכל</span>
+         </button>`
+      : '');
 
-  dutyUpdateDeptLabel(depts);
-}
-
-function dutyUpdateDeptLabel(depts) {
-  const lbl  = document.getElementById('dept-filter-label');
-  const wrap = document.getElementById('dept-filter');
-  if (!lbl || !wrap) return;
-  if (!_deptFilter) {
-    lbl.textContent = 'כל המחלקות';
-    wrap.classList.remove('is-active');
-  } else if (_deptFilter.size === 1) {
-    lbl.textContent = [..._deptFilter][0];
-    wrap.classList.add('is-active');
-  } else {
-    lbl.textContent = `${_deptFilter.size} מתוך ${depts.length} מחלקות`;
-    wrap.classList.add('is-active');
+  // חיווי מצב בקצה הסרגל
+  const hint = document.getElementById('dept-filter-hint');
+  if (hint) {
+    const shown = depts.length - _deptHidden.size;
+    hint.textContent = anyHidden
+      ? `מוצגות ${shown} מתוך ${depts.length} מחלקות`
+      : 'כל המחלקות מוצגות';
   }
 }
 
-function dutySetAllDepts(on) {
-  _deptFilter = on ? null : new Set();   // ביטול הכול = רשימה ריקה
+function dutyToggleDept(dept) {
+  if (_deptHidden.has(dept)) _deptHidden.delete(dept);
+  else                       _deptHidden.add(dept);
+  dutyPersistDeptFilter();
+  dutyBuildDeptMenu(_rolesReps);
   dutyRenderRoles();
 }
 
-function dutyToggleDept(dept, on) {
-  const all = [...new Set(_rolesReps.map(r => r.department).filter(Boolean))];
-  if (!_deptFilter) _deptFilter = new Set(all);   // היה "הכול" — מתחילים ממצב מלא
-  if (on) _deptFilter.add(dept); else _deptFilter.delete(dept);
-  if (_deptFilter.size === all.length) _deptFilter = null;
+function dutyResetDepts() {
+  _deptHidden.clear();
+  dutyPersistDeptFilter();
+  dutyBuildDeptMenu(_rolesReps);
   dutyRenderRoles();
 }
 
 /** הנציגים שמוצגים אחרי סינון */
 function dutyVisibleReps() {
-  if (!_deptFilter) return _rolesReps;
-  return _rolesReps.filter(r => _deptFilter.has(r.department));
+  if (!_deptHidden.size) return _rolesReps;
+  return _rolesReps.filter(r => !_deptHidden.has(r.department));
 }
 
 /** הודעת float קטנה לשמירה בטבלה היומית */
