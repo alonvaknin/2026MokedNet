@@ -101,6 +101,8 @@ CFG['tables']['users'] // שמות טבלאות (רק חלק מהטבלאות ר
 | Activity Log | `/activity-log` | ActivityLogController | |
 | Automation | `/automation` | AutomationController | CronJobs |
 | תורנות (Duty) | `/duty`, `/duty/signage` | DutyController | שיבוץ נציגים שבועי, הנחיות יומיות, **מסך שילוט דיגיטלי (`/duty/signage`)** — עוצב מחדש לאחרונה |
+| דיווח שעות | `/hours` | HoursController | מסך נציג: שמירת שורה בודדת, בורר שעה/תאריך מותאם, מודל התראה בדאשבורד |
+| ניהול דיווח שעות | `/hours/manage` | HoursController | לוח חודשי עובדים×ימים, דרישות דיווח, טבלת דרישות מרכזת, ייצוא XLS |
 | Lab | `/lab` | LabController | מלאי מעבדה, תנועות, יבוא, דוחות אקסל, לוג משתמשים |
 | Invoice Change Name | `/invoice-change-name` | InvoiceChangeNameController | |
 | Accounts | `/accounts` | AccountController | סיסמאות תמיכה |
@@ -133,6 +135,38 @@ CFG['tables']['users'] // שמות טבלאות (רק חלק מהטבלאות ר
 ### Endpoint עצמאי (לא Router) — תבנית חדשה
 
 `public/api/game-score.php`, `public/api/game-leaderboard.php` (ותיקיית `public/api/crm/*` הישנה) עוקפים את ה-Router/Controller לגמרי: `require config/bootstrap.php` ישירות, בדיקת `Auth::user()` + CSRF (מ-header או מגוף ה-JSON), מחזירים JSON. משתמשים ב-`sendBeacon` לשמירה לפני `beforeunload`. **שים לב: לא כל ה-API עובר דרך `routes.php`.**
+
+### חגים — `src/Core/Holidays.php`
+
+מקור אמת יחיד לחגי ישראל. המפה הייתה קשיחה ב-JS בתוך
+`views/components/calendar-widget.php` והועברה ל-PHP כדי שגם השרת יוכל לסווג
+ימים (נדרש לייצוא דיווח השעות). הווידג'ט צורך אותה כעת דרך
+`json_encode(Holidays::all())` ולא מחזיק עותק משלו.
+
+- `Holidays::dayType($date)` → `work|fri|sat|hol|erev|chol`
+- **שישי ושבת גוברים על סיווג החג** — חג שנופל בשבת יחזיר `sat`
+- **"ערב חג" נגזר אוטומטית** מהיום שלפני כל חג (`t='e'`), אלא אם הוא עצמו
+  חג או חול המועד
+- ⚠️ **המפה מכסה ~2023–2027 בלבד וצריכה עדכון ידני** כשהיא נגמרת
+
+### מודול דיווח שעות — נקודות שאינן מובנות מאליהן
+
+- **טבלה אחת** (`hours_entries`) משמשת גם כדרישת דיווח וגם כדיווח בפועל.
+  שורה עם שעות ריקות = דרישה שהמנהל יצר; הנציג ממלא אותה והיא הופכת לדיווח.
+- **`requires`** (`both|in|out`) מגדיר **מה חוסם סגירה**, לא מה מותר למלא.
+  שדות ריקים תמיד פתוחים לנציג; ננעלים רק שדות שהמנהל עצמו מילא.
+- **סיבת היעדרות היא תמיד חלופה של הנציג** — בחירת `entry_type` שאינו
+  `regular` סוגרת כל שורה, ללא קשר ל-`requires`.
+- **`views/components/hours-table.php`** משותף למסך הנציג ולמודל הדאשבורד.
+  ה-`<script>` שבתוכו **אינו רץ** כשהרכיב מוזרק דרך `innerHTML`, ולכן
+  `hours-modal.php` מגדיר בעצמו את אותם globals תחת `if (!window.X)`.
+  **שינוי בלוגיקה של אחד מהם מחייב שינוי מקביל בשני.**
+- **הרשאות:** `canReportHours` / `canManageHours`. שתיהן רשומות בשתי
+  הרשימות ב-`UserModel` (המקובצת ל-UI, ו-`PERM_LABELS` לשמירה) — מפתח
+  שחסר באחת מהן לא ניתן להענקה או לא נשמר.
+- **לוח המנהל מציג רק** משתמשים שקבוצתם מקנה אחת משתי ההרשאות.
+- **ייצוא XLS** מפיק SpreadsheetML 2003 (XML) ולא אקסל בינארי — אין Composer
+  ולכן אין PhpSpreadsheet. `HoursExporter::build()` טהורה וללא DB.
 
 ### Patterns JS נפוצים
 
@@ -168,7 +202,7 @@ showToast('הודעה', 'success'); // success | error | warning
 | `nav_permissions` | הרשאות ניווט לקבוצה |
 | `lab_inventory_items` / `lab_inventory_movements` / `lab_inventory_logs` | מלאי מעבדה |
 
-**טבלאות נוספות (hardcoded, לא ב-CFG):** `task_types`, `task_statuses` (עם `is_closed`), `task_comments`, `task_watchers`, `accounts`, `activity_log`, `area_managers`, `area_manager_stores`, `automations`, `contacts`, `crm_caller_notes`, `cron_log`, `duty_representatives`, `duty_schedule`, `duty_daily_guidance`, `guidance`, `formatter_templates`, `formatter_fields`, `invoice_change_name`, `mokedAccounts`, `navBar`, `password_reset_tokens`, `pref_value`, `user_preferences`, `supportIssues`, `SupportProducts`, `SupportProductsCategory`, `SupportProductsManufactures`, `game_scores` (BubblePop).
+**טבלאות נוספות (hardcoded, לא ב-CFG):** `task_types`, `task_statuses` (עם `is_closed`), `task_comments`, `task_watchers`, `accounts`, `activity_log`, `area_managers`, `area_manager_stores`, `automations`, `contacts`, `crm_caller_notes`, `cron_log`, `duty_representatives`, `duty_schedule`, `duty_daily_guidance`, `guidance`, `formatter_templates`, `formatter_fields`, `invoice_change_name`, `mokedAccounts`, `navBar`, `password_reset_tokens`, `pref_value`, `user_preferences`, `supportIssues`, `SupportProducts`, `SupportProductsCategory`, `SupportProductsManufactures`, `game_scores` (BubblePop), `hours_entries` (דיווח שעות).
 
 טבלאות V1 (`alon_db`, דרך `DB::v1*`): `CronJob`, `callStatus`, ועוד טבלאות legacy.
 
