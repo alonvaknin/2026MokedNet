@@ -74,10 +74,12 @@
 .cal-day.hol-c{color:#d97706;border:1px solid #8b5cf6;}
 .cal-day.hol-i{color:#06b6d4;font-weight:600;border:1px solid #8b5cf6;}
 .cal-day.hol-r{color:#8b5cf6;border:1px solid #8b5cf6;}
+.cal-day.hol-e{color:#fbbf24;border:1px dashed #fbbf24;}
 .cal-day.hol-h::before{content:'★';position:absolute;top:1px;right:1px;font-size:7px;color:#f59e0b;line-height:1;}
 .cal-day.hol-c::before{content:'◐';position:absolute;top:1px;right:1px;font-size:7px;color:#d97706;line-height:1;}
 .cal-day.hol-i::before{content:'✦';position:absolute;top:1px;right:1px;font-size:7px;color:#06b6d4;line-height:1;}
 .cal-day.hol-r::before{content:'●';position:absolute;top:1px;right:1px;font-size:6px;color:#8b5cf6;line-height:1;}
+.cal-day.hol-e::before{content:'◑';position:absolute;top:1px;right:1px;font-size:7px;color:#fbbf24;line-height:1;}
 #cal-panel.cal-sz-l .cal-day[class*="hol-"]::before{font-size:7px;}
 /* range */
 .cal-day.cal-inr{background:rgba(91,141,238,.13);color:var(--accent);border-color:rgba(91,141,238,.12);border-radius:0!important;}
@@ -215,16 +217,17 @@ function _cStats(t0,t1){
   var s=new Date(Math.min(t0,t1));s.setHours(0,0,0,0);
   var e=new Date(Math.max(t0,t1));e.setHours(0,0,0,0);
   var tot=0,wk=0,fr=0,sa=0,hl=0,ch=0,na=0,evs=[];
-  var c=new Date(s.getTime());
+  var c=new Date(s.getTime()),er=0;
   while(c<=e){
     tot++;var ct=_cCat(c),h=_cHol(c);
+    if(_CS.hols&&h&&h.t==='e')er++;
     if(ct==='sat')sa++;else if(ct==='fri')fr++;
     else if(ct==='hol'){if(h&&h.t==='i')na++;else hl++;}
     else if(ct==='chol')ch++;else wk++;
     if(h&&_CS.hols)evs.push({d:new Date(c.getTime()),n:h.n,t:h.t});
     c.setDate(c.getDate()+1);
   }
-  return{tot:tot,wk:wk,fr:fr,sa:sa,hl:hl,ch:ch,na:na,evs:evs};
+  return{tot:tot,wk:wk,fr:fr,sa:sa,hl:hl,ch:ch,na:na,er:er,evs:evs};
 }
 
 /* ═══ RENDER ═══ */
@@ -296,7 +299,7 @@ function _cApplyRange(){
 function _cLegend(){
   var el=document.getElementById('cal-leg');if(!el)return;
   var items=[{c:'var(--accent)',l:'היום'},{c:'rgba(34,197,94,.6)',l:'יום עסקים'},{c:'#f59e0b',l:'שישי'},{c:'#ef4444',l:'שבת'},{c:'rgba(91,141,238,.5)',l:'טווח'}];
-  if(_CS.hols)items=items.concat([{c:'#f59e0b',l:'חג ★'},{c:'#d97706',l:'חוה״מ ◐'},{c:'#06b6d4',l:'עצמאות'},{c:'#8b5cf6',l:'זיכרון'}]);
+  if(_CS.hols)items=items.concat([{c:'#f59e0b',l:'חג ★'},{c:'#fbbf24',l:'ערב חג ◑'},{c:'#d97706',l:'חוה״מ ◐'},{c:'#06b6d4',l:'עצמאות'},{c:'#8b5cf6',l:'זיכרון'}]);
   el.innerHTML=items.map(function(i){return'<div class="cal-lgi"><div class="cal-lgd" style="background:'+i.c+'"></div><span>'+i.l+'</span></div>';}).join('');
 }
 
@@ -402,6 +405,7 @@ function _cPopRange(s,e,te,be){
   html+='<div class="cp-row cp-rw"><span class="ll">💼 ימי עסקים'+(_CS.hols?' ללא חגים':'')+'</span><span class="vv">'+st.wk+'</span></div>';
   if(_CS.hols&&st.ch>0)html+='<div class="cp-row cp-rc"><span class="ll">📿 חול המועד</span><span class="vv">'+st.ch+'</span></div>';
   if(_CS.hols&&st.hl>0)html+='<div class="cp-row cp-rh"><span class="ll">✡ ימי חג</span><span class="vv">'+st.hl+'</span></div>';
+  if(_CS.hols&&st.er>0)html+='<div class="cp-row cp-rh"><span class="ll">◑ ערבי חג</span><span class="vv">'+st.er+'</span></div>';
   if(_CS.hols&&st.na>0)html+='<div class="cp-row cp-rn"><span class="ll">✦ עצמאות</span><span class="vv">'+st.na+'</span></div>';
   if(st.fr>0)html+='<div class="cp-row cp-rf"><span class="ll">🟡 שישי</span><span class="vv">'+st.fr+'</span></div>';
   if(st.sa>0)html+='<div class="cp-row cp-rs"><span class="ll">🔴 שבת</span><span class="vv">'+st.sa+'</span></div>';
