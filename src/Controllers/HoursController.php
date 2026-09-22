@@ -291,4 +291,32 @@ class HoursController extends Controller
         HoursModel::setMark($id, (bool)($b['on'] ?? false));
         $this->json(['ok' => true, 'marked' => HoursModel::markedCount()]);
     }
+
+    /**
+     * GET /hours/export — הורדת השורות המסומנות כ-SpreadsheetML.
+     * זהו GET (הורדה ישירה מהדפדפן) ולכן אין טוקן CSRF לאמת.
+     */
+    public function exportXls(): void
+    {
+        $this->requirePermission('canManageHours');
+
+        $rows = HoursModel::markedRows();
+        if (!$rows) {
+            $this->json(['error' => 'לא נבחרו שורות לדיווח'], 400);
+            return;
+        }
+
+        $xml = \Services\HoursExporter::build($rows);
+
+        HoursModel::stampExported(array_column($rows, 'id'));
+        \Core\ActivityLog::log('ייצוא דיווח שעות', 'hours_entry', null, null,
+                               'יוצאו ' . count($rows) . ' שורות');
+
+        $name = 'hours-' . date('Y-m-d') . '.xls';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $name . '"');
+        header('Content-Length: ' . strlen($xml));
+        echo $xml;
+        exit;
+    }
 }

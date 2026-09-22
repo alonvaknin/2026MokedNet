@@ -196,3 +196,4 @@ $router->post('/hours/request/bulk',      'Controllers\\HoursController@addBulkR
 $router->post('/hours/entry/{id}/update', 'Controllers\\HoursController@managerUpdate');
 $router->post('/hours/entry/{id}/delete', 'Controllers\\HoursController@deleteEntry');
 $router->post('/hours/mark',              'Controllers\\HoursController@toggleMark');
+$router->get ('/hours/export',            'Controllers\\HoursController@exportXls');
