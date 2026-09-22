@@ -741,17 +741,18 @@ function hmExport() {
   border-radius:5px;padding:3px 4px;margin:2px 0;white-space:nowrap;
   border-inline-start:3px solid transparent;
   font-family:'SF Mono',Consolas,monospace;direction:ltr}
-.hm-ok{background:rgba(34,197,94,.22);color:#86efac;border-inline-start-color:#22c55e}
-.hm-wait{background:rgba(245,158,11,.26);color:#fcd34d;border-inline-start-color:#f59e0b;
+.hm-ok{background:#14351f;color:#7ee2a8;border-inline-start-color:#22c55e}
+.hm-wait{background:#4a3105;color:#ffd97a;border-inline-start-color:#f59e0b;
   animation:hmPulse 2.4s ease-in-out infinite}
-.hm-abs{background:rgba(59,130,246,.22);color:#93c5fd;border-inline-start-color:#3b82f6;
+.hm-abs{background:#152a4d;color:#9cc4fb;border-inline-start-color:#3b82f6;
   font-family:var(--font);direction:rtl}
-@keyframes hmPulse{0%,100%{opacity:1}50%{opacity:.62}}
+@keyframes hmPulse{0%,100%{border-inline-start-color:#f59e0b}
+  50%{border-inline-start-color:#fbbf24}}
 /* שישי/שבת — ימי מנוחה, מעומעמים כדי שלא יתחרו על תשומת הלב */
 .hm-day-fri,.hm-day-sat{background:rgba(0,0,0,.28)}
 th.hm-day-fri,th.hm-day-sat{opacity:.45}
-td.hm-cell.hm-day-fri,td.hm-cell.hm-day-sat{opacity:.5}
-td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
+/* תאי שישי/שבת מובחנים ברקע הכהה בלבד. אין עליהם opacity:
+   הוא היה מחליש גם צ'יפים שיושבים בתוכם, ואי אפשר לבטל זאת מהילד. */
 .hm-day-sat{background:rgba(0,0,0,.38)}
 
 .hm-day-hol{background:rgba(245,158,11,.12)}
