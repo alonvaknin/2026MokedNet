@@ -98,4 +98,91 @@ class HoursModel
             ]
         );
     }
+
+    /* ── שכבת המנהל ── */
+
+    public static function activeUsers(): array
+    {
+        return DB::query(
+            "SELECT id, CONCAT(first_name,' ',last_name) AS full_name
+             FROM users WHERE is_active = 1 ORDER BY first_name ASC, last_name ASC"
+        );
+    }
+
+    /** [userId => ['YYYY-MM-DD' => [rows...]]] */
+    public static function monthGrid(string $month): array
+    {
+        $rows = DB::query(
+            self::SELECT . " WHERE DATE_FORMAT(work_date, '%Y-%m') = ?
+                             ORDER BY work_date ASC, id ASC",
+            [$month]
+        );
+        $grid = [];
+        foreach ($rows as $r) {
+            $grid[(int)$r['user_id']][$r['work_date']][] = $r;
+        }
+        return $grid;
+    }
+
+    public static function forUserDate(int $userId, string $date): array
+    {
+        return DB::query(
+            self::SELECT . ' WHERE user_id = ? AND work_date = ? ORDER BY id ASC',
+            [$userId, $date]
+        );
+    }
+
+    /** עדכון בידי מנהל — כולל requires, שהנציג אינו רשאי לשנות */
+    public static function managerUpdate(int $id, array $d): void
+    {
+        $status = self::isComplete($d) ? 'filled' : 'requested';
+        DB::execute(
+            'UPDATE hours_entries
+                SET entry_type = ?, time_in = ?, time_out = ?, requires = ?,
+                    note = ?, status = ?, filled_by = ?
+              WHERE id = ?',
+            [
+                $d['entry_type'] ?? 'regular',
+                ($d['time_in'] ?? null) ?: null, ($d['time_out'] ?? null) ?: null,
+                $d['requires'] ?? 'both', $d['note'] ?? null, $status,
+                $status === 'filled' ? ($d['filled_by'] ?? null) : null, $id,
+            ]
+        );
+    }
+
+    public static function deleteEntry(int $id): void
+    {
+        DB::execute('DELETE FROM hours_entries WHERE id = ?', [$id]);
+    }
+
+    public static function setMark(int $id, bool $on): void
+    {
+        DB::execute('UPDATE hours_entries SET marked_for_export = ? WHERE id = ?', [$on ? 1 : 0, $id]);
+    }
+
+    public static function markedCount(): int
+    {
+        return (int)DB::value('SELECT COUNT(*) FROM hours_entries WHERE marked_for_export = 1');
+    }
+
+    public static function markedRows(): array
+    {
+        return DB::query(
+            "SELECT h.*, CONCAT(u.first_name,' ',u.last_name) AS full_name
+             FROM hours_entries h
+             LEFT JOIN users u ON u.id = h.user_id
+             WHERE h.marked_for_export = 1
+             ORDER BY u.first_name ASC, h.work_date ASC, h.id ASC"
+        );
+    }
+
+    public static function stampExported(array $ids): void
+    {
+        if (!$ids) return;
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        DB::execute(
+            "UPDATE hours_entries SET exported_at = NOW() WHERE id IN ($ph)",
+            array_map('intval', array_values($ids))
+        );
+    }
 }
