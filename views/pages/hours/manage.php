@@ -264,13 +264,6 @@ function hlSetMarked(n) {
     <details class="hm-add">
       <summary><i class="bi bi-plus-circle"></i> הוסף דרישה חדשה</summary>
       <div class="hm-form">
-        <label>דרוש:
-          <select id="hm-req">
-            <option value="both">כניסה ויציאה</option>
-            <option value="in">כניסה בלבד</option>
-            <option value="out">יציאה בלבד</option>
-          </select>
-        </label>
         <label>כניסה:
           <span class="ht-tw"><input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
         </label>
@@ -278,6 +271,7 @@ function hlSetMarked(n) {
           <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
         </label>
         <label class="hm-f-note">הערה: <input type="text" id="hm-note" maxlength="500"></label>
+        <div class="hm-req-hint" id="hm-req-hint"></div>
         <button type="button" class="btn btn-primary hm-add-btn" onclick="hmAddRequest()">
           <i class="bi bi-plus-lg"></i> הוסף
         </button>
@@ -494,6 +488,7 @@ function hmOpenCell(uid, date) {
     HM_CTX.user = uid; HM_CTX.date = date;
     document.getElementById('hm-title').textContent = date;
     document.getElementById('hm-modal').classList.add('open');
+    if (typeof hmReqHint === 'function') hmReqHint();
     hmLoadRows();
 }
 
@@ -588,21 +583,54 @@ function hmDelRow(id) {
     }).catch(function () { showToast('שגיאת רשת', 'error'); });
 }
 
+/* "דרוש" נגזר ממה שהמנהל מילא: מילא כניסה → דרושה יציאה,
+   מילא יציאה → דרושה כניסה, לא מילא כלום → דרושות שתיהן. */
+function hmDeriveReq(tin, tout) {
+    if (tin && !tout) return 'out';
+    if (tout && !tin) return 'in';
+    return 'both';   /* שניהם ריקים, או שניהם מלאים (אז אין מה להשלים ממילא) */
+}
+
+function hmReqHint() {
+    var el = document.getElementById('hm-req-hint');
+    if (!el) return;
+    var tin  = (document.getElementById('hm-in')  || {}).value || '';
+    var tout = (document.getElementById('hm-out') || {}).value || '';
+    var txt = { out:  'הנציג יתבקש להשלים <b>שעת יציאה</b>',
+                in:   'הנציג יתבקש להשלים <b>שעת כניסה</b>',
+                both: 'הנציג יתבקש להשלים <b>כניסה ויציאה</b>' }[hmDeriveReq(tin, tout)];
+    if (tin && tout) txt = 'השורה מלאה — תיווצר כדיווח מושלם, ללא דרישה מהנציג';
+    /* בבחירה מרובה השעות אינן נשמרות, ולכן הדרישה תמיד "כניסה ויציאה" */
+    if (HM_CTX.sel.length > 1)
+        txt = 'בחירה מרובה (' + HM_CTX.sel.length + ' תאים) — ' +
+              'כל נציג יתבקש להשלים <b>כניסה ויציאה</b>, ללא שעות מוקדמות';
+    el.innerHTML = '<i class="bi bi-info-circle"></i> ' + txt;
+}
+
+['hm-in', 'hm-out'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) { el.addEventListener('input', hmReqHint); el.addEventListener('change', hmReqHint); }
+});
+document.addEventListener('DOMContentLoaded', hmReqHint);
+hmReqHint();
+
 function hmAddRequest() {
     var inEl = document.getElementById('hm-in'), outEl = document.getElementById('hm-out');
     var tin = hmTime(inEl), tout = hmTime(outEl);
     if (tin === null || tout === null) { showToast('שעה לא תקינה — פורמט HH:MM', 'error'); return; }
 
     var body = {
-        requires: document.getElementById('hm-req').value,
+        requires: hmDeriveReq(tin, tout),
         time_in:  tin,
         time_out: tout,
         note:     document.getElementById('hm-note').value
     };
 
-    /* בחירה מרובה → bulk */
+    /* בחירה מרובה → bulk. השרת לא שומר שעות בנתיב הזה, ולכן
+       הדרישה היא תמיד "כניסה ויציאה" ולא נגזרת מהשדות. */
     if (HM_CTX.sel.length > 1) {
-        body.cells = HM_CTX.sel;
+        body.cells    = HM_CTX.sel;
+        body.requires = 'both';
         hmPost('/hours/request/bulk', body).then(function (d) {
             if (d.error) { showToast(d.error, 'error'); return; }
             showToast('נוצרו ' + d.created + ' דרישות', 'success');
@@ -616,6 +644,7 @@ function hmAddRequest() {
     hmPost('/hours/request/add', body).then(function (d) {
         if (d.error) { showToast(d.error, 'error'); return; }
         showToast('נוספה דרישה', 'success');
+        hmReqHint();
         location.reload();
     }).catch(function () { showToast('שגיאת רשת', 'error'); });
 }
@@ -672,6 +701,7 @@ document.addEventListener('mouseup', function () {
         var c0 = document.getElementById('hm-rows-count');
         if (c0) c0.textContent = '';
         document.getElementById('hm-modal').classList.add('open');
+        if (typeof hmReqHint === 'function') hmReqHint();
         return;
     }
 
@@ -809,6 +839,11 @@ td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
 .hm-add .hm-form{padding:13px}
 .hm-add-btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;
   padding:9px 18px}
+.hm-req-hint{flex-basis:100%;display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--text3);background:var(--bg4);border-radius:7px;
+  padding:7px 11px;margin-top:2px}
+.hm-req-hint i{color:var(--accent);font-size:13px}
+.hm-req-hint b{color:var(--text2);font-weight:700}
 .hm-r input[type=text].r-note{flex:1;min-width:120px}
 .hm-form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .hm-form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text3)}
