@@ -260,6 +260,8 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
     </button> -->
     <div class="topbar-spacer"></div>
     <div id="page-title"><span class="crumb-current" id="crumb-text">דשבורד</span></div>
+    <button type="button" id="hours-bell" class="topbar-icon-btn" onclick="hoursOpenModal()"
+            title="שעות לעדכון"><i class="bi bi-clock-history"></i><span id="hours-badge">0</span></button>
     <div style="position:relative;">
       <div class="topbar-avatar-btn"
            style="background:linear-gradient(135deg,var(--accent),#c084fc)"
@@ -2037,5 +2039,7 @@ window.prank=function(index){
 
 })();
 </script>
+
+<?php View::component('hours-modal', []); ?>
 </body>
 </html>

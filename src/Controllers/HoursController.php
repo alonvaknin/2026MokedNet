@@ -123,6 +123,35 @@ class HoursController extends Controller
         $this->json(['ok' => true, 'id' => $id]);
     }
 
+    /* ── התראת הדאשבורד ── */
+
+    /**
+     * נקרא מכל עמוד במערכת דרך ה-layout, ולכן אינו נכשל למי שאין לו את ההרשאה —
+     * מחזיר 0 בשקט כדי שהפעמון פשוט יישאר מוסתר.
+     */
+    public function apiPendingCount(): void
+    {
+        $this->requireAuth();
+        if (!Auth::can('canReportHours')) {
+            $this->json(['count' => 0]);
+            return;
+        }
+        $this->json(['count' => HoursModel::pendingCount((int)Auth::user()['id'])]);
+    }
+
+    public function apiPendingList(): void
+    {
+        $this->requirePermission('canReportHours');
+        $rows = HoursModel::pendingForUser((int)Auth::user()['id']);
+
+        // View::component() מדפיסה ומחזירה void — לוכדים את הפלט לבאפר
+        ob_start();
+        \Core\View::component('hours-table', ['rows' => $rows, 'context' => 'modal']);
+        $html = (string)ob_get_clean();
+
+        $this->json(['html' => $html]);
+    }
+
     /* ── שכבת המנהל ── */
 
     public function manage(): void

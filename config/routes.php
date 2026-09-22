@@ -197,3 +197,7 @@ $router->post('/hours/entry/{id}/update', 'Controllers\\HoursController@managerU
 $router->post('/hours/entry/{id}/delete', 'Controllers\\HoursController@deleteEntry');
 $router->post('/hours/mark',              'Controllers\\HoursController@toggleMark');
 $router->get ('/hours/export',            'Controllers\\HoursController@exportXls');
+
+// Hours Reporting — התראת הדאשבורד
+$router->get ('/api/hours/pending-count', 'Controllers\\HoursController@apiPendingCount');
+$router->get ('/api/hours/pending',       'Controllers\\HoursController@apiPendingList');
