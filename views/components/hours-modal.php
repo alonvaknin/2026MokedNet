@@ -78,7 +78,8 @@
 .ht-pop-live{font-size:19px;font-weight:800;letter-spacing:1px;text-align:center;
   color:var(--accent);direction:ltr;margin-bottom:9px;
   font-family:'SF Mono',Consolas,monospace}
-.ht-pop-cols{display:flex;gap:9px}
+/* row-reverse: שעה משמאל ודקות מימין, בהתאמה לתצוגת ה-HH:MM שמעל */
+.ht-pop-cols{display:flex;flex-direction:row-reverse;gap:9px}
 .ht-pop-col{display:flex;flex-direction:column}
 .ht-pop-lbl{font-size:10px;font-weight:700;color:var(--text3);text-align:center;
   padding:3px 0;margin-bottom:4px;background:var(--bg3);border-radius:5px}
