@@ -216,28 +216,43 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
 <!-- מודל התא -->
 <div id="hm-modal" class="hm-overlay" onclick="if(event.target===this)hmClose()">
   <div class="hm-box">
-    <div class="hm-head"><h2 id="hm-title">—</h2>
-      <button type="button" class="hm-x" onclick="hmClose()">✕</button></div>
-    <div id="hm-rows"></div>
-    <hr>
-    <h3>הוסף דרישה</h3>
-    <div class="hm-form">
-      <label>דרוש:
-        <select id="hm-req">
-          <option value="both">כניסה ויציאה</option>
-          <option value="in">כניסה בלבד</option>
-          <option value="out">יציאה בלבד</option>
-        </select>
-      </label>
-      <label>כניסה:
-        <span class="ht-tw"><input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
-      </label>
-      <label>יציאה:
-        <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
-      </label>
-      <label>הערה: <input type="text" id="hm-note" maxlength="500"></label>
-      <button type="button" class="btn btn-primary" onclick="hmAddRequest()">הוסף</button>
+    <div class="hm-head">
+      <h2 id="hm-title">—</h2>
+      <button type="button" class="hm-x" onclick="hmClose()">✕</button>
     </div>
+
+    <!-- אזור השורות — העיקר במודל -->
+    <div class="hm-rows-wrap">
+      <div class="hm-sec-hd">
+        <i class="bi bi-list-check"></i> שורות לדיווח
+        <span class="hm-sec-c" id="hm-rows-count"></span>
+      </div>
+      <div id="hm-rows"></div>
+    </div>
+
+    <!-- הוספת דרישה — מקופל, נפתח בלחיצה -->
+    <details class="hm-add">
+      <summary><i class="bi bi-plus-circle"></i> הוסף דרישה חדשה</summary>
+      <div class="hm-form">
+        <label>דרוש:
+          <select id="hm-req">
+            <option value="both">כניסה ויציאה</option>
+            <option value="in">כניסה בלבד</option>
+            <option value="out">יציאה בלבד</option>
+          </select>
+        </label>
+        <label>כניסה:
+          <span class="ht-tw"><input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
+        </label>
+        <label>יציאה:
+          <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
+        </label>
+        <label class="hm-f-note">הערה: <input type="text" id="hm-note" maxlength="500"></label>
+        <button type="button" class="btn btn-primary hm-add-btn" onclick="hmAddRequest()">
+          <i class="bi bi-plus-lg"></i> הוסף
+        </button>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -459,10 +474,14 @@ function hmLoadRows() {
           '&date=' + encodeURIComponent(HM_CTX.date))
       .then(function (r) { return r.json(); })
       .then(function (d) {
+          var cEl = document.getElementById('hm-rows-count');
           if (!d.rows || !d.rows.length) {
-              box.innerHTML = '<p class="hm-none">אין שורות ליום זה</p>';
+              if (cEl) cEl.textContent = '';
+              box.innerHTML = '<p class="hm-none"><i class="bi bi-inbox"></i> ' +
+                              'אין שורות ליום זה — ניתן להוסיף דרישה למטה</p>';
               return;
           }
+          if (cEl) cEl.textContent = d.rows.length;
           box.innerHTML = d.rows.map(function (r) {
               return '<div class="hm-r" data-id="' + parseInt(r.id, 10) + '">' +
                 '<select class="r-type">' + Object.keys(HM_TYPES).map(function (k) {
@@ -479,10 +498,12 @@ function hmLoadRows() {
                              lbl + '</option>'; }).join('') + '</select>' +
                 '<input type="text" class="r-note" maxlength="500" value="' + hmEsc(r.note || '') +
                   '" placeholder="הערה">' +
-                '<label class="r-mark"><input type="checkbox" class="r-chk"' +
-                   (String(r.marked_for_export) === '1' ? ' checked' : '') + '> לדיווח</label>' +
-                '<button type="button" onclick="hmSaveRow(' + parseInt(r.id, 10) + ')">שמור</button>' +
-                '<button type="button" class="r-del" onclick="hmDelRow(' + parseInt(r.id, 10) + ')">🗑</button>' +
+                '<label class="r-mark" title="כלול בקובץ הייצוא"><input type="checkbox" class="r-chk"' +
+                   (String(r.marked_for_export) === '1' ? ' checked' : '') + '><span>לדיווח</span></label>' +
+                '<button type="button" class="r-save" onclick="hmSaveRow(' + parseInt(r.id, 10) + ')">' +
+                  '<i class="bi bi-check-lg"></i> שמור</button>' +
+                '<button type="button" class="r-del" title="מחיקת השורה" ' +
+                  'onclick="hmDelRow(' + parseInt(r.id, 10) + ')"><i class="bi bi-trash3"></i></button>' +
                 '</div>';
           }).join('');
 
@@ -523,6 +544,7 @@ function hmSaveRow(id) {
     }).then(function (d) {
         if (d.error) { showToast(d.error, 'error'); return; }
         showToast('נשמר', 'success');
+        HM_CTX.dirty = true;
     }).catch(function () { showToast('שגיאת רשת', 'error'); });
 }
 
@@ -531,6 +553,7 @@ function hmDelRow(id) {
     hmPost('/hours/entry/' + id + '/delete', {}).then(function (d) {
         if (d.error) { showToast(d.error, 'error'); return; }
         showToast('נמחק', 'success');
+        HM_CTX.dirty = true;
         hmLoadRows();
     }).catch(function () { showToast('שגיאת רשת', 'error'); });
 }
@@ -570,6 +593,8 @@ function hmAddRequest() {
 function hmClose() {
     document.getElementById('hm-modal').classList.remove('open');
     hmClearSel();
+    /* הרשת וטבלת הדרישות מרונדרות בשרת — רענון כדי שלא יוצגו נתונים ישנים */
+    if (HM_CTX.dirty) location.reload();
 }
 
 /* ── בחירה מרובה בגרירה ──
@@ -614,6 +639,8 @@ document.addEventListener('mouseup', function () {
         document.getElementById('hm-title').textContent = 'נבחרו ' + HM_CTX.sel.length + ' תאים';
         document.getElementById('hm-rows').innerHTML =
             '<p class="hm-none">בחירה מרובה — ניתן להוסיף דרישה לכולם</p>';
+        var c0 = document.getElementById('hm-rows-count');
+        if (c0) c0.textContent = '';
         document.getElementById('hm-modal').classList.add('open');
         return;
     }
@@ -685,17 +712,79 @@ td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
 .hm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;
   align-items:flex-start;justify-content:center;padding-top:60px}
 .hm-overlay.open{display:flex}
-.hm-box{background:var(--bg,#12121a);border:1px solid var(--border,#2a2a3a);border-radius:12px;
+.hm-box{background:var(--bg,#12121a);border:1px solid var(--border,#2a2a3a);border-radius:14px;
   width:min(920px,94vw);max-height:80vh;overflow:auto;padding:20px}
 .hm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .hm-head h2{margin:0;font-size:18px}
 .hm-x{background:none;border:0;color:var(--text3);font-size:20px;cursor:pointer}
-.hm-r{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+/* ── אזור השורות: העיקר במודל ── */
+.hm-rows-wrap{background:var(--bg2,#1a1a24);border:1px solid var(--border,#2a2a3a);
+  border-radius:10px;padding:12px 13px 13px;margin-bottom:16px}
+.hm-sec-hd{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
+  color:var(--text2);margin-bottom:11px}
+.hm-sec-hd i{color:var(--accent);font-size:14px}
+.hm-sec-c{background:var(--accent);color:#fff;font-size:11px;font-weight:800;
+  border-radius:10px;padding:1px 8px;min-width:20px;text-align:center}
+#hm-rows{max-height:46vh;overflow-y:auto;scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent}
+#hm-rows::-webkit-scrollbar{width:5px}
+#hm-rows::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px}
+
+.hm-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  background:var(--bg,#12121a);border:1px solid var(--border,#2a2a3a);
+  border-radius:9px;padding:9px 11px;margin-bottom:8px;transition:border-color .13s}
+.hm-r:last-child{margin-bottom:0}
+.hm-r:hover{border-color:var(--border2,#3a3a4a)}
+.hm-r select{background:var(--bg4);color:var(--text);border:1px solid var(--border);
+  border-radius:7px;padding:7px 9px;font-family:var(--font);font-size:13px}
+
+/* צ'קבוקס "לדיווח" — מודגש וברור */
+.r-mark{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--bg4);border:1px solid var(--border);border-radius:20px;
+  padding:6px 13px 6px 11px;font-size:12px;font-weight:700;color:var(--text3);
+  white-space:nowrap;transition:all .13s;user-select:none}
+.r-mark:hover{border-color:rgba(124,92,255,.5);color:var(--text2)}
+.r-mark input{width:17px;height:17px;cursor:pointer;accent-color:var(--accent);margin:0}
+.r-mark:has(input:checked){background:rgba(124,92,255,.16);
+  border-color:rgba(124,92,255,.55);color:#c4b5fd}
+
+/* שמירה — הפעולה הראשית */
+.r-save{display:inline-flex;align-items:center;gap:6px;background:var(--accent);
+  color:#fff;border:0;border-radius:8px;padding:9px 18px;cursor:pointer;
+  font-family:var(--font);font-size:13px;font-weight:700;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(91,141,238,.32);transition:all .13s}
+.r-save:hover{filter:brightness(1.12);box-shadow:0 4px 14px rgba(91,141,238,.45)}
+.r-save:active{transform:scale(.96)}
+.r-save i{font-size:14px}
+
+/* מחיקה — הרסני, ולכן מובחן ולא צועק */
+.r-del{display:inline-flex;align-items:center;justify-content:center;
+  width:38px;height:38px;background:rgba(239,68,68,.10);
+  border:1px solid rgba(239,68,68,.30);border-radius:8px;cursor:pointer;
+  color:#f87171;font-size:15px;transition:all .13s;flex-shrink:0}
+.r-del:hover{background:rgba(239,68,68,.22);border-color:rgba(239,68,68,.6);
+  color:#fca5a5}
+.r-del:active{transform:scale(.92)}
+
+/* ── הוספת דרישה — מקופל בתחתית ── */
+.hm-add{border:1px solid var(--border,#2a2a3a);border-radius:10px;
+  background:var(--bg2,#1a1a24);overflow:hidden}
+.hm-add>summary{display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:11px 13px;font-size:13px;font-weight:700;color:var(--text2);
+  list-style:none;transition:background .13s;user-select:none}
+.hm-add>summary::-webkit-details-marker{display:none}
+.hm-add>summary:hover{background:var(--accent-dim);color:var(--accent)}
+.hm-add>summary i{color:var(--accent);font-size:15px}
+.hm-add[open]>summary{border-bottom:1px solid var(--border,#2a2a3a)}
+.hm-add .hm-form{padding:13px}
+.hm-add-btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;
+  padding:9px 18px}
 .hm-r input[type=text].r-note{flex:1;min-width:120px}
 .hm-form{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .hm-form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text3)}
-.hm-none{color:var(--text3);font-size:13px}
-.r-del{background:none;border:0;cursor:pointer;font-size:14px}
+.hm-none{display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--text3);font-size:13px;padding:22px 10px;text-align:center}
+.hm-none i{font-size:17px;opacity:.7}
 .hm-box input,.hm-box select{background:var(--bg2,#1a1a24);color:var(--text,#e6e6f0);
   border:1px solid var(--border,#2a2a3a);border-radius:6px;padding:5px 8px;font-family:inherit}
 
