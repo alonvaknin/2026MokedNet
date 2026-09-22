@@ -17,13 +17,18 @@
 - Autoload ידני ב־`config/bootstrap.php` — מחלקות ב־`src/` נטענות לפי namespace (`Core\`, `Models\`, `Controllers\`, `Services\`).
 - כל גישת DB דרך `Core\DB` בלבד (`DB::query`, `DB::row`, `DB::value`, `DB::execute`, `DB::insert`) עם prepared statements. **לעולם לא string interpolation של קלט לתוך SQL.**
 - הטבלה `hours_entries` **כבר נוצרה** ב־`alon_db2` — אין להריץ DDL.
-- **אין PHP CLI מותקן במכונת הפיתוח** (`php` אינו ב-PATH, ואין xampp/laragon/wamp).
-  לכן סקריפטי הבדיקה ב-`tests/` אינם רצים מהטרמינל המקומי. הרץ אותם באחת משתי
-  הדרכים, ותעד בתיאור ה-commit באיזו בחרת:
-  **(א)** העלה לשרת והרץ שם `php tests/<file>.php` דרך SSH; או
-  **(ב)** גש אליהם זמנית דרך הדפדפן (`https://alon.alexisdeveloping.com/tests/<file>.php`)
-  **ומחק/חסום את הגישה מיד לאחר מכן** — הם חושפים מבנה DB.
-  בכל מקרה: **אין לדלג על שלב הרצת הטסט ולסמן אותו כבוצע ללא פלט אמיתי.**
+- **אין PHP CLI ואין גישת DB במכונת הפיתוח.** `php` אינו ב-PATH, ו-`alon_db2`
+  נגיש מהשרת בלבד. **החלטת המשתמש: לא נכתבים סקריפטי בדיקה אוטומטיים** —
+  האימות כולו ידני בדפדפן, מול השרת.
+- **מכאן נובע שאי אפשר להריץ קוד PHP מקומית כלל** — לא טסטים ולא בדיקת תחביר.
+  לכן, בכל משימה:
+  - קרא בעיון כל קובץ שאתה נוגע בו לפני העריכה; אין רשת ביטחון שתתפוס שגיאת
+    הקלדה או שם מתודה שגוי.
+  - **אל תסמן שלב אימות כבוצע בלי פלט אמיתי מהדפדפן.** "נראה תקין" אינו אימות.
+  - דווח במפורש על כל שלב שלא הצלחת לאמת, במקום להניח שהוא עובד.
+- **הלוגיקה הרגישה ביותר חסרת כיסוי אוטומטי:** `HoursModel::isComplete()` (מטריצת
+  `requires`) ו-`Holidays::dayType()` (שבת/שישי גוברים על חג). שלבי הבדיקה הידנית
+  של Tasks 1, 3 ו-4 מפרטים את המקרים המדויקים שחייבים להיבדק בדפדפן.
 - **CSRF:** `verifyCsrf()` קורא `$_POST['_csrf']` או את ה־header `X-CSRF-TOKEN` בלבד — **אינו קורא גוף JSON**. לכן כל `fetch()` POST במודול חייב לשלוח את הטוקן ב־header `X-CSRF-TOKEN: window.__CSRF`.
 - כל ה־UI בעברית, `dir="rtl"`, צבעים מ־CSS variables הקיימים (`--bg`, `--accent`, `--text2`, `--text3`).
 - הודעות משתמש דרך `showToast(msg, 'success'|'error'|'warning')`.
@@ -43,7 +48,7 @@
 
 **Files:**
 - Create: `src/Core/Holidays.php`
-- Test: `tests/holidays_test.php` (סקריפט CLI — אין PHPUnit בפרויקט)
+- Temporary (נמחק ב-Step 3): `public/_hol_check.php`
 
 **Interfaces:**
 - Consumes: כלום.
@@ -53,66 +58,7 @@
   - `Holidays::dayType(string $date): string` — אחד מ־`work|fri|sat|hol|erev|chol`.
   - `Holidays::label(string $dayType): string` — תווית עברית: `רגיל|שישי|שבת|חג|ערב חג|חול המועד`.
 
-- [ ] **Step 1: כתוב את הטסט הנכשל**
-
-צור `tests/holidays_test.php`:
-
-```php
-<?php
-declare(strict_types=1);
-require __DIR__ . '/../config/bootstrap.php';
-
-$fails = 0;
-function check(string $label, mixed $got, mixed $want): void {
-    global $fails;
-    if ($got === $want) { echo "PASS  $label\n"; return; }
-    $fails++;
-    echo "FAIL  $label — got: " . var_export($got, true) . " want: " . var_export($want, true) . "\n";
-}
-
-use Core\Holidays;
-
-/* תאריכי הבדיקה אומתו מול לוח 2026: שבת ושישי גוברים על סיווג החג,
-   ולכן נבחרו חגים שנופלים באמצע השבוע. */
-
-// חג מפורש באמצע השבוע — יום כיפור 2026 הוא יום שני
-check('יום כיפור 2026 הוא חג', Holidays::dayType('2026-09-21'), 'hol');
-
-// ערב חג נגזר — היום שלפני, ראשון 20/09
-check('ערב יום כיפור 2026', Holidays::dayType('2026-09-20'), 'erev');
-
-// שבת גוברת על החג: ראש השנה 12/09/2026 נופל בשבת
-check('חג בשבת מסווג כשבת', Holidays::dayType('2026-09-12'), 'sat');
-
-// שישי — 18/09/2026
-check('שישי רגיל', Holidays::dayType('2026-09-18'), 'fri');
-
-// יום עבודה רגיל — שלישי
-check('יום חול', Holidays::dayType('2026-09-15'), 'work');
-
-// חול המועד — 28/09/2026 הוא יום שני
-check('חוה"מ סוכות 2026', Holidays::dayType('2026-09-28'), 'chol');
-
-// get מחזיר שם גם כשהסיווג נדרס בידי שבת
-$rs = Holidays::get('2026-09-12');
-check('שם החג', $rs['n'] ?? null, 'ראש השנה');
-
-// תאריך ללא חג
-check('תאריך ריק', Holidays::get('2026-09-15'), null);
-
-// תוויות
-check('תווית ערב חג', Holidays::label('erev'), 'ערב חג');
-
-echo $fails ? "\n$fails FAILED\n" : "\nALL PASSED\n";
-exit($fails ? 1 : 0);
-```
-
-- [ ] **Step 2: הרץ את הטסט וודא שהוא נכשל**
-
-Run: `php tests/holidays_test.php`
-Expected: FAIL — `Class "Core\Holidays" not found`
-
-- [ ] **Step 3: כתוב את המימוש**
+- [ ] **Step 1: כתוב את המימוש**
 
 צור `src/Core/Holidays.php`. העתק את מפת התאריכים **בדיוק** מ־`views/components/calendar-widget.php` שורות 174–241 (המשתנה `_CHOLS`), והמר מתחביר JS למערך PHP — אותם תאריכים, אותם שמות, אותם סוגים (`h`/`c`/`i`/`r`).
 
@@ -190,15 +136,63 @@ class Holidays
 **אומת:** חגי 2026 קיימים במפה המקורית (`calendar-widget.php:212-226`), כולל
 `'2026-09-21' => יום כיפור (t='h')`, ולכן `2026-09-20` ייגזר כערב חג.
 
-- [ ] **Step 4: הרץ את הטסט וודא שהוא עובר**
+- [ ] **Step 2: אמת בדפדפן מול השרת**
 
-Run: `php tests/holidays_test.php`
-Expected: `ALL PASSED`
+העלה את הקובץ לשרת וצור זמנית `public/_hol_check.php`:
 
-- [ ] **Step 5: Commit**
+```php
+<?php
+declare(strict_types=1);
+require __DIR__ . '/../config/bootstrap.php';
+use Core\Holidays;
+header('Content-Type: text/plain; charset=utf-8');
+
+$cases = [
+    ['2026-09-21', 'hol',  'יום כיפור (שני) — חג באמצע השבוע'],
+    ['2026-09-20', 'erev', 'ערב יום כיפור (ראשון) — נגזר אוטומטית'],
+    ['2026-09-12', 'sat',  'ראש השנה נופל בשבת — שבת גוברת'],
+    ['2026-09-18', 'fri',  'שישי רגיל'],
+    ['2026-09-15', 'work', 'שלישי רגיל'],
+    ['2026-09-28', 'chol', 'חוה״מ סוכות (שני)'],
+];
+$fail = 0;
+foreach ($cases as [$date, $want, $desc]) {
+    $got = Holidays::dayType($date);
+    $ok  = $got === $want;
+    if (!$ok) $fail++;
+    printf("%s  %s → %-5s (ציפינו %-5s)  %s
+", $ok ? 'PASS' : 'FAIL', $date, $got, $want, $desc);
+}
+echo "
+שם החג ב-12/09: " . (Holidays::get('2026-09-12')['n'] ?? '(אין)') . "
+";
+echo "תאריך ללא חג 15/09: " . var_export(Holidays::get('2026-09-15'), true) . "
+";
+echo $fail ? "
+$fail נכשלו
+" : "
+הכל עבר
+";
+```
+
+גש ל-`https://alon.alexisdeveloping.com/_hol_check.php`.
+Expected: כל השורות `PASS`, שם החג "ראש השנה", ותאריך ללא חג `NULL`.
+
+**אם `2026-09-20` אינו מחזיר `erev`** — בדוק ש-`2026-09-21` קיים ב-`RAW` עם
+`t='h'`, ושלולאת הגזירה ב-`all()` רצה לפני ה-`ksort`.
+
+- [ ] **Step 3: מחק את קובץ הבדיקה מהשרת**
 
 ```bash
-git add src/Core/Holidays.php tests/holidays_test.php
+rm public/_hol_check.php
+```
+
+**אל תשאיר אותו בשרת ואל תכניס אותו ל-git** — הוא חושף מבנה פנימי.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/Core/Holidays.php
 git commit -m "feat: מחלקת חגים משותפת עם גזירת ערב חג"
 ```
 
@@ -256,7 +250,7 @@ git commit -m "refactor: ווידג'ט היומן צורך את מפת החגי�
 
 **Files:**
 - Create: `src/Models/HoursModel.php`
-- Test: `tests/hours_model_test.php`
+- Temporary (נמחק ב-Task 9): `public/_hours_check.php`
 
 **Interfaces:**
 - Consumes: `Core\DB`.
@@ -269,77 +263,7 @@ git commit -m "refactor: ווידג'ט היומן צורך את מפת החגי�
   - `HoursModel::createEntry(array $d): int` — מפתחות: `user_id`, `work_date`, `entry_type`, `time_in`, `time_out`, `requires`, `note`, `created_by`.
   - `HoursModel::updateEntry(int $id, array $d): void` — מפתחות: `entry_type`, `time_in`, `time_out`, `note`, `status`, `filled_by`.
 
-- [ ] **Step 1: כתוב את הטסט הנכשל**
-
-צור `tests/hours_model_test.php`. הטסט בודק את `isComplete` (לוגיקה טהורה, ללא DB) ואת מחזור החיים מול DB אמיתי, ומנקה אחריו.
-
-```php
-<?php
-declare(strict_types=1);
-require __DIR__ . '/../config/bootstrap.php';
-
-use Models\HoursModel;
-use Core\DB;
-
-$fails = 0;
-function check(string $label, mixed $got, mixed $want): void {
-    global $fails;
-    if ($got === $want) { echo "PASS  $label\n"; return; }
-    $fails++;
-    echo "FAIL  $label — got: " . var_export($got, true) . " want: " . var_export($want, true) . "\n";
-}
-
-// ── isComplete: לוגיקה טהורה ──
-$base = ['entry_type' => 'regular', 'time_in' => null, 'time_out' => null, 'requires' => 'both'];
-
-check('both + ריק = לא שלם',      HoursModel::isComplete($base), false);
-check('both + כניסה בלבד = לא שלם', HoursModel::isComplete(['time_in' => '09:00:00'] + $base), false);
-check('both + שתיהן = שלם',       HoursModel::isComplete(['time_in' => '09:00:00', 'time_out' => '17:00:00'] + $base), true);
-check('out + יציאה בלבד = שלם',   HoursModel::isComplete(['requires' => 'out', 'time_out' => '17:00:00'] + $base), true);
-check('out + כניסה בלבד = לא שלם', HoursModel::isComplete(['requires' => 'out', 'time_in' => '09:00:00'] + $base), false);
-check('in + כניסה בלבד = שלם',    HoursModel::isComplete(['requires' => 'in', 'time_in' => '09:00:00'] + $base), true);
-// סיבת היעדרות סוגרת כל שורה, ללא קשר ל-requires
-check('מילואים סוגר שורה',        HoursModel::isComplete(['entry_type' => 'reserve'] + $base), true);
-check('חופש סוגר שורה גם כש-requires=both', HoursModel::isComplete(['entry_type' => 'vacation'] + $base), true);
-
-// ── מחזור חיים מול DB ──
-$uid = (int)DB::value('SELECT id FROM users ORDER BY id LIMIT 1');
-if (!$uid) { echo "SKIP  אין משתמשים בבסיס הנתונים\n"; exit($fails ? 1 : 0); }
-
-$id = HoursModel::createEntry([
-    'user_id' => $uid, 'work_date' => '2099-01-15', 'entry_type' => 'regular',
-    'time_in' => '09:00:00', 'time_out' => null, 'requires' => 'out',
-    'note' => 'טסט', 'created_by' => $uid,
-]);
-check('נוצרה שורה', $id > 0, true);
-
-$row = HoursModel::find($id);
-check('status התחלתי', $row['status'], 'requested');
-check('requires נשמר',  $row['requires'], 'out');
-
-check('נספר כממתין', HoursModel::pendingCount($uid) >= 1, true);
-
-HoursModel::updateEntry($id, [
-    'entry_type' => 'regular', 'time_in' => '09:00:00', 'time_out' => '17:00:00',
-    'note' => 'טסט', 'status' => 'filled', 'filled_by' => $uid,
-]);
-check('status לאחר מילוי', HoursModel::find($id)['status'], 'filled');
-
-$month = HoursModel::forUserMonth($uid, '2099-01');
-check('נשלף בחודש הנכון', count($month) >= 1, true);
-check('לא נשלף בחודש אחר', HoursModel::forUserMonth($uid, '2099-02'), []);
-
-DB::execute('DELETE FROM hours_entries WHERE id = ?', [$id]);
-echo $fails ? "\n$fails FAILED\n" : "\nALL PASSED\n";
-exit($fails ? 1 : 0);
-```
-
-- [ ] **Step 2: הרץ את הטסט וודא שהוא נכשל**
-
-Run: `php tests/hours_model_test.php`
-Expected: FAIL — `Class "Models\HoursModel" not found`
-
-- [ ] **Step 3: כתוב את המימוש**
+- [ ] **Step 1: כתוב את המימוש**
 
 צור `src/Models/HoursModel.php`:
 
@@ -441,15 +365,47 @@ class HoursModel
 }
 ```
 
-- [ ] **Step 4: הרץ את הטסט וודא שהוא עובר**
+- [ ] **Step 2: אמת את מטריצת `isComplete` בדפדפן**
 
-Run: `php tests/hours_model_test.php`
-Expected: `ALL PASSED`
+`isComplete()` היא הלוגיקה הרגישה ביותר במודול והיא טהורה (ללא DB), ולכן
+**חייבת** אימות מפורש. צור זמנית `public/_hours_check.php`:
 
-- [ ] **Step 5: Commit**
+```php
+<?php
+declare(strict_types=1);
+require __DIR__ . '/../config/bootstrap.php';
+use Models\HoursModel;
+header('Content-Type: text/plain; charset=utf-8');
+
+$base = ['entry_type' => 'regular', 'time_in' => null, 'time_out' => null, 'requires' => 'both'];
+$cases = [
+    [$base,                                                       false, 'both + ריק'],
+    [['time_in' => '09:00:00'] + $base,                           false, 'both + כניסה בלבד'],
+    [['time_in' => '09:00:00', 'time_out' => '17:00:00'] + $base, true,  'both + שתיהן'],
+    [['requires' => 'out', 'time_out' => '17:00:00'] + $base,     true,  'out + יציאה'],
+    [['requires' => 'out', 'time_in'  => '09:00:00'] + $base,     false, 'out + כניסה בלבד'],
+    [['requires' => 'in',  'time_in'  => '09:00:00'] + $base,     true,  'in + כניסה'],
+    [['entry_type' => 'reserve'] + $base,                         true,  'מילואים סוגר'],
+    [['entry_type' => 'vacation'] + $base,                        true,  'חופש סוגר גם ב-both'],
+];
+$fail = 0;
+foreach ($cases as [$row, $want, $desc]) {
+    $got = HoursModel::isComplete($row);
+    $ok  = $got === $want;
+    if (!$ok) $fail++;
+    printf("%s  %-28s → %s (ציפינו %s)\n", $ok ? 'PASS' : 'FAIL', $desc,
+           var_export($got, true), var_export($want, true));
+}
+echo $fail ? "\n$fail נכשלו\n" : "\nהכל עבר\n";
+```
+
+גש ל-`https://alon.alexisdeveloping.com/_hours_check.php`.
+Expected: כל 8 השורות `PASS`. **השאר את הקובץ בשרת** — Task 6 מרחיב אותו.
+
+- [ ] **Step 3: Commit**
 
 ```bash
-git add src/Models/HoursModel.php tests/hours_model_test.php
+git add src/Models/HoursModel.php
 git commit -m "feat: HoursModel — שליפות נציג, ספירת ממתינים ולוגיקת סגירת שורה"
 ```
 
@@ -986,7 +942,7 @@ git commit -m "feat: התראת שעות לעדכון בדאשבורד עם מו
 
 **Files:**
 - Modify: `src/Models/HoursModel.php`
-- Modify: `tests/hours_model_test.php`
+- Modify: `public/_hours_check.php` (זמני)
 
 **Interfaces:**
 - Consumes: `Core\DB`.
@@ -1001,49 +957,7 @@ git commit -m "feat: התראת שעות לעדכון בדאשבורד עם מו
   - `HoursModel::markedRows(): array` — כולל `full_name` של העובד, ממוין לפי שם ואז תאריך.
   - `HoursModel::stampExported(array $ids): void`
 
-- [ ] **Step 1: הוסף טסטים לקובץ הקיים**
-
-הוסף ל־`tests/hours_model_test.php` לפני שורת ה־`DELETE` המסיימת:
-
-```php
-// ── שכבת המנהל ──
-$users = HoursModel::activeUsers();
-check('יש משתמשים פעילים', count($users) >= 1, true);
-check('למשתמש יש שם מלא', isset($users[0]['full_name']), true);
-
-$id2 = HoursModel::createEntry([
-    'user_id' => $uid, 'work_date' => '2099-01-20', 'entry_type' => 'regular',
-    'time_in' => null, 'time_out' => null, 'requires' => 'out',
-    'note' => null, 'created_by' => $uid,
-]);
-
-$grid = HoursModel::monthGrid('2099-01');
-check('הרשת מכילה את העובד',   isset($grid[$uid]), true);
-check('הרשת מכילה את התאריך',  isset($grid[$uid]['2099-01-20']), true);
-check('התא מכיל שורה אחת',     count($grid[$uid]['2099-01-20']), 1);
-
-check('שליפה לפי עובד+תאריך', count(HoursModel::forUserDate($uid, '2099-01-20')), 1);
-
-HoursModel::setMark($id2, true);
-check('סומן לייצוא', HoursModel::find($id2)['marked_for_export'], 1);
-check('נספר בסימונים', HoursModel::markedCount() >= 1, true);
-
-$marked = HoursModel::markedRows();
-check('שורה מסומנת כוללת שם עובד', isset($marked[0]['full_name']), true);
-
-HoursModel::stampExported([$id2]);
-check('הוחתם exported_at', HoursModel::find($id2)['exported_at'] !== null, true);
-
-HoursModel::deleteEntry($id2);
-check('נמחק', HoursModel::find($id2), null);
-```
-
-- [ ] **Step 2: הרץ וודא כישלון**
-
-Run: `php tests/hours_model_test.php`
-Expected: FAIL — `Call to undefined method Models\HoursModel::activeUsers()`
-
-- [ ] **Step 3: הוסף את המתודות ל-HoursModel**
+- [ ] **Step 1: הוסף את המתודות ל-HoursModel**
 
 ```php
     public static function activeUsers(): array
@@ -1129,15 +1043,37 @@ Expected: FAIL — `Call to undefined method Models\HoursModel::activeUsers()`
     }
 ```
 
-- [ ] **Step 4: הרץ וודא הצלחה**
+- [ ] **Step 2: אמת את הרשת החודשית בדפדפן**
 
-Run: `php tests/hours_model_test.php`
-Expected: `ALL PASSED`
+המתודות האלה נבדקות בפועל דרך לוח המנהל (Task 7), אך `monthGrid()` מחזירה
+מבנה מקונן שקל לטעות בו. הוסף בסוף `public/_hours_check.php` שנוצר ב-Task 3:
 
-- [ ] **Step 5: Commit**
+```php
+echo "\n── שכבת המנהל ──\n";
+$users = HoursModel::activeUsers();
+printf("משתמשים פעילים: %d, לדוגמה: %s\n", count($users), $users[0]['full_name'] ?? '(אין)');
+
+$month = date('Y-m');
+$grid  = HoursModel::monthGrid($month);
+printf("רשת %s: %d עובדים עם שורות\n", $month, count($grid));
+foreach ($grid as $uid => $byDate) {
+    $first = array_key_first($byDate);
+    printf("  עובד #%d: %d תאריכים, ראשון=%s עם %d שורות\n",
+           $uid, count($byDate), $first, count($byDate[$first]));
+    break;
+}
+printf("מסומנים לייצוא: %d\n", HoursModel::markedCount());
+```
+
+גש לקובץ שוב.
+Expected: רשימת משתמשים אמיתית. אם כבר יש שורות בחודש הנוכחי — הרשת מציגה
+`עובד #N: X תאריכים` והשורות מקוננות נכון תחת התאריך. אם אין עדיין שורות,
+`רשת: 0 עובדים` תקין — חזור לאמת אחרי Task 7.
+
+- [ ] **Step 3: Commit**
 
 ```bash
-git add src/Models/HoursModel.php tests/hours_model_test.php
+git add src/Models/HoursModel.php
 git commit -m "feat: שכבת המנהל ב-HoursModel — רשת חודשית, סימון וייצוא"
 ```
 
@@ -1641,7 +1577,7 @@ git commit -m "feat: לוח ניהול דיווח שעות חודשי עם דר�
 - Create: `src/Services/HoursExporter.php`
 - Modify: `src/Controllers/HoursController.php`
 - Modify: `config/routes.php`
-- Test: `tests/hours_export_test.php`
+- Temporary (נמחק ב-Step 3): `public/_xls_check.php`
 
 **Interfaces:**
 - Consumes: `HoursModel::markedRows`, `HoursModel::stampExported`, `Holidays::dayType`, `Holidays::label`.
@@ -1649,57 +1585,7 @@ git commit -m "feat: לוח ניהול דיווח שעות חודשי עם דר�
   - `HoursExporter::build(array $rows): string` — מחזיר XML מלא של SpreadsheetML.
   - `HoursController@exportXls` — `GET /hours/export`.
 
-- [ ] **Step 1: כתוב את הטסט הנכשל**
-
-צור `tests/hours_export_test.php`:
-
-```php
-<?php
-declare(strict_types=1);
-require __DIR__ . '/../config/bootstrap.php';
-
-use Services\HoursExporter;
-
-$fails = 0;
-function check(string $label, mixed $got, mixed $want): void {
-    global $fails;
-    if ($got === $want) { echo "PASS  $label\n"; return; }
-    $fails++;
-    echo "FAIL  $label — got: " . var_export($got, true) . " want: " . var_export($want, true) . "\n";
-}
-
-$xml = HoursExporter::build([
-    ['full_name' => 'ישראל ישראלי', 'work_date' => '2026-09-12', 'entry_type' => 'regular',
-     'time_in' => '09:00:00', 'time_out' => '17:00:00', 'note' => 'הערה & בדיקה'],
-    ['full_name' => 'דנה כהן', 'work_date' => '2026-09-14', 'entry_type' => 'reserve',
-     'time_in' => null, 'time_out' => null, 'note' => null],
-]);
-
-check('כותרת XML',        str_starts_with($xml, '<?xml'), true);
-check('workbook נפתח',    str_contains($xml, 'urn:schemas-microsoft-com:office:spreadsheet'), true);
-check('שם עובד מופיע',    str_contains($xml, 'ישראל ישראלי'), true);
-check('סוג יום חג',       str_contains($xml, 'חג'), true);
-check('מילואים מתורגם',   str_contains($xml, 'מילואים'), true);
-check('שעה מפורמטת',      str_contains($xml, '09:00'), true);
-check('אמפרסנד מבורח',    str_contains($xml, '&amp;'), true);
-check('אין אמפרסנד חשוף', (bool)preg_match('/&(?!amp;|lt;|gt;|quot;|apos;|#)/', $xml), false);
-check('workbook נסגר',    str_ends_with(trim($xml), '</Workbook>'), true);
-
-/* ה-XML חייב להיות תקין — אקסל נופל על XML שבור */
-$prev = libxml_use_internal_errors(true);
-check('XML תקין', simplexml_load_string($xml) !== false, true);
-libxml_use_internal_errors($prev);
-
-echo $fails ? "\n$fails FAILED\n" : "\nALL PASSED\n";
-exit($fails ? 1 : 0);
-```
-
-- [ ] **Step 2: הרץ וודא כישלון**
-
-Run: `php tests/hours_export_test.php`
-Expected: FAIL — `Class "Services\HoursExporter" not found`
-
-- [ ] **Step 3: כתוב את המימוש**
+- [ ] **Step 1: כתוב את המימוש**
 
 צור `src/Services/HoursExporter.php`:
 
@@ -1771,12 +1657,56 @@ class HoursExporter
 }
 ```
 
-- [ ] **Step 4: הרץ וודא הצלחה**
+- [ ] **Step 2: אמת את תקינות ה-XML בדפדפן**
 
-Run: `php tests/hours_export_test.php`
-Expected: `ALL PASSED`
+אקסל נופל על XML שבור, ולכן זה חייב אימות לפני חיבור ה-endpoint. צור זמנית
+`public/_xls_check.php`:
 
-- [ ] **Step 5: חבר את ה-endpoint**
+```php
+<?php
+declare(strict_types=1);
+require __DIR__ . '/../config/bootstrap.php';
+use Services\HoursExporter;
+header('Content-Type: text/plain; charset=utf-8');
+
+$xml = HoursExporter::build([
+    ['full_name' => 'ישראל ישראלי', 'work_date' => '2026-09-21', 'entry_type' => 'regular',
+     'time_in' => '09:00:00', 'time_out' => '17:00:00', 'note' => 'הערה & בדיקה <tag>'],
+    ['full_name' => 'דנה כהן', 'work_date' => '2026-09-18', 'entry_type' => 'reserve',
+     'time_in' => null, 'time_out' => null, 'note' => null],
+]);
+
+$prev  = libxml_use_internal_errors(true);
+$valid = simplexml_load_string($xml) !== false;
+libxml_use_internal_errors($prev);
+
+$checks = [
+    'XML תקין (קריטי)'       => $valid,
+    'שם עובד מופיע'          => str_contains($xml, 'ישראל ישראלי'),
+    'סוג יום חג (21/09)'     => str_contains($xml, 'חג'),
+    'סוג יום שישי (18/09)'   => str_contains($xml, 'שישי'),
+    'מילואים מתורגם'          => str_contains($xml, 'מילואים'),
+    'שעה מפורמטת 09:00'       => str_contains($xml, '09:00'),
+    'אמפרסנד מבורח'           => str_contains($xml, '&amp;'),
+    'אין אמפרסנד חשוף'        => !preg_match('/&(?!amp;|lt;|gt;|quot;|apos;|#)/', $xml),
+    'workbook נסגר'           => str_ends_with(trim($xml), '</Workbook>'),
+];
+$fail = 0;
+foreach ($checks as $d => $ok) { if (!$ok) $fail++; printf("%s  %s\n", $ok ? 'PASS' : 'FAIL', $d); }
+echo $fail ? "\n$fail נכשלו\n" : "\nהכל עבר\n";
+echo "\n── 400 תווים ראשונים ──\n" . substr($xml, 0, 400) . "\n";
+```
+
+גש ל-`https://alon.alexisdeveloping.com/_xls_check.php`.
+Expected: כל השורות `PASS`. **"XML תקין" הוא חוסם** — אם הוא נכשל, אל תמשיך.
+
+- [ ] **Step 3: מחק את קובץ הבדיקה**
+
+```bash
+rm public/_xls_check.php
+```
+
+- [ ] **Step 4: חבר את ה-endpoint**
 
 הוסף ל־`src/Controllers/HoursController.php`:
 
@@ -1811,7 +1741,7 @@ Expected: `ALL PASSED`
 $router->get('/hours/export', 'Controllers\\HoursController@exportXls');
 ```
 
-- [ ] **Step 6: בדיקה ידנית**
+- [ ] **Step 5: בדיקה ידנית**
 
 1. ב־`/hours/manage`, סמן 3 שורות "לדיווח".
 2. לחץ "הורד XLS" → הקובץ יורד.
@@ -1819,11 +1749,10 @@ $router->get('/hours/export', 'Controllers\\HoursController@exportXls');
 4. בדוק ב־DB ש־`exported_at` הוחתם על 3 השורות.
 5. נקה את כל הסימונים ולחץ "הורד XLS" → טוסט אזהרה, **ללא הורדת קובץ ריק**.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/Services/HoursExporter.php src/Controllers/HoursController.php \
-        config/routes.php tests/hours_export_test.php
+git add src/Services/HoursExporter.php src/Controllers/HoursController.php config/routes.php
 git commit -m "feat: ייצוא שעות ל-XLS בפורמט SpreadsheetML"
 ```
 
@@ -1879,13 +1808,20 @@ git commit -m "feat: ייצוא שעות ל-XLS בפורמט SpreadsheetML"
 נגזר אוטומטית מהיום שלפני כל חג. **המפה מכסה ~2025–2027 וצריכה עדכון ידני.**
 ```
 
-- [ ] **Step 4: הרץ את כל הטסטים**
+- [ ] **Step 4: מחק את קבצי הבדיקה הזמניים מהשרת**
 
 ```bash
-php tests/holidays_test.php && php tests/hours_model_test.php && php tests/hours_export_test.php
+rm -f public/_hol_check.php public/_hours_check.php public/_xls_check.php
 ```
 
-Expected: שלושתם `ALL PASSED`.
+ודא ששלושתם מחזירים 404, ושאף אחד מהם לא נכנס ל-git:
+
+```bash
+git status --porcelain public/
+git log --stat | grep -c "_check.php"
+```
+
+Expected: אין פלט מהראשון, ו-`0` מהשני.
 
 - [ ] **Step 5: מעבר מקצה לקצה**
 
