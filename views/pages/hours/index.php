@@ -272,4 +272,32 @@ function hoursAddOwn() {
   border-color:rgba(91,141,238,.25)}
 .ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;font-weight:800;
   box-shadow:0 2px 8px rgba(91,141,238,.45)}
+
+/* ── דיווחים שהושלמו: נעולים, בתוך אזור מקופל ── */
+.ht-arch{margin-top:18px;border:1px solid var(--border,#2a2a3a);border-radius:10px;
+  background:var(--bg2,#1a1a24);overflow:hidden}
+.ht-arch>summary{display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:11px 14px;font-size:13px;font-weight:700;color:var(--text2);
+  list-style:none;user-select:none;transition:background .13s}
+.ht-arch>summary::-webkit-details-marker{display:none}
+.ht-arch>summary:hover{background:rgba(34,197,94,.08);color:#86efac}
+.ht-arch>summary i{color:#22c55e;font-size:15px}
+.ht-arch[open]>summary{border-bottom:1px solid var(--border,#2a2a3a)}
+.ht-arch-c{background:rgba(34,197,94,.22);color:#86efac;font-size:11px;
+  font-weight:800;border-radius:10px;padding:1px 8px;min-width:20px;text-align:center}
+.ht-arch-h{font-size:11px;font-weight:400;color:var(--text3)}
+.ht-arch-t{margin:0}
+.ht-arch-t th{font-size:10px;padding:6px 10px}
+.ht-arch-t td{padding:7px 10px;font-size:13px}
+
+/* ערכים בשורה נעולה — טקסט בלבד, לא שדות */
+.ht-v{font-family:'SF Mono',Consolas,monospace;direction:ltr;text-align:center;
+  font-weight:600;color:var(--text2)}
+.ht-n{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;color:var(--text3)}
+.ht-ok{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+  background:rgba(34,197,94,.18);color:#86efac;border-radius:20px;padding:3px 11px;
+  white-space:nowrap}
+.hours-table tr.ht-done{opacity:.8}
+.hours-table tr.ht-done:hover{opacity:1}
 </style>

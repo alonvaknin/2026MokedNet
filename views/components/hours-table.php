@@ -13,29 +13,24 @@ $TYPES = [
 ];
 $DAYS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 ?>
-<table class="hours-table" data-context="<?= View::e($context) ?>">
-  <thead>
-    <tr>
-      <th>תאריך</th><th>יום</th><th>סוג</th><th>כניסה</th><th>יציאה</th><th>הערה</th><th></th>
-    </tr>
-  </thead>
-  <tbody>
-  <?php if (!$rows): ?>
-    <tr><td colspan="7" class="ht-empty">אין שורות לדיווח</td></tr>
-  <?php endif; ?>
-  <?php foreach ($rows as $r):
-      $dt      = Holidays::dayType($r['work_date']);
-      $hol     = Holidays::get($r['work_date']);
-      $ts      = strtotime($r['work_date']);
-      $done    = $r['status'] === 'filled';
-      // ננעלים רק שדות שכבר מולאו בידי המנהל
-      $lockIn  = !empty($r['time_in'])  && (int)$r['created_by'] !== (int)$r['user_id'] && !$done;
-      $lockOut = !empty($r['time_out']) && (int)$r['created_by'] !== (int)$r['user_id'] && !$done;
-      $reqIn   = in_array($r['requires'], ['both','in'],  true);
-      $reqOut  = in_array($r['requires'], ['both','out'], true);
-  ?>
-    <tr class="ht-row ht-day-<?= View::e($dt) ?><?= $done ? ' ht-done' : '' ?>"
-        data-id="<?= (int)$r['id'] ?>">
+<?php
+// שורות פתוחות ושורות שהושלמו מוצגות בנפרד: ההושלמו נעולות
+// לעריכה ויושבות בתוך אזור מקופל, כדי שהנציג יראה קודם מה נותר לו.
+$openRows = array_values(array_filter($rows, fn($r) => $r['status'] !== 'filled'));
+$doneRows = array_values(array_filter($rows, fn($r) => $r['status'] === 'filled'));
+
+/** מרנדר שורת דיווח הניתנת לעריכה */
+$renderOpen = function (array $r) use ($TYPES, $DAYS) {
+    $dt      = Holidays::dayType($r['work_date']);
+    $hol     = Holidays::get($r['work_date']);
+    $ts      = strtotime($r['work_date']);
+    // ננעלים רק שדות שכבר מולאו בידי המנהל
+    $lockIn  = !empty($r['time_in'])  && (int)$r['created_by'] !== (int)$r['user_id'];
+    $lockOut = !empty($r['time_out']) && (int)$r['created_by'] !== (int)$r['user_id'];
+    $reqIn   = in_array($r['requires'], ['both','in'],  true);
+    $reqOut  = in_array($r['requires'], ['both','out'], true);
+    ?>
+    <tr class="ht-row ht-day-<?= View::e($dt) ?>" data-id="<?= (int)$r['id'] ?>">
       <td><?= View::e(date('d/m', $ts)) ?></td>
       <td title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?>">
         <?= View::e($DAYS[(int)date('w', $ts)]) ?>
@@ -76,14 +71,69 @@ $DAYS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
       <td><input type="text" class="ht-note" maxlength="500"
                  value="<?= View::e((string)$r['note']) ?>"></td>
       <td>
-        <button type="button" class="ht-save" onclick="hoursSaveRow(<?= (int)$r['id'] ?>)">
-          <?= $done ? '✓' : 'שמור' ?>
-        </button>
+        <button type="button" class="ht-save" onclick="hoursSaveRow(<?= (int)$r['id'] ?>)">שמור</button>
       </td>
     </tr>
-  <?php endforeach; ?>
+    <?php
+};
+
+/** מרנדר שורה שהושלמה — טקסט בלבד, ללא שדות ניתנים לעריכה */
+$renderDone = function (array $r) use ($TYPES, $DAYS) {
+    $dt  = Holidays::dayType($r['work_date']);
+    $hol = Holidays::get($r['work_date']);
+    $ts  = strtotime($r['work_date']);
+    ?>
+    <tr class="ht-row ht-done ht-day-<?= View::e($dt) ?>" data-id="<?= (int)$r['id'] ?>">
+      <td><?= View::e(date('d/m', $ts)) ?></td>
+      <td title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?>">
+        <?= View::e($DAYS[(int)date('w', $ts)]) ?>
+      </td>
+      <td><?= View::e($TYPES[$r['entry_type']] ?? $r['entry_type']) ?></td>
+      <td class="ht-v"><?= View::e(substr((string)$r['time_in'], 0, 5) ?: '—') ?></td>
+      <td class="ht-v"><?= View::e(substr((string)$r['time_out'], 0, 5) ?: '—') ?></td>
+      <td class="ht-n" title="<?= View::e((string)$r['note']) ?>"><?= View::e((string)$r['note']) ?></td>
+      <td><span class="ht-ok"><i class="bi bi-check-lg"></i> הושלם</span></td>
+    </tr>
+    <?php
+};
+?>
+
+<table class="hours-table" data-context="<?= View::e($context) ?>">
+  <thead>
+    <tr>
+      <th>תאריך</th><th>יום</th><th>סוג</th><th>כניסה</th><th>יציאה</th><th>הערה</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  <?php if (!$openRows): ?>
+    <tr><td colspan="7" class="ht-empty">
+      <?= $doneRows ? '🎉 כל השעות עודכנו — אין שורות פתוחות' : 'אין שורות לדיווח' ?>
+    </td></tr>
+  <?php endif; ?>
+  <?php foreach ($openRows as $r) $renderOpen($r); ?>
   </tbody>
 </table>
+
+<?php if ($doneRows): ?>
+  <details class="ht-arch">
+    <summary>
+      <i class="bi bi-check2-circle"></i>
+      דיווחים שהושלמו
+      <span class="ht-arch-c"><?= count($doneRows) ?></span>
+      <span class="ht-arch-h">— נעולים לעריכה</span>
+    </summary>
+    <table class="hours-table ht-arch-t">
+      <thead>
+        <tr>
+          <th>תאריך</th><th>יום</th><th>סוג</th><th>כניסה</th><th>יציאה</th><th>הערה</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($doneRows as $r) $renderDone($r); ?>
+      </tbody>
+    </table>
+  </details>
+<?php endif; ?>
 
 <script>
 /* נטען פעם אחת בלבד — הרכיב עשוי להופיע גם בעמוד וגם במודל */
@@ -119,8 +169,14 @@ window.hoursSaveRow = function (id) {
         btn.disabled = false;
         if (d.error) { showToast(d.error, 'error'); return; }
         showToast('נשמר', 'success');
-        if (d.status === 'filled') { tr.classList.add('ht-done'); btn.textContent = '✓'; }
         if (typeof hoursRefreshBadge === 'function') hoursRefreshBadge();
+        /* שורה שהושלמה עוברת לאזור הנעול — מרעננים כדי שתעבור לשם */
+        if (d.status === 'filled') {
+            tr.classList.add('ht-done');
+            btn.disabled = true;
+            if (tr.closest('.hm-body')) { hoursOpenModal(); }
+            else { setTimeout(function () { location.reload(); }, 600); }
+        }
     })
     .catch(function () { btn.disabled = false; showToast('שגיאת רשת', 'error'); });
 };
