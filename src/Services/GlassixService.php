@@ -194,7 +194,7 @@ class GlassixService
      * מחזיר ספירת טיקטים פתוחים (state != Closed) לפי נציג, על פני כל המחלקות.
      * מחזיר ['ok' => true, 'data' => [['agent' => .., 'count' => .., 'byDept' => [...]], ...]]
      */
-    public const STATS_VERSION = 'v22-' . '2026-09-17-19';
+    public const STATS_VERSION = 'v26-' . '2026-09-17-23';
     private const STATS_DAYS   = 30;
     private const STATS_MAX    = 550;
     private const PAGE_CAP     = 100;
@@ -309,6 +309,19 @@ class GlassixService
      * סורק את חלון הזמן למחלקה אחת. מתחיל בחלון רחב ומצמצם רק כשנתקלים בתקרת ה-100,
      * כדי לצמצם את מספר הבקשות ל-API (rate limit).
      *
+     * ⚠️ הספירה אינה מדויקת ואינה תואמת את הדוח של Glassix.
+     * מה שנבדק מול ה-API (17/09/2026):
+     *   - /tickets/list מחייב since+until ומסנן לפי *פעילות*, לא לפי מצב
+     *   - הפרמטר state מתעלם לחלוטין (Open/Opened/1 — תוצאה זהה)
+     *   - page אסור יחד עם since/until/sortOrder; תקרה קשיחה של 100 לבקשה
+     *   - כל עמוד מוחזר לפי פעילות אחרונה ולכן ~94% ממנו Closed
+     *   - סריקה של 30 יום החזירה 5 טיקטים פתוחים בלבד מול 993 סגורים,
+     *     בעוד שבממשק Glassix מוצגים עשרות פתוחים לנציג
+     *   - /tickets/search, /tickets/count, /reports/tickets — לא קיימים ב-v1.2
+     * המסקנה: טיקטים פתוחים שלא נגעו בהם לאחרונה לא מוחזרים כלל, ולכן
+     * הגישה הזו לא יכולה לתת את המספר הנכון. נדרש endpoint אחר או מעקב
+     * מקומי אחרי webhook. עד אז המסך מושהה.
+     *
      * @return array{0: ?array, 1: ?string}
      */
     private function collectOpenTickets(string $deptSlug, string $token): array
@@ -331,10 +344,11 @@ class GlassixService
             if ($calls > 0) usleep(self::THROTTLE_US); // ריווח בין בקשות — מניעת rate limit
 
             $calls++;
+            // state לא נתמך בפועל ב-endpoint הזה (מוחזרים גם Closed) — הסינון בקוד
             $res = $this->curl('GET', '/tickets/list?' . http_build_query([
-                'since' => gmdate('d/m/Y H:i:s:00', $from),
-                'until' => gmdate('d/m/Y H:i:s:00', $to),
-                'state' => 'Open',
+                'since'     => gmdate('d/m/Y H:i:s:00', $from),
+                'until'     => gmdate('d/m/Y H:i:s:00', $to),
+                'sortOrder' => 'DESC',
             ]), [], $token);
 
             if (isset($res['message'])) {
@@ -344,14 +358,12 @@ class GlassixService
 
             $batch = is_array($res['tickets'] ?? null) ? $res['tickets'] : [];
 
-            // התקרה נגעה — התוצאה חתוכה ולא אמינה. מפצלים את הטווח וסורקים
-            // מחדש, בלי לספור את האצווה החלקית (אחרת ה-ids ייכנסו ל-seen
-            // והסריקה החוזרת תדלג עליהם)
-            if (count($batch) >= self::PAGE_CAP && ($to - $from) > 3600) {
+            // התקרה נגעה — סופרים את מה שהתקבל ובנוסף מפצלים את הטווח כדי
+            // להשלים את מה שנחתך. seen מונע ספירה כפולה של אותם טיקטים
+            if (count($batch) >= self::PAGE_CAP && ($to - $from) > 900) {
                 $mid = intdiv($from + $to, 2);
                 array_unshift($queue, [$from, $mid], [$mid, $to]);
                 $capped = true;
-                continue;
             }
 
             foreach ($batch as $t) {
@@ -361,11 +373,10 @@ class GlassixService
                 if ($ticketId === null || isset($seen[$ticketId])) continue;
                 $seen[$ticketId] = true;
 
+                // ה-API מתעלם מ-state ומחזיר הכל לפי פעילות, לכן מסננים כאן.
+                // Snoozed/Pending הם טיקטים שטרם נסגרו ולכן נספרים גם הם
+                if (!in_array($t['state'] ?? '', ['Open', 'Snoozed', 'Pending'], true)) continue;
                 if (($t['owner']['type'] ?? '') === 'BOT') continue;
-
-                // since/until מסננים לפי פעילות, לא לפי מצב — טיקט שנסגר
-                // מאז עדיין חוזר בתוצאות, ולכן בודקים את המצב בפועל
-                if (($t['state'] ?? '') !== 'Open') continue;
 
                 $agent = self::agentName($t);
                 $agents[$agent] = ($agents[$agent] ?? 0) + 1;
