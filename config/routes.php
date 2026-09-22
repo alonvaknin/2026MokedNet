@@ -187,3 +187,12 @@ $router->post('/api/invoice-change-name/{id}/edit',    'Controllers\\InvoiceChan
 $router->get ('/hours',                  'Controllers\\HoursController@index');
 $router->post('/hours/entry/add',        'Controllers\\HoursController@addOwnEntry');
 $router->post('/hours/entry/{id}/save',  'Controllers\\HoursController@saveEntry');
+
+// Hours Reporting — מנהל
+$router->get ('/hours/manage',            'Controllers\\HoursController@manage');
+$router->get ('/api/hours/cell',          'Controllers\\HoursController@apiCell');
+$router->post('/hours/request/add',       'Controllers\\HoursController@addRequest');
+$router->post('/hours/request/bulk',      'Controllers\\HoursController@addBulkRequests');
+$router->post('/hours/entry/{id}/update', 'Controllers\\HoursController@managerUpdate');
+$router->post('/hours/entry/{id}/delete', 'Controllers\\HoursController@deleteEntry');
+$router->post('/hours/mark',              'Controllers\\HoursController@toggleMark');
