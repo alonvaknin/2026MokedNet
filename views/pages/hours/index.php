@@ -20,7 +20,11 @@ $base = rtrim(CFG['app']['url'], '/');
 <?php View::component('hours-table', ['rows' => $rows, 'context' => 'page']); ?>
 
 <div class="hours-add">
-  <input type="date" id="ha-date" value="<?= View::e(date('Y-m-d')) ?>">
+  <label class="hd-inpw" for="ha-date">
+    <i class="bi bi-calendar3"></i>
+    <input type="date" id="ha-date" value="<?= View::e(date('Y-m-d')) ?>"
+           max="<?= View::e(date('Y-m-d')) ?>">
+  </label>
   <button type="button" class="btn btn-primary" onclick="hoursAddOwn()">+ הוסף שורה</button>
 </div>
 
@@ -75,4 +79,20 @@ function hoursAddOwn() {
 .hours-nav{display:flex;align-items:center;gap:12px}
 .hours-month{font-weight:600;min-width:120px;text-align:center}
 .hours-add{margin-top:20px;display:flex;gap:10px;align-items:center}
+
+/* ── בורר תאריך — באותה שפה עיצובית של ווידג'ט היומן (.cal-inpw) ── */
+.hd-inpw{display:flex;align-items:center;gap:6px;background:var(--bg4);
+  border:1px solid var(--border);border-radius:7px;padding:0 9px;
+  transition:border-color .13s,background .13s;cursor:pointer}
+.hd-inpw:hover{background:var(--accent-dim)}
+.hd-inpw:focus-within{border-color:var(--accent);background:var(--bg4)}
+.hd-inpw i{color:var(--text3);font-size:12px;flex-shrink:0;transition:color .13s}
+.hd-inpw:focus-within i,.hd-inpw:hover i{color:var(--accent)}
+#ha-date{background:none;border:none;outline:none;color:var(--text);
+  font-family:var(--font);font-size:13px;font-weight:600;padding:8px 0;
+  direction:ltr;text-align:center;cursor:pointer;color-scheme:dark}
+/* אייקון הלוח המובנה של הדפדפן — מוסתר לטובת האייקון שלנו */
+#ha-date::-webkit-calendar-picker-indicator{opacity:0;position:absolute;
+  inset:0;width:100%;height:100%;cursor:pointer}
+.hd-inpw{position:relative}
 </style>
