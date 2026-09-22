@@ -41,6 +41,8 @@ class UserModel
             'canAddReport'      => 'הוספת דיווח',
             'canEditSupportPro' => 'עריכת מוצרי תמיכה',
             'canManageDuty'     => 'ניהול תורנות',
+            'canReportHours'    => 'דיווח שעות (נציג)',
+            'canManageHours'    => 'ניהול דיווח שעות',
         ],
         'כספים' => [
             'canEditBonus'           => 'עריכת בונוס',
@@ -92,6 +94,8 @@ class UserModel
         'canOrianorder'                => 'הזמנות אוריאן',
         'canViewLogs'                  => 'צפייה בלוג פעולות',
         'canManageDuty'                => 'ניהול תורנות',
+        'canReportHours'               => 'דיווח שעות (נציג)',
+        'canManageHours'               => 'ניהול דיווח שעות',
         'task_settings.manage'         => 'ניהול הגדרות משימות',
         'tasks.viewAll'                => 'צפייה בכל המשימות (כל נציגים)',
     ];
