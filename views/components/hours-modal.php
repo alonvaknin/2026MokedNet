@@ -258,6 +258,12 @@ window.hoursTimePicker = (function () {
         return [('0' + +hh).slice(-2), ('0' + +mm).slice(-2)];
     }
 
+    function centre(list, item) {
+        if (!list || !item) return;
+        list.scrollTop = item.offsetTop - list.offsetTop
+                       - (list.clientHeight / 2) + (item.offsetHeight / 2);
+    }
+
     function mark(doScroll) {
         if (!pop || !target) return;
         var cur = split(target.value);
@@ -276,22 +282,30 @@ window.hoursTimePicker = (function () {
         });
 
         if (doScroll) {
-            if (selH) hEl.scrollTop = selH.offsetTop - hEl.clientHeight / 2 + 15;
-            if (selM) mEl.scrollTop = selM.offsetTop - mEl.clientHeight / 2 + 15;
+            /* ממרכז את הפריט הנבחר; מחושב יחסית לרשימה עצמה ולא
+               לאב הקדמון הממוקם, כדי שהמרכוז יהיה נכון בפתיחה הראשונה. */
+            centre(hEl, selH);
+            centre(mEl, selM);
         }
     }
 
     function open(input) {
         if (!pop) pop = build();
         target = input;
+
+        /* מציגים תחילה מחוץ למסך: בלחיצה הראשונה הפופאובר עדיין
+           display:none, ולכן offsetHeight היה 0 והמיקום/הגלילה יצאו שגויים. */
+        pop.style.top = '-9999px';
+        pop.style.left = '-9999px';
         pop.classList.add('open');
 
         var r = input.getBoundingClientRect();
+        var ph = pop.offsetHeight, pw = pop.offsetWidth;   /* נמדד אחרי ההצגה */
         var top = r.bottom + 6, left = r.left;
-        if (top + pop.offsetHeight > window.innerHeight - 8)
-            top = Math.max(8, r.top - pop.offsetHeight - 6);
-        if (left + pop.offsetWidth > window.innerWidth - 8)
-            left = Math.max(8, window.innerWidth - pop.offsetWidth - 8);
+        if (top + ph > window.innerHeight - 8)
+            top = Math.max(8, r.top - ph - 6);
+        if (left + pw > window.innerWidth - 8)
+            left = Math.max(8, window.innerWidth - pw - 8);
         pop.style.top = top + 'px';
         pop.style.left = left + 'px';
 
@@ -315,7 +329,13 @@ window.hoursTimePicker = (function () {
     });
 
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
-    window.addEventListener('scroll', close, true);
+    /* גלילה בתוך רשימות הבורר עצמו לא אמורה לסגור אותו —
+       רק גלילה של העמוד שמתחתיו. */
+    window.addEventListener('scroll', function (e) {
+        if (pop && e.target && e.target.closest &&
+            e.target.closest('.ht-pop')) return;
+        close();
+    }, true);
 
     return { open: open, close: close };
 })();
