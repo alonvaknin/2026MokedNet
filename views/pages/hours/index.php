@@ -20,15 +20,122 @@ $base = rtrim(CFG['app']['url'], '/');
 <?php View::component('hours-table', ['rows' => $rows, 'context' => 'page']); ?>
 
 <div class="hours-add">
-  <label class="hd-inpw" for="ha-date">
-    <i class="bi bi-calendar3"></i>
-    <input type="date" id="ha-date" value="<?= View::e(date('Y-m-d')) ?>"
-           max="<?= View::e(date('Y-m-d')) ?>">
-  </label>
+  <div class="hd-wrap">
+    <button type="button" class="hd-inpw" id="ha-open">
+      <i class="bi bi-calendar3"></i>
+      <span id="ha-label"><?= View::e(date('d/m/Y')) ?></span>
+    </button>
+    <input type="hidden" id="ha-date" value="<?= View::e(date('Y-m-d')) ?>">
+    <div class="hd-panel" id="ha-panel"></div>
+  </div>
   <button type="button" class="btn btn-primary" onclick="hoursAddOwn()">+ הוסף שורה</button>
 </div>
 
 <script>
+/* ── בורר תאריך: חודש נוכחי בלבד, בשפת ווידג'ט היומן ── */
+var HD_HOL = <?= json_encode(\Core\Holidays::all(), JSON_UNESCAPED_UNICODE) ?>;
+var HD_M = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט',
+            'ספטמבר','אוקטובר','נובמבר','דצמבר'];
+var HD_D = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+
+function hdKey(d) {
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) +
+           '-' + ('0' + d.getDate()).slice(-2);
+}
+
+function hdRender() {
+    var sel = document.getElementById('ha-date').value;
+    var base = sel ? new Date(sel + 'T00:00:00') : new Date();
+    var y = base.getFullYear(), m = base.getMonth();
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var tk = hdKey(today);
+
+    var h = '<div class="hd-tb">' +
+            '<button type="button" class="hd-nb" id="hd-prev">›</button>' +
+            '<span class="hd-tit">' + HD_M[m] + ' ' + y + '</span>' +
+            '<button type="button" class="hd-nb" id="hd-next">‹</button></div>';
+
+    h += '<div class="hd-dhrow">';
+    for (var i = 0; i < 7; i++)
+        h += '<div class="hd-dh' + (i === 5 ? ' f' : i === 6 ? ' s' : '') + '">' + HD_D[i] + '</div>';
+    h += '</div><div class="hd-grid">';
+
+    var first = new Date(y, m, 1).getDay(), dim = new Date(y, m + 1, 0).getDate();
+    for (var e = 0; e < first; e++) h += '<div class="hd-d emp"></div>';
+
+    for (var day = 1; day <= dim; day++) {
+        var d = new Date(y, m, day), k = hdKey(d), dw = d.getDay(), cls = 'hd-d';
+        var hol = HD_HOL[k];
+        if (dw === 6) cls += ' sat'; else if (dw === 5) cls += ' fri';
+        if (hol) cls += (hol.t === 'h' || hol.t === 'i') ? ' hol'
+                      : hol.t === 'e' ? ' erev' : hol.t === 'c' ? ' chol' : '';
+        if (k === tk) cls += ' today';
+        if (k === sel) cls += ' sel';
+        if (k > tk) cls += ' off';               /* תאריך עתידי חסום */
+        h += '<button type="button" class="' + cls + '" data-d="' + k + '"' +
+             (hol ? ' title="' + hol.n.replace(/"/g, '&quot;') + '"' : '') +
+             '>' + day + '</button>';
+    }
+    h += '</div>';
+
+    var p = document.getElementById('ha-panel');
+    p.innerHTML = h;
+
+    /* ניווט חודשים — קדימה חסום מעבר לחודש הנוכחי */
+    var nextBtn = document.getElementById('hd-next');
+    if (y > today.getFullYear() || (y === today.getFullYear() && m >= today.getMonth()))
+        nextBtn.disabled = true;
+
+    document.getElementById('hd-prev').onclick = function (ev) {
+        ev.stopPropagation(); hdShift(y, m - 1);
+    };
+    nextBtn.onclick = function (ev) { ev.stopPropagation(); hdShift(y, m + 1); };
+
+    p.querySelectorAll('.hd-d[data-d]').forEach(function (b) {
+        b.onclick = function (ev) {
+            ev.stopPropagation();
+            hdSet(b.dataset.d);
+            document.querySelector('.hd-wrap').classList.remove('open');
+        };
+    });
+}
+
+/* מעבר חודש בלי לשנות את הבחירה בפועל */
+function hdShift(y, m) {
+    var d = new Date(y, m, 1);
+    var cur = document.getElementById('ha-date').value;
+    document.getElementById('ha-date').dataset.view = hdKey(d);
+    var keep = cur;
+    document.getElementById('ha-date').value = hdKey(d);
+    hdRender();
+    document.getElementById('ha-date').value = keep;
+    /* מסמן מחדש את היום הנבחר אם הוא בחודש המוצג */
+    var s = document.querySelector('.hd-d[data-d="' + keep + '"]');
+    if (s) s.classList.add('sel');
+}
+
+function hdSet(k) {
+    document.getElementById('ha-date').value = k;
+    var p = k.split('-');
+    document.getElementById('ha-label').textContent = p[2] + '/' + p[1] + '/' + p[0];
+    hdRender();
+}
+
+document.getElementById('ha-open').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var w = document.querySelector('.hd-wrap');
+    w.classList.toggle('open');
+    if (w.classList.contains('open')) hdRender();
+});
+
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.hd-wrap'))
+        document.querySelector('.hd-wrap').classList.remove('open');
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') document.querySelector('.hd-wrap').classList.remove('open');
+});
+
 function hoursAddOwn() {
     var d = document.getElementById('ha-date').value;
     if (!d) { showToast('בחר תאריך', 'warning'); return; }
@@ -80,19 +187,84 @@ function hoursAddOwn() {
 .hours-month{font-weight:600;min-width:120px;text-align:center}
 .hours-add{margin-top:20px;display:flex;gap:10px;align-items:center}
 
-/* ── בורר תאריך — באותה שפה עיצובית של ווידג'ט היומן (.cal-inpw) ── */
+/* ── בורר תאריך — משכפל את נראות #cal-panel של ווידג'ט היומן ── */
+.hd-wrap{position:relative}
 .hd-inpw{display:flex;align-items:center;gap:6px;background:var(--bg4);
-  border:1px solid var(--border);border-radius:7px;padding:0 9px;
-  transition:border-color .13s,background .13s;cursor:pointer}
-.hd-inpw:hover{background:var(--accent-dim)}
-.hd-inpw:focus-within{border-color:var(--accent);background:var(--bg4)}
-.hd-inpw i{color:var(--text3);font-size:12px;flex-shrink:0;transition:color .13s}
-.hd-inpw:focus-within i,.hd-inpw:hover i{color:var(--accent)}
-#ha-date{background:none;border:none;outline:none;color:var(--text);
-  font-family:var(--font);font-size:13px;font-weight:600;padding:8px 0;
-  direction:ltr;text-align:center;cursor:pointer;color-scheme:dark}
-/* אייקון הלוח המובנה של הדפדפן — מוסתר לטובת האייקון שלנו */
-#ha-date::-webkit-calendar-picker-indicator{opacity:0;position:absolute;
-  inset:0;width:100%;height:100%;cursor:pointer}
-.hd-inpw{position:relative}
+  border:1px solid var(--border);border-radius:7px;padding:8px 11px;
+  color:var(--text);font-family:var(--font);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .13s}
+.hd-inpw:hover{background:var(--accent-dim);border-color:rgba(91,141,238,.4)}
+.hd-inpw i{color:var(--text3);font-size:12px;transition:color .13s}
+.hd-inpw:hover i,.hd-wrap.open .hd-inpw i{color:var(--accent)}
+.hd-wrap.open .hd-inpw{border-color:var(--accent);background:var(--accent-dim)}
+
+.hd-panel{position:absolute;top:calc(100% + 8px);right:0;z-index:409;display:none;
+  background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);direction:rtl;font-family:var(--font);
+  padding:9px 9px 11px}
+.hd-wrap.open .hd-panel{display:block}
+.hd-tb{display:flex;align-items:center;gap:4px;margin-bottom:7px}
+.hd-nb{width:27px;height:27px;border:1px solid var(--border);border-radius:7px;
+  background:var(--bg4);color:var(--text2);cursor:pointer;display:flex;
+  align-items:center;justify-content:center;font-size:11px;transition:all .13s}
+.hd-nb:hover{background:var(--accent-dim);color:var(--accent)}
+.hd-nb:active{transform:scale(.9)}
+.hd-nb:disabled{opacity:.3;cursor:default;pointer-events:none}
+.hd-tit{font-size:11px;font-weight:700;color:var(--text);flex:1;text-align:center;
+  white-space:nowrap}
+.hd-dhrow,.hd-grid{display:grid;grid-template-columns:repeat(7,32px);gap:2px}
+.hd-dh{font-size:9px;font-weight:700;color:var(--text3);text-align:center;padding:2px 0}
+.hd-dh.f{color:#f59e0b;opacity:.85}.hd-dh.s{color:#ef4444;opacity:.85}
+.hd-d{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;
+  border:1px solid transparent;color:var(--text2);position:relative;
+  background:none;font-family:var(--font);user-select:none;
+  transition:background .1s,color .1s}
+.hd-d:hover{background:var(--accent-dim);color:var(--accent);border-color:rgba(91,141,238,.2)}
+.hd-d.emp{visibility:hidden;pointer-events:none}
+.hd-d.fri{color:#f59e0b}
+.hd-d.sat{color:#ef4444;opacity:.6}
+.hd-d.sat:hover{opacity:1}
+.hd-d.hol{color:#f59e0b;font-weight:600;border-color:rgba(245,158,11,.35)}
+.hd-d.erev{color:#fbbf24;border-style:dashed;border-color:rgba(251,191,36,.4)}
+.hd-d.chol{color:#d97706}
+.hd-d.off{opacity:.25;cursor:default;pointer-events:none}
+.hd-d.today{box-shadow:inset 0 0 0 1px var(--accent)}
+.hd-d.sel{background:var(--accent)!important;color:#fff!important;font-weight:700;
+  box-shadow:0 2px 8px rgba(91,141,238,.4)}
+
+/* ── בורר שעה — נראות #cal-panel ── */
+.ht-tw{position:relative;display:inline-flex;align-items:center}
+.ht-tbtn{position:absolute;left:4px;top:50%;transform:translateY(-50%);
+  background:none;border:0;padding:2px 3px;line-height:1;cursor:pointer;
+  color:var(--text3);font-size:11px;border-radius:4px;transition:color .13s,background .13s}
+.ht-tbtn:hover{color:var(--accent);background:var(--accent-dim)}
+.ht-tbtn:disabled{opacity:.25;pointer-events:none}
+.ht-tw .ht-time{padding-left:22px}
+
+.ht-pop{position:fixed;z-index:9500;display:none;background:var(--bg2);
+  border:1px solid var(--border2);border-radius:14px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);padding:9px;direction:rtl;
+  font-family:var(--font)}
+.ht-pop.open{display:block}
+.ht-pop-hd{font-size:11px;font-weight:700;color:var(--text2);text-align:center;
+  margin-bottom:7px}
+.ht-pop-cols{display:flex;gap:7px}
+.ht-pop-col{display:flex;flex-direction:column;min-width:0}
+.ht-pop-lbl{font-size:9px;font-weight:700;color:var(--text3);text-align:center;
+  padding:2px 0;margin-bottom:3px}
+.ht-pop-list{display:grid;grid-template-columns:repeat(3,32px);gap:2px;
+  max-height:172px;overflow-y:auto;scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent;padding-left:2px}
+.ht-pop-list::-webkit-scrollbar{width:3px}
+.ht-pop-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.ht-pop-i{width:32px;height:28px;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:500;border-radius:6px;
+  cursor:pointer;border:1px solid transparent;color:var(--text2);
+  background:var(--bg4);font-family:var(--font);
+  transition:background .1s,color .1s}
+.ht-pop-i:hover{background:var(--accent-dim);color:var(--accent);
+  border-color:rgba(91,141,238,.2)}
+.ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;font-weight:700;
+  box-shadow:0 2px 8px rgba(91,141,238,.4)}
 </style>

@@ -30,6 +30,27 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
   <span class="hm-hint">גרור על תאים לבחירה מרובה</span>
 </div>
 
+<?php
+// חגים ומועדים בחודש המוצג — מוצגים כרצועה מעל הלוח
+$monthHols = [];
+for ($d = 1; $d <= $days; $d++) {
+    $date = sprintf('%s-%02d', $month, $d);
+    $h    = Holidays::get($date);
+    if (!$h) continue;
+    $monthHols[] = ['d' => $d, 'date' => $date, 'n' => $h['n'], 't' => $h['t']];
+}
+?>
+<?php if ($monthHols): ?>
+<div class="hm-hols">
+  <span class="hm-hols-lbl">חגים ומועדים בחודש:</span>
+  <?php foreach ($monthHols as $h): ?>
+    <span class="hm-hol hm-hol-<?= View::e($h['t']) ?>">
+      <b><?= (int)$h['d'] ?></b> <?= View::e($h['n']) ?>
+    </span>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+
 <div class="hm-scroll">
 <table class="hm-grid">
   <thead>
@@ -95,8 +116,12 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
           <option value="out">יציאה בלבד</option>
         </select>
       </label>
-      <label>כניסה: <input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"></label>
-      <label>יציאה: <input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"></label>
+      <label>כניסה:
+        <span class="ht-tw"><input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
+      </label>
+      <label>יציאה:
+        <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
+      </label>
       <label>הערה: <input type="text" id="hm-note" maxlength="500"></label>
       <button type="button" class="btn btn-primary" onclick="hmAddRequest()">הוסף</button>
     </div>
@@ -157,6 +182,94 @@ function hmPost(url, body) {
 }
 
 /* ── מודל תא בודד ── */
+/* ── בורר שעה (משוכפל מרכיב הטבלה; מוגן מהגדרה כפולה) ── */
+if (!window.hoursTimePicker) {
+window.hoursTimePicker = (function () {
+    var pop = null, target = null;
+
+    function build() {
+        var el = document.createElement('div');
+        el.className = 'ht-pop';
+        var h = '<div class="ht-pop-hd">בחר שעה</div><div class="ht-pop-cols">';
+        h += '<div class="ht-pop-col"><div class="ht-pop-lbl">שעה</div><div class="ht-pop-list">';
+        for (var i = 0; i < 24; i++) {
+            var v = ('0' + i).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-h="' + v + '">' + v + '</button>';
+        }
+        h += '</div></div><div class="ht-pop-col"><div class="ht-pop-lbl">דקות</div><div class="ht-pop-list">';
+        [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].forEach(function (m) {
+            var v = ('0' + m).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-m="' + v + '">' + v + '</button>';
+        });
+        h += '</div></div></div>';
+        el.innerHTML = h;
+        document.body.appendChild(el);
+
+        el.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        el.addEventListener('click', function (ev) {
+            var b = ev.target.closest('.ht-pop-i');
+            if (!b || !target) return;
+            var cur = (target.value || '').split(':');
+            var hh = cur[0] || '09', mm = cur[1] || '00';
+            if (b.dataset.h !== undefined) hh = b.dataset.h;
+            if (b.dataset.m !== undefined) mm = b.dataset.m;
+            target.value = hh + ':' + mm;
+            target.classList.remove('ht-bad');
+            mark();
+            if (b.dataset.m !== undefined) { close(); target.focus(); }
+        });
+        return el;
+    }
+
+    function mark() {
+        if (!pop || !target) return;
+        var cur = (target.value || '').split(':');
+        pop.querySelectorAll('.ht-pop-i').forEach(function (b) {
+            var on = (b.dataset.h !== undefined && b.dataset.h === cur[0]) ||
+                     (b.dataset.m !== undefined && b.dataset.m === cur[1]);
+            b.classList.toggle('ht-pop-on', !!on);
+        });
+        var sel = pop.querySelector('.ht-pop-on');
+        if (sel) sel.scrollIntoView({ block: 'nearest' });
+    }
+
+    function open(input) {
+        if (!pop) pop = build();
+        target = input;
+        pop.classList.add('open');
+        var r = input.getBoundingClientRect();
+        var top = r.bottom + 6, left = r.left;
+        if (top + pop.offsetHeight > window.innerHeight - 8)
+            top = Math.max(8, r.top - pop.offsetHeight - 6);
+        if (left + pop.offsetWidth > window.innerWidth - 8)
+            left = Math.max(8, window.innerWidth - pop.offsetWidth - 8);
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        mark();
+    }
+
+    function close() { if (pop) pop.classList.remove('open'); target = null; }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.ht-tbtn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            var inp = btn.parentNode.querySelector('.ht-time');
+            if (inp && !inp.readOnly && !inp.disabled) {
+                (target === inp && pop && pop.classList.contains('open')) ? close() : open(inp);
+            }
+            return;
+        }
+        if (pop && !e.target.closest('.ht-pop')) close();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    window.addEventListener('scroll', close, true);
+
+    return { open: open, close: close };
+})();
+}
+
 function hmOpenCell(uid, date) {
     HM_CTX.user = uid; HM_CTX.date = date;
     document.getElementById('hm-title').textContent = date;
@@ -180,10 +293,10 @@ function hmLoadRows() {
                 '<select class="r-type">' + Object.keys(HM_TYPES).map(function (k) {
                     return '<option value="' + k + '"' + (r.entry_type === k ? ' selected' : '') + '>' +
                            hmEsc(HM_TYPES[k]) + '</option>'; }).join('') + '</select>' +
-                '<input type="text" class="ht-time r-in" inputmode="numeric" maxlength="5" ' +
-                  'placeholder="--:--" value="' + hmEsc((r.time_in || '').slice(0, 5)) + '">' +
-                '<input type="text" class="ht-time r-out" inputmode="numeric" maxlength="5" ' +
-                  'placeholder="--:--" value="' + hmEsc((r.time_out || '').slice(0, 5)) + '">' +
+                '<span class="ht-tw"><input type="text" class="ht-time r-in" inputmode="numeric" maxlength="5" ' +
+                  'placeholder="--:--" value="' + hmEsc((r.time_in || '').slice(0, 5)) + '"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>' +
+                '<span class="ht-tw"><input type="text" class="ht-time r-out" inputmode="numeric" maxlength="5" ' +
+                  'placeholder="--:--" value="' + hmEsc((r.time_out || '').slice(0, 5)) + '"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>' +
                 '<select class="r-req">' +
                   ['both','in','out'].map(function (k) {
                       var lbl = { both:'שתיהן', in:'כניסה', out:'יציאה' }[k];
@@ -364,10 +477,35 @@ function hmExport() {
 .hm-ok{background:rgba(34,197,94,.20);color:#86efac}
 .hm-wait{background:rgba(245,158,11,.20);color:#fcd34d}
 .hm-abs{background:rgba(59,130,246,.20);color:#93c5fd}
-.hm-day-fri,.hm-day-sat{background:rgba(255,255,255,.04)}
+/* שישי/שבת — ימי מנוחה, מעומעמים כדי שלא יתחרו על תשומת הלב */
+.hm-day-fri,.hm-day-sat{background:rgba(0,0,0,.28)}
+th.hm-day-fri,th.hm-day-sat{opacity:.45}
+td.hm-cell.hm-day-fri,td.hm-cell.hm-day-sat{opacity:.5}
+td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
+.hm-day-sat{background:rgba(0,0,0,.38)}
+
 .hm-day-hol{background:rgba(245,158,11,.12)}
 .hm-day-erev{background:rgba(251,191,36,.07)}
 .hm-day-chol{background:rgba(217,119,6,.07)}
+
+/* רצועת החגים שמעל הלוח */
+.hm-hols{display:flex;flex-wrap:wrap;align-items:center;gap:7px;
+  margin:0 0 12px;padding:9px 13px;background:var(--bg2,#1a1a24);
+  border:1px solid var(--border,#2a2a3a);border-radius:8px}
+.hm-hols-lbl{font-size:11px;font-weight:700;color:var(--text3);
+  margin-inline-end:2px}
+.hm-hol{display:inline-flex;align-items:center;gap:5px;font-size:11px;
+  font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;
+  border:1px solid transparent}
+.hm-hol b{font-size:12px;font-weight:800;opacity:.85}
+.hm-hol-h,.hm-hol-i{background:rgba(245,158,11,.14);color:#f59e0b;
+  border-color:rgba(245,158,11,.32)}
+.hm-hol-e{background:rgba(251,191,36,.10);color:#fbbf24;
+  border-color:rgba(251,191,36,.30);border-style:dashed}
+.hm-hol-c{background:rgba(217,119,6,.12);color:#d97706;
+  border-color:rgba(217,119,6,.28)}
+.hm-hol-r{background:rgba(139,92,246,.12);color:#a78bfa;
+  border-color:rgba(139,92,246,.28)}
 
 /* מודל */
 .hm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;
@@ -396,4 +534,39 @@ function hmExport() {
   box-shadow:0 0 0 3px rgba(124,92,255,.18);background:var(--bg,#12121a)}
 .ht-time::placeholder{color:var(--text3,#6b7280);font-weight:400;letter-spacing:1px}
 .ht-time.ht-bad{border-color:#ef4444!important;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+
+/* ── בורר שעה — נראות #cal-panel ── */
+.ht-tw{position:relative;display:inline-flex;align-items:center}
+.ht-tbtn{position:absolute;left:4px;top:50%;transform:translateY(-50%);
+  background:none;border:0;padding:2px 3px;line-height:1;cursor:pointer;
+  color:var(--text3);font-size:11px;border-radius:4px;transition:color .13s,background .13s}
+.ht-tbtn:hover{color:var(--accent);background:var(--accent-dim)}
+.ht-tbtn:disabled{opacity:.25;pointer-events:none}
+.ht-tw .ht-time{padding-left:22px}
+
+.ht-pop{position:fixed;z-index:9500;display:none;background:var(--bg2);
+  border:1px solid var(--border2);border-radius:14px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);padding:9px;direction:rtl;
+  font-family:var(--font)}
+.ht-pop.open{display:block}
+.ht-pop-hd{font-size:11px;font-weight:700;color:var(--text2);text-align:center;
+  margin-bottom:7px}
+.ht-pop-cols{display:flex;gap:7px}
+.ht-pop-col{display:flex;flex-direction:column;min-width:0}
+.ht-pop-lbl{font-size:9px;font-weight:700;color:var(--text3);text-align:center;
+  padding:2px 0;margin-bottom:3px}
+.ht-pop-list{display:grid;grid-template-columns:repeat(3,32px);gap:2px;
+  max-height:172px;overflow-y:auto;scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent;padding-left:2px}
+.ht-pop-list::-webkit-scrollbar{width:3px}
+.ht-pop-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.ht-pop-i{width:32px;height:28px;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:500;border-radius:6px;
+  cursor:pointer;border:1px solid transparent;color:var(--text2);
+  background:var(--bg4);font-family:var(--font);
+  transition:background .1s,color .1s}
+.ht-pop-i:hover{background:var(--accent-dim);color:var(--accent);
+  border-color:rgba(91,141,238,.2)}
+.ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;font-weight:700;
+  box-shadow:0 2px 8px rgba(91,141,238,.4)}
 </style>

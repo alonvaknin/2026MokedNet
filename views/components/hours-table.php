@@ -50,16 +50,28 @@ $DAYS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
         </select>
       </td>
       <td>
-        <input type="text" class="ht-time ht-in<?= $reqIn ? ' ht-req' : '' ?>"
-               inputmode="numeric" maxlength="5" placeholder="--:--"
-               value="<?= View::e(substr((string)$r['time_in'], 0, 5)) ?>"
-               <?= $lockIn ? 'readonly' : '' ?>>
+        <span class="ht-tw">
+          <input type="text" class="ht-time ht-in<?= $reqIn ? ' ht-req' : '' ?>"
+                 inputmode="numeric" maxlength="5" placeholder="--:--"
+                 value="<?= View::e(substr((string)$r['time_in'], 0, 5)) ?>"
+                 <?= $lockIn ? 'readonly' : '' ?>>
+          <?php if (!$lockIn): ?>
+            <button type="button" class="ht-tbtn" tabindex="-1"
+                    title="בחירת שעה"><i class="bi bi-clock"></i></button>
+          <?php endif; ?>
+        </span>
       </td>
       <td>
-        <input type="text" class="ht-time ht-out<?= $reqOut ? ' ht-req' : '' ?>"
-               inputmode="numeric" maxlength="5" placeholder="--:--"
-               value="<?= View::e(substr((string)$r['time_out'], 0, 5)) ?>"
-               <?= $lockOut ? 'readonly' : '' ?>>
+        <span class="ht-tw">
+          <input type="text" class="ht-time ht-out<?= $reqOut ? ' ht-req' : '' ?>"
+                 inputmode="numeric" maxlength="5" placeholder="--:--"
+                 value="<?= View::e(substr((string)$r['time_out'], 0, 5)) ?>"
+                 <?= $lockOut ? 'readonly' : '' ?>>
+          <?php if (!$lockOut): ?>
+            <button type="button" class="ht-tbtn" tabindex="-1"
+                    title="בחירת שעה"><i class="bi bi-clock"></i></button>
+          <?php endif; ?>
+        </span>
       </td>
       <td><input type="text" class="ht-note" maxlength="500"
                  value="<?= View::e((string)$r['note']) ?>"></td>
@@ -145,6 +157,91 @@ document.addEventListener('blur', function (e) {
     e.target.value = v;
 }, true);
 
+/* ── בורר שעה — נפתח מהאייקון, ההקלדה הידנית נשארת זמינה ── */
+window.hoursTimePicker = (function () {
+    var pop = null, target = null;
+
+    function build() {
+        var el = document.createElement('div');
+        el.className = 'ht-pop';
+        var h = '<div class="ht-pop-hd">בחר שעה</div><div class="ht-pop-cols">';
+        h += '<div class="ht-pop-col" data-col="h"><div class="ht-pop-lbl">שעה</div><div class="ht-pop-list">';
+        for (var i = 0; i < 24; i++) {
+            var v = ('0' + i).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-h="' + v + '">' + v + '</button>';
+        }
+        h += '</div></div><div class="ht-pop-col" data-col="m"><div class="ht-pop-lbl">דקות</div><div class="ht-pop-list">';
+        [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].forEach(function (m) {
+            var v = ('0' + m).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-m="' + v + '">' + v + '</button>';
+        });
+        h += '</div></div></div>';
+        el.innerHTML = h;
+        document.body.appendChild(el);
+
+        el.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        el.addEventListener('click', function (ev) {
+            var b = ev.target.closest('.ht-pop-i');
+            if (!b || !target) return;
+            var cur = (target.value || '').split(':');
+            var hh = cur[0] || '09', mm = cur[1] || '00';
+            if (b.dataset.h !== undefined) hh = b.dataset.h;
+            if (b.dataset.m !== undefined) mm = b.dataset.m;
+            target.value = hh + ':' + mm;
+            target.classList.remove('ht-bad');
+            mark();
+            if (b.dataset.m !== undefined) { close(); target.focus(); }
+        });
+        return el;
+    }
+
+    function mark() {
+        if (!pop || !target) return;
+        var cur = (target.value || '').split(':');
+        pop.querySelectorAll('.ht-pop-i').forEach(function (b) {
+            var on = (b.dataset.h !== undefined && b.dataset.h === cur[0]) ||
+                     (b.dataset.m !== undefined && b.dataset.m === cur[1]);
+            b.classList.toggle('ht-pop-on', !!on);
+        });
+        var sel = pop.querySelector('.ht-pop-on');
+        if (sel) sel.scrollIntoView({ block: 'nearest' });
+    }
+
+    function open(input) {
+        if (!pop) pop = build();
+        target = input;
+        pop.classList.add('open');
+        var r = input.getBoundingClientRect();
+        var top = r.bottom + 6, left = r.left;
+        if (top + pop.offsetHeight > window.innerHeight - 8)
+            top = Math.max(8, r.top - pop.offsetHeight - 6);
+        if (left + pop.offsetWidth > window.innerWidth - 8)
+            left = Math.max(8, window.innerWidth - pop.offsetWidth - 8);
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        mark();
+    }
+
+    function close() { if (pop) pop.classList.remove('open'); target = null; }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.ht-tbtn');
+        if (btn) {
+            e.preventDefault();
+            var inp = btn.parentNode.querySelector('.ht-time');
+            if (inp && !inp.readOnly && !inp.disabled) {
+                (target === inp && pop && pop.classList.contains('open')) ? close() : open(inp);
+            }
+            return;
+        }
+        if (pop && !e.target.closest('.ht-pop')) close();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    window.addEventListener('scroll', close, true);
+
+    return { open: open, close: close };
+})();
+
 /* בחירת סיבת היעדרות מנטרלת את שדות השעות */
 document.addEventListener('change', function (e) {
     if (!e.target.classList || !e.target.classList.contains('ht-type')) return;
@@ -155,7 +252,9 @@ document.addEventListener('change', function (e) {
         var f = tr.querySelector(sel);
         if (!f) return;
         f.disabled = off;
-        if (off) f.value = '';
+        if (off) { f.value = ''; f.classList.remove('ht-bad'); }
+        var b = f.parentNode && f.parentNode.querySelector('.ht-tbtn');
+        if (b) b.disabled = off;
     });
 });
 }

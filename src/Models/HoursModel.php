@@ -101,11 +101,21 @@ class HoursModel
 
     /* ── שכבת המנהל ── */
 
+    /**
+     * רק משתמשים שקבוצת ההרשאות שלהם מקנה דיווח שעות או ניהול דיווח —
+     * הלוח לא אמור להציג את כל עובדי המערכת, אלא את מי שבאמת מדווח.
+     */
     public static function activeUsers(): array
     {
         return DB::query(
-            "SELECT id, CONCAT(first_name,' ',last_name) AS full_name
-             FROM users WHERE is_active = 1 ORDER BY first_name ASC, last_name ASC"
+            "SELECT u.id, CONCAT(u.first_name,' ',u.last_name) AS full_name
+             FROM users u
+             JOIN permission_group_grants g ON g.group_id = u.permission_group_id
+             WHERE u.is_active = 1
+               AND g.granted = 1
+               AND g.permission_key IN ('canReportHours','canManageHours')
+             GROUP BY u.id, u.first_name, u.last_name
+             ORDER BY u.first_name ASC, u.last_name ASC"
         );
     }
 
