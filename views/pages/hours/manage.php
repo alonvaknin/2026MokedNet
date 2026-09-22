@@ -4,6 +4,7 @@ use Core\View;
 use Core\Holidays;
 /** @var array $users */
 /** @var array $grid */
+/** @var array $list */
 /** @var int $days */
 /** @var string $month */
 /** @var string $monthLabel */
@@ -12,6 +13,9 @@ use Core\Holidays;
 /** @var int $markedCount */
 $base = rtrim(CFG['app']['url'], '/');
 $DAYS = ['א','ב','ג','ד','ה','ו','ש'];
+// שמות מלאים לטבלה הרחבה; $ABS הוא הקיצור לתאי הרשת הצרים
+$FULL = ['regular'=>'רגיל','vacation'=>'חופש','reserve'=>'מילואים',
+         'sick'=>'מחלה','duplicate_delete'=>'מחיקת כפולים','other'=>'אחר'];
 $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
          'duplicate_delete'=>'כפל׳','other'=>'אחר'];
 ?>
@@ -30,27 +34,6 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
   <span class="hm-hint">גרור על תאים לבחירה מרובה</span>
 </div>
 
-<?php
-// חגים ומועדים בחודש המוצג — מוצגים כרצועה מעל הלוח
-$monthHols = [];
-for ($d = 1; $d <= $days; $d++) {
-    $date = sprintf('%s-%02d', $month, $d);
-    $h    = Holidays::get($date);
-    if (!$h) continue;
-    $monthHols[] = ['d' => $d, 'date' => $date, 'n' => $h['n'], 't' => $h['t']];
-}
-?>
-<?php if ($monthHols): ?>
-<div class="hm-hols">
-  <span class="hm-hols-lbl">חגים ומועדים בחודש:</span>
-  <?php foreach ($monthHols as $h): ?>
-    <span class="hm-hol hm-hol-<?= View::e($h['t']) ?>">
-      <b><?= (int)$h['d'] ?></b> <?= View::e($h['n']) ?>
-    </span>
-  <?php endforeach; ?>
-</div>
-<?php endif; ?>
-
 <div class="hm-scroll">
 <table class="hm-grid">
   <thead>
@@ -61,8 +44,9 @@ for ($d = 1; $d <= $days; $d++) {
           $dt   = Holidays::dayType($date);
           $hol  = Holidays::get($date);
       ?>
-        <th class="hm-d hm-day-<?= View::e($dt) ?>"
+        <th class="hm-d hm-day-<?= View::e($dt) ?><?= $hol ? ' hm-has-hol' : '' ?>"
             title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?>">
+          <span class="hm-hn<?= $hol ? '' : ' hm-hn-e' ?>"><?= View::e($hol['n'] ?? '') ?></span>
           <span class="hm-dn"><?= (int)$d ?></span>
           <span class="hm-dw"><?= View::e($DAYS[(int)date('w', strtotime($date))]) ?></span>
         </th>
@@ -90,7 +74,10 @@ for ($d = 1; $d <= $days; $d++) {
                          (substr((string)$r['time_out'], 0, 5) ?: '?');
               }
           ?>
-            <span class="hm-chip <?= View::e($cls) ?>"><?= View::e($txt) ?></span>
+            <span class="hm-chip <?= View::e($cls) ?>"
+                  title="<?= View::e($txt) ?><?= $r['note'] ? ' · ' . $r['note'] : '' ?>">
+              <?= View::e($txt) ?>
+            </span>
           <?php endforeach; ?>
         </td>
       <?php endfor; ?>
@@ -99,6 +86,132 @@ for ($d = 1; $d <= $days; $d++) {
   </tbody>
 </table>
 </div>
+
+<!-- ═══ טבלת הדרישות המרכזת ═══ -->
+<?php
+$pending = array_values(array_filter($list, fn($r) => $r['status'] === 'requested'));
+$filled  = array_values(array_filter($list, fn($r) => $r['status'] === 'filled'));
+$marked  = array_values(array_filter($list, fn($r) => (int)$r['marked_for_export'] === 1));
+$REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 'יציאה'];
+?>
+<div class="hl-wrap">
+  <div class="hl-head">
+    <h2>דרישות ודיווחים — <?= View::e($monthLabel) ?></h2>
+    <div class="hl-tabs">
+      <button type="button" class="hl-tab on" data-f="pending">
+        ממתינות <span class="hl-c"><?= count($pending) ?></span>
+      </button>
+      <button type="button" class="hl-tab" data-f="filled">
+        הושלמו <span class="hl-c"><?= count($filled) ?></span>
+      </button>
+      <button type="button" class="hl-tab" data-f="marked">
+        לדיווח <span class="hl-c"><?= count($marked) ?></span>
+      </button>
+      <button type="button" class="hl-tab" data-f="all">
+        הכל <span class="hl-c"><?= count($list) ?></span>
+      </button>
+    </div>
+  </div>
+
+  <table class="hl-table">
+    <thead>
+      <tr>
+        <th style="width:34px"></th>
+        <th>עובד</th><th>תאריך</th><th>יום</th><th>סוג</th>
+        <th>כניסה</th><th>יציאה</th><th>נדרש</th><th>הערה</th><th>סטטוס</th>
+      </tr>
+    </thead>
+    <tbody>
+    <?php if (!$list): ?>
+      <tr><td colspan="10" class="hl-empty">אין דיווחים בחודש זה</td></tr>
+    <?php endif; ?>
+    <?php foreach ($list as $r):
+        $ts   = strtotime($r['work_date']);
+        $dt   = Holidays::dayType($r['work_date']);
+        $hol  = Holidays::get($r['work_date']);
+        $done = $r['status'] === 'filled';
+        $mk   = (int)$r['marked_for_export'] === 1;
+        $flags = ($done ? 'filled' : 'pending') . ($mk ? ' marked' : '');
+    ?>
+      <tr class="hl-row hl-day-<?= View::e($dt) ?>" data-flags="<?= View::e($flags) ?>"
+          data-id="<?= (int)$r['id'] ?>"
+          data-user="<?= (int)$r['user_id'] ?>" data-date="<?= View::e($r['work_date']) ?>">
+        <td><input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
+                   title="סימון לדיווח"></td>
+        <td class="hl-name"><?= View::e((string)$r['full_name']) ?></td>
+        <td class="hl-mono"><?= View::e(date('d/m', $ts)) ?></td>
+        <td>
+          <?= View::e($DAYS[(int)date('w', $ts)]) ?>
+          <?php if ($hol): ?>
+            <span class="hl-hol"><?= View::e($hol['n']) ?></span>
+          <?php endif; ?>
+        </td>
+        <td><?= View::e($FULL[$r['entry_type']] ?? $r['entry_type']) ?></td>
+        <td class="hl-mono"><?= View::e(substr((string)$r['time_in'], 0, 5) ?: '—') ?></td>
+        <td class="hl-mono"><?= View::e(substr((string)$r['time_out'], 0, 5) ?: '—') ?></td>
+        <td class="hl-req"><?= View::e($REQ[$r['requires']] ?? '') ?></td>
+        <td class="hl-note" title="<?= View::e((string)$r['note']) ?>"><?= View::e((string)$r['note']) ?></td>
+        <td>
+          <span class="hl-st <?= $done ? 'ok' : 'wait' ?>"><?= $done ? 'הושלם' : 'ממתין' ?></span>
+          <?php if ($mk): ?><span class="hl-st mk">לדיווח</span><?php endif; ?>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
+
+<script>
+/* סינון הטבלה המרכזת + סימון לדיווח ישירות ממנה */
+(function () {
+    var tabs = document.querySelectorAll('.hl-tab');
+    var rows = document.querySelectorAll('.hl-row');
+
+    function apply(f) {
+        rows.forEach(function (tr) {
+            var fl = tr.dataset.flags || '';
+            var show = f === 'all'
+                || (f === 'pending' && fl.indexOf('pending') === 0)
+                || (f === 'filled'  && fl.indexOf('filled')  === 0)
+                || (f === 'marked'  && fl.indexOf('marked')  !== -1);
+            tr.style.display = show ? '' : 'none';
+        });
+    }
+
+    tabs.forEach(function (b) {
+        b.addEventListener('click', function () {
+            tabs.forEach(function (x) { x.classList.remove('on'); });
+            b.classList.add('on');
+            apply(b.dataset.f);
+        });
+    });
+    apply('pending');
+
+    /* צ'קבוקס "לדיווח" — מעדכן את המונה בפס העליון */
+    document.querySelectorAll('.hl-chk').forEach(function (chk) {
+        chk.addEventListener('change', function () {
+            var tr = chk.closest('.hl-row');
+            hmPost('/hours/mark', { id: parseInt(tr.dataset.id, 10), on: chk.checked })
+              .then(function (res) {
+                  if (res.error) { showToast(res.error, 'error'); chk.checked = !chk.checked; return; }
+                  if (res.marked !== undefined)
+                      document.getElementById('hm-marked').textContent = res.marked;
+                  var fl = (tr.dataset.flags || '').replace(' marked', '');
+                  tr.dataset.flags = fl + (chk.checked ? ' marked' : '');
+              })
+              .catch(function () { showToast('שגיאת רשת', 'error'); chk.checked = !chk.checked; });
+        });
+    });
+
+    /* לחיצה על שורה פותחת את מודל התא של אותו עובד/תאריך */
+    document.querySelectorAll('.hl-row').forEach(function (tr) {
+        tr.addEventListener('click', function (e) {
+            if (e.target.closest('.hl-chk')) return;
+            hmOpenCell(parseInt(tr.dataset.user, 10), tr.dataset.date);
+        });
+    });
+})();
+</script>
 
 <!-- מודל התא -->
 <div id="hm-modal" class="hm-overlay" onclick="if(event.target===this)hmClose()">
@@ -187,21 +300,19 @@ if (!window.hoursTimePicker) {
 window.hoursTimePicker = (function () {
     var pop = null, target = null;
 
+    /* רשימת HH:MM בקפיצות 15 דקות; הגלילה קופצת לערך הקרוב לשעה הנוכחית */
     function build() {
         var el = document.createElement('div');
         el.className = 'ht-pop';
-        var h = '<div class="ht-pop-hd">בחר שעה</div><div class="ht-pop-cols">';
-        h += '<div class="ht-pop-col"><div class="ht-pop-lbl">שעה</div><div class="ht-pop-list">';
-        for (var i = 0; i < 24; i++) {
-            var v = ('0' + i).slice(-2);
-            h += '<button type="button" class="ht-pop-i" data-h="' + v + '">' + v + '</button>';
+        var h = '<div class="ht-pop-hd">בחר שעה</div>' +
+                '<div class="ht-pop-list">';
+        for (var hh = 0; hh < 24; hh++) {
+            for (var mm = 0; mm < 60; mm += 15) {
+                var v = ('0' + hh).slice(-2) + ':' + ('0' + mm).slice(-2);
+                h += '<button type="button" class="ht-pop-i" data-v="' + v + '">' + v + '</button>';
+            }
         }
-        h += '</div></div><div class="ht-pop-col"><div class="ht-pop-lbl">דקות</div><div class="ht-pop-list">';
-        [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].forEach(function (m) {
-            var v = ('0' + m).slice(-2);
-            h += '<button type="button" class="ht-pop-i" data-m="' + v + '">' + v + '</button>';
-        });
-        h += '</div></div></div>';
+        h += '</div>';
         el.innerHTML = h;
         document.body.appendChild(el);
 
@@ -209,28 +320,28 @@ window.hoursTimePicker = (function () {
         el.addEventListener('click', function (ev) {
             var b = ev.target.closest('.ht-pop-i');
             if (!b || !target) return;
-            var cur = (target.value || '').split(':');
-            var hh = cur[0] || '09', mm = cur[1] || '00';
-            if (b.dataset.h !== undefined) hh = b.dataset.h;
-            if (b.dataset.m !== undefined) mm = b.dataset.m;
-            target.value = hh + ':' + mm;
+            target.value = b.dataset.v;
             target.classList.remove('ht-bad');
-            mark();
-            if (b.dataset.m !== undefined) { close(); target.focus(); }
+            close();
+            target.focus();
         });
         return el;
     }
 
     function mark() {
         if (!pop || !target) return;
-        var cur = (target.value || '').split(':');
+        var cur = (target.value || '').trim();
+        var exact = null, near = null;
         pop.querySelectorAll('.ht-pop-i').forEach(function (b) {
-            var on = (b.dataset.h !== undefined && b.dataset.h === cur[0]) ||
-                     (b.dataset.m !== undefined && b.dataset.m === cur[1]);
-            b.classList.toggle('ht-pop-on', !!on);
+            var on = b.dataset.v === cur;
+            b.classList.toggle('ht-pop-on', on);
+            if (on) exact = b;
+            /* אין התאמה מדויקת — גוללים לשעה העגולה הקרובה */
+            if (!near && cur.length >= 2 && b.dataset.v.slice(0, 2) === cur.slice(0, 2)) near = b;
         });
-        var sel = pop.querySelector('.ht-pop-on');
-        if (sel) sel.scrollIntoView({ block: 'nearest' });
+        var t = exact || near;
+        if (t) pop.querySelector('.ht-pop-list').scrollTop =
+                   t.offsetTop - pop.querySelector('.ht-pop-list').offsetTop - 60;
     }
 
     function open(input) {
@@ -467,16 +578,24 @@ function hmExport() {
 .hm-grid th,.hm-grid td{border:1px solid var(--border,#2a2a3a);padding:2px 4px;text-align:center}
 .hm-name{position:sticky;right:0;background:var(--bg,#12121a);text-align:right!important;
   min-width:130px;white-space:nowrap;z-index:2}
-.hm-d{min-width:46px}
+.hm-d{min-width:58px;vertical-align:bottom;padding:3px 2px!important}
 .hm-dn{display:block;font-weight:700}
 .hm-dw{display:block;font-size:10px;color:var(--text3)}
-.hm-cell{min-width:46px;height:34px;cursor:pointer;vertical-align:top;user-select:none}
+.hm-cell{min-width:58px;height:40px;cursor:pointer;vertical-align:top;user-select:none;
+  padding:2px 3px!important}
 .hm-cell:hover{outline:1px solid var(--accent,#7c5cff)}
 .hm-cell.sel{background:rgba(124,92,255,.25)!important}
-.hm-chip{display:block;font-size:10px;border-radius:3px;padding:1px 2px;margin:1px 0;white-space:nowrap}
-.hm-ok{background:rgba(34,197,94,.20);color:#86efac}
-.hm-wait{background:rgba(245,158,11,.20);color:#fcd34d}
-.hm-abs{background:rgba(59,130,246,.20);color:#93c5fd}
+/* צ'יפ הדיווח בתא — גדול וברור מספיק לקריאה מהירה */
+.hm-chip{display:block;font-size:11px;font-weight:700;letter-spacing:.2px;
+  border-radius:5px;padding:3px 4px;margin:2px 0;white-space:nowrap;
+  border-inline-start:3px solid transparent;
+  font-family:'SF Mono',Consolas,monospace;direction:ltr}
+.hm-ok{background:rgba(34,197,94,.22);color:#86efac;border-inline-start-color:#22c55e}
+.hm-wait{background:rgba(245,158,11,.26);color:#fcd34d;border-inline-start-color:#f59e0b;
+  animation:hmPulse 2.4s ease-in-out infinite}
+.hm-abs{background:rgba(59,130,246,.22);color:#93c5fd;border-inline-start-color:#3b82f6;
+  font-family:var(--font);direction:rtl}
+@keyframes hmPulse{0%,100%{opacity:1}50%{opacity:.62}}
 /* שישי/שבת — ימי מנוחה, מעומעמים כדי שלא יתחרו על תשומת הלב */
 .hm-day-fri,.hm-day-sat{background:rgba(0,0,0,.28)}
 th.hm-day-fri,th.hm-day-sat{opacity:.45}
@@ -488,24 +607,15 @@ td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
 .hm-day-erev{background:rgba(251,191,36,.07)}
 .hm-day-chol{background:rgba(217,119,6,.07)}
 
-/* רצועת החגים שמעל הלוח */
-.hm-hols{display:flex;flex-wrap:wrap;align-items:center;gap:7px;
-  margin:0 0 12px;padding:9px 13px;background:var(--bg2,#1a1a24);
-  border:1px solid var(--border,#2a2a3a);border-radius:8px}
-.hm-hols-lbl{font-size:11px;font-weight:700;color:var(--text3);
-  margin-inline-end:2px}
-.hm-hol{display:inline-flex;align-items:center;gap:5px;font-size:11px;
-  font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;
-  border:1px solid transparent}
-.hm-hol b{font-size:12px;font-weight:800;opacity:.85}
-.hm-hol-h,.hm-hol-i{background:rgba(245,158,11,.14);color:#f59e0b;
-  border-color:rgba(245,158,11,.32)}
-.hm-hol-e{background:rgba(251,191,36,.10);color:#fbbf24;
-  border-color:rgba(251,191,36,.30);border-style:dashed}
-.hm-hol-c{background:rgba(217,119,6,.12);color:#d97706;
-  border-color:rgba(217,119,6,.28)}
-.hm-hol-r{background:rgba(139,92,246,.12);color:#a78bfa;
-  border-color:rgba(139,92,246,.28)}
+/* שם החג מעל מספר היום, בתוך כותרת העמודה */
+.hm-hn{display:block;font-size:8px;font-weight:700;line-height:1.15;
+  min-height:19px;padding:1px 1px 0;color:#f59e0b;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;word-break:break-word}
+.hm-hn-e{visibility:hidden}
+.hm-day-erev .hm-hn{color:#fbbf24}
+.hm-day-chol .hm-hn{color:#d97706}
+.hm-has-hol{border-bottom:2px solid rgba(245,158,11,.45)}
 
 /* מודל */
 .hm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;
@@ -551,22 +661,61 @@ td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
 .ht-pop.open{display:block}
 .ht-pop-hd{font-size:11px;font-weight:700;color:var(--text2);text-align:center;
   margin-bottom:7px}
-.ht-pop-cols{display:flex;gap:7px}
-.ht-pop-col{display:flex;flex-direction:column;min-width:0}
-.ht-pop-lbl{font-size:9px;font-weight:700;color:var(--text3);text-align:center;
-  padding:2px 0;margin-bottom:3px}
-.ht-pop-list{display:grid;grid-template-columns:repeat(3,32px);gap:2px;
-  max-height:172px;overflow-y:auto;scrollbar-width:thin;
-  scrollbar-color:var(--border2) transparent;padding-left:2px}
-.ht-pop-list::-webkit-scrollbar{width:3px}
-.ht-pop-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-.ht-pop-i{width:32px;height:28px;display:flex;align-items:center;
-  justify-content:center;font-size:12px;font-weight:500;border-radius:6px;
+.ht-pop-list{display:flex;flex-direction:column;gap:2px;width:104px;
+  max-height:232px;overflow-y:auto;scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent;padding-left:3px}
+.ht-pop-list::-webkit-scrollbar{width:4px}
+.ht-pop-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.ht-pop-i{height:30px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:600;letter-spacing:.5px;border-radius:7px;
   cursor:pointer;border:1px solid transparent;color:var(--text2);
-  background:var(--bg4);font-family:var(--font);
-  transition:background .1s,color .1s}
+  background:var(--bg4);font-family:'SF Mono',Consolas,monospace;direction:ltr;
+  transition:background .1s,color .1s;flex-shrink:0}
 .ht-pop-i:hover{background:var(--accent-dim);color:var(--accent);
   border-color:rgba(91,141,238,.2)}
-.ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;font-weight:700;
+.ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;
   box-shadow:0 2px 8px rgba(91,141,238,.4)}
+
+/* ── טבלת הדרישות המרכזת ── */
+.hl-wrap{margin-top:22px;background:var(--bg2,#1a1a24);
+  border:1px solid var(--border,#2a2a3a);border-radius:10px;overflow:hidden}
+.hl-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 15px;border-bottom:1px solid var(--border,#2a2a3a)}
+.hl-head h2{margin:0;font-size:15px;font-weight:700;color:var(--text)}
+.hl-tabs{display:flex;gap:5px;margin-inline-start:auto}
+.hl-tab{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;
+  border:1px solid var(--border);border-radius:20px;background:var(--bg4);
+  color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;
+  font-family:var(--font);transition:all .13s}
+.hl-tab:hover{background:var(--accent-dim);color:var(--accent)}
+.hl-tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hl-c{font-size:11px;font-weight:800;background:rgba(0,0,0,.25);
+  border-radius:9px;padding:0 6px;min-width:18px;text-align:center}
+.hl-tab.on .hl-c{background:rgba(255,255,255,.22)}
+
+.hl-table{width:100%;border-collapse:collapse;font-size:13px}
+.hl-table th{padding:8px 10px;text-align:right;font-size:11px;font-weight:700;
+  color:var(--text3);background:var(--bg3,#15151f);white-space:nowrap;
+  position:sticky;top:0;z-index:1}
+.hl-table td{padding:8px 10px;text-align:right;
+  border-bottom:1px solid var(--border,#2a2a3a);color:var(--text2)}
+.hl-row{cursor:pointer;transition:background .1s}
+.hl-row:hover{background:var(--accent-dim)}
+.hl-name{font-weight:600;color:var(--text);white-space:nowrap}
+.hl-mono{font-family:'SF Mono',Consolas,monospace;direction:ltr;text-align:center}
+.hl-req{font-size:11px;color:var(--text3);white-space:nowrap}
+.hl-note{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;color:var(--text3)}
+.hl-hol{display:inline-block;font-size:9px;font-weight:700;color:#f59e0b;
+  background:rgba(245,158,11,.14);border-radius:4px;padding:1px 5px;
+  margin-inline-start:4px}
+.hl-st{display:inline-block;font-size:10px;font-weight:700;border-radius:20px;
+  padding:2px 9px;white-space:nowrap}
+.hl-st.ok{background:rgba(34,197,94,.20);color:#86efac}
+.hl-st.wait{background:rgba(245,158,11,.22);color:#fcd34d}
+.hl-st.mk{background:rgba(124,92,255,.22);color:#c4b5fd;margin-inline-start:4px}
+.hl-day-fri,.hl-day-sat{opacity:.55}
+.hl-day-fri:hover,.hl-day-sat:hover{opacity:1}
+.hl-empty{text-align:center;color:var(--text3);padding:26px}
+.hl-chk{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
 </style>

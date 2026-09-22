@@ -161,21 +161,19 @@ document.addEventListener('blur', function (e) {
 window.hoursTimePicker = (function () {
     var pop = null, target = null;
 
+    /* רשימת HH:MM בקפיצות 15 דקות; הגלילה קופצת לערך הקרוב לשעה הנוכחית */
     function build() {
         var el = document.createElement('div');
         el.className = 'ht-pop';
-        var h = '<div class="ht-pop-hd">בחר שעה</div><div class="ht-pop-cols">';
-        h += '<div class="ht-pop-col" data-col="h"><div class="ht-pop-lbl">שעה</div><div class="ht-pop-list">';
-        for (var i = 0; i < 24; i++) {
-            var v = ('0' + i).slice(-2);
-            h += '<button type="button" class="ht-pop-i" data-h="' + v + '">' + v + '</button>';
+        var h = '<div class="ht-pop-hd">בחר שעה</div>' +
+                '<div class="ht-pop-list">';
+        for (var hh = 0; hh < 24; hh++) {
+            for (var mm = 0; mm < 60; mm += 15) {
+                var v = ('0' + hh).slice(-2) + ':' + ('0' + mm).slice(-2);
+                h += '<button type="button" class="ht-pop-i" data-v="' + v + '">' + v + '</button>';
+            }
         }
-        h += '</div></div><div class="ht-pop-col" data-col="m"><div class="ht-pop-lbl">דקות</div><div class="ht-pop-list">';
-        [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].forEach(function (m) {
-            var v = ('0' + m).slice(-2);
-            h += '<button type="button" class="ht-pop-i" data-m="' + v + '">' + v + '</button>';
-        });
-        h += '</div></div></div>';
+        h += '</div>';
         el.innerHTML = h;
         document.body.appendChild(el);
 
@@ -183,28 +181,28 @@ window.hoursTimePicker = (function () {
         el.addEventListener('click', function (ev) {
             var b = ev.target.closest('.ht-pop-i');
             if (!b || !target) return;
-            var cur = (target.value || '').split(':');
-            var hh = cur[0] || '09', mm = cur[1] || '00';
-            if (b.dataset.h !== undefined) hh = b.dataset.h;
-            if (b.dataset.m !== undefined) mm = b.dataset.m;
-            target.value = hh + ':' + mm;
+            target.value = b.dataset.v;
             target.classList.remove('ht-bad');
-            mark();
-            if (b.dataset.m !== undefined) { close(); target.focus(); }
+            close();
+            target.focus();
         });
         return el;
     }
 
     function mark() {
         if (!pop || !target) return;
-        var cur = (target.value || '').split(':');
+        var cur = (target.value || '').trim();
+        var exact = null, near = null;
         pop.querySelectorAll('.ht-pop-i').forEach(function (b) {
-            var on = (b.dataset.h !== undefined && b.dataset.h === cur[0]) ||
-                     (b.dataset.m !== undefined && b.dataset.m === cur[1]);
-            b.classList.toggle('ht-pop-on', !!on);
+            var on = b.dataset.v === cur;
+            b.classList.toggle('ht-pop-on', on);
+            if (on) exact = b;
+            /* אין התאמה מדויקת — גוללים לשעה העגולה הקרובה */
+            if (!near && cur.length >= 2 && b.dataset.v.slice(0, 2) === cur.slice(0, 2)) near = b;
         });
-        var sel = pop.querySelector('.ht-pop-on');
-        if (sel) sel.scrollIntoView({ block: 'nearest' });
+        var t = exact || near;
+        if (t) pop.querySelector('.ht-pop-list').scrollTop =
+                   t.offsetTop - pop.querySelector('.ht-pop-list').offsetTop - 60;
     }
 
     function open(input) {
@@ -228,6 +226,7 @@ window.hoursTimePicker = (function () {
         var btn = e.target.closest('.ht-tbtn');
         if (btn) {
             e.preventDefault();
+            e.stopPropagation();
             var inp = btn.parentNode.querySelector('.ht-time');
             if (inp && !inp.readOnly && !inp.disabled) {
                 (target === inp && pop && pop.classList.contains('open')) ? close() : open(inp);

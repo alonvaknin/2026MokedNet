@@ -201,22 +201,22 @@ function hoursAddOwn() {
 .hd-panel{position:absolute;top:calc(100% + 8px);right:0;z-index:409;display:none;
   background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
   box-shadow:0 20px 60px rgba(0,0,0,.6);direction:rtl;font-family:var(--font);
-  padding:9px 9px 11px}
+  padding:14px 14px 16px}
 .hd-wrap.open .hd-panel{display:block}
-.hd-tb{display:flex;align-items:center;gap:4px;margin-bottom:7px}
-.hd-nb{width:27px;height:27px;border:1px solid var(--border);border-radius:7px;
+.hd-tb{display:flex;align-items:center;gap:6px;margin-bottom:11px}
+.hd-nb{width:34px;height:34px;border:1px solid var(--border);border-radius:9px;
   background:var(--bg4);color:var(--text2);cursor:pointer;display:flex;
-  align-items:center;justify-content:center;font-size:11px;transition:all .13s}
+  align-items:center;justify-content:center;font-size:15px;transition:all .13s}
 .hd-nb:hover{background:var(--accent-dim);color:var(--accent)}
 .hd-nb:active{transform:scale(.9)}
 .hd-nb:disabled{opacity:.3;cursor:default;pointer-events:none}
-.hd-tit{font-size:11px;font-weight:700;color:var(--text);flex:1;text-align:center;
+.hd-tit{font-size:14px;font-weight:700;color:var(--text);flex:1;text-align:center;
   white-space:nowrap}
-.hd-dhrow,.hd-grid{display:grid;grid-template-columns:repeat(7,32px);gap:2px}
-.hd-dh{font-size:9px;font-weight:700;color:var(--text3);text-align:center;padding:2px 0}
+.hd-dhrow,.hd-grid{display:grid;grid-template-columns:repeat(7,42px);gap:3px}
+.hd-dh{font-size:11px;font-weight:700;color:var(--text3);text-align:center;padding:4px 0}
 .hd-dh.f{color:#f59e0b;opacity:.85}.hd-dh.s{color:#ef4444;opacity:.85}
-.hd-d{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-  font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;
+.hd-d{width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:500;border-radius:8px;cursor:pointer;
   border:1px solid transparent;color:var(--text2);position:relative;
   background:none;font-family:var(--font);user-select:none;
   transition:background .1s,color .1s}

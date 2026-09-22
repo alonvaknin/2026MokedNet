@@ -134,6 +134,22 @@ class HoursModel
         return $grid;
     }
 
+    /**
+     * כל שורות החודש כרשימה שטוחה, עם שם העובד — עבור טבלת הדרישות
+     * המרכזת בלוח המנהל. ממוין: ממתינות קודם, ואז לפי תאריך.
+     */
+    public static function monthList(string $month): array
+    {
+        return DB::query(
+            "SELECT h.*, CONCAT(u.first_name,' ',u.last_name) AS full_name
+             FROM hours_entries h
+             LEFT JOIN users u ON u.id = h.user_id
+             WHERE DATE_FORMAT(h.work_date, '%Y-%m') = ?
+             ORDER BY (h.status = 'requested') DESC, h.work_date ASC, u.first_name ASC, h.id ASC",
+            [$month]
+        );
+    }
+
     public static function forUserDate(int $userId, string $date): array
     {
         return DB::query(

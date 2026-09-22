@@ -140,6 +140,7 @@ class HoursController extends Controller
             'days'        => $days,
             'users'       => HoursModel::activeUsers(),
             'grid'        => HoursModel::monthGrid($month),
+            'list'        => HoursModel::monthList($month),
             'markedCount' => HoursModel::markedCount(),
         ]);
     }
