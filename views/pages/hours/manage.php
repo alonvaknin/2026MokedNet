@@ -296,58 +296,100 @@ function hmPost(url, body) {
 
 /* ── מודל תא בודד ── */
 /* ── בורר שעה (משוכפל מרכיב הטבלה; מוגן מהגדרה כפולה) ── */
+/* ── בורר שעה: תיבת שעות ותיבת דקות, כל אחת נגללת ונבחרת בנפרד ──
+   מוגן בשמירה משלו כדי שייטען גם כשהרכיב כבר נטען בעמוד אחר. */
 if (!window.hoursTimePicker) {
 window.hoursTimePicker = (function () {
-    var pop = null, target = null;
+    var pop = null, target = null, hEl = null, mEl = null;
 
-    /* רשימת HH:MM בקפיצות 15 דקות; הגלילה קופצת לערך הקרוב לשעה הנוכחית */
     function build() {
         var el = document.createElement('div');
         el.className = 'ht-pop';
-        var h = '<div class="ht-pop-hd">בחר שעה</div>' +
-                '<div class="ht-pop-list">';
-        for (var hh = 0; hh < 24; hh++) {
-            for (var mm = 0; mm < 60; mm += 15) {
-                var v = ('0' + hh).slice(-2) + ':' + ('0' + mm).slice(-2);
-                h += '<button type="button" class="ht-pop-i" data-v="' + v + '">' + v + '</button>';
-            }
+
+        var h = '<div class="ht-pop-hd">בחירת שעה</div>' +
+                '<div class="ht-pop-live"><span id="ht-pv-h">--</span>:' +
+                '<span id="ht-pv-m">--</span></div>' +
+                '<div class="ht-pop-cols">';
+
+        h += '<div class="ht-pop-col"><div class="ht-pop-lbl">שעה</div>' +
+             '<div class="ht-pop-list" data-k="h">';
+        for (var i = 0; i < 24; i++) {
+            var v = ('0' + i).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-h="' + v + '">' + v + '</button>';
         }
-        h += '</div>';
+        h += '</div></div>';
+
+        h += '<div class="ht-pop-col"><div class="ht-pop-lbl">דקות</div>' +
+             '<div class="ht-pop-list" data-k="m">';
+        for (var m = 0; m < 60; m++) {
+            var v2 = ('0' + m).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-m="' + v2 + '">' + v2 + '</button>';
+        }
+        h += '</div></div></div>';
+
         el.innerHTML = h;
         document.body.appendChild(el);
 
+        hEl = el.querySelector('.ht-pop-list[data-k="h"]');
+        mEl = el.querySelector('.ht-pop-list[data-k="m"]');
+
+        /* מונע איבוד פוקוס מהשדה בזמן לחיצה בתוך הפופאובר */
         el.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+
         el.addEventListener('click', function (ev) {
             var b = ev.target.closest('.ht-pop-i');
             if (!b || !target) return;
-            target.value = b.dataset.v;
+            ev.stopPropagation();
+
+            var cur = split(target.value);
+            if (b.dataset.h !== undefined) cur[0] = b.dataset.h;
+            if (b.dataset.m !== undefined) cur[1] = b.dataset.m;
+
+            target.value = cur[0] + ':' + cur[1];
             target.classList.remove('ht-bad');
-            close();
-            target.focus();
+            mark(false);
         });
         return el;
     }
 
-    function mark() {
+    /* ערך נוכחי של השדה, עם ברירות מחדל סבירות */
+    function split(v) {
+        var p = String(v || '').split(':');
+        var hh = (p[0] || '').replace(/\D/g, '').slice(0, 2);
+        var mm = (p[1] || '').replace(/\D/g, '').slice(0, 2);
+        if (hh === '' || +hh > 23) hh = '09';
+        if (mm === '' || +mm > 59) mm = '00';
+        return [('0' + +hh).slice(-2), ('0' + +mm).slice(-2)];
+    }
+
+    function mark(doScroll) {
         if (!pop || !target) return;
-        var cur = (target.value || '').trim();
-        var exact = null, near = null;
+        var cur = split(target.value);
+        var hasVal = !!String(target.value || '').trim();
+
+        document.getElementById('ht-pv-h').textContent = hasVal ? cur[0] : '--';
+        document.getElementById('ht-pv-m').textContent = hasVal ? cur[1] : '--';
+
+        var selH = null, selM = null;
         pop.querySelectorAll('.ht-pop-i').forEach(function (b) {
-            var on = b.dataset.v === cur;
+            var on = (b.dataset.h !== undefined && b.dataset.h === cur[0]) ||
+                     (b.dataset.m !== undefined && b.dataset.m === cur[1]);
             b.classList.toggle('ht-pop-on', on);
-            if (on) exact = b;
-            /* אין התאמה מדויקת — גוללים לשעה העגולה הקרובה */
-            if (!near && cur.length >= 2 && b.dataset.v.slice(0, 2) === cur.slice(0, 2)) near = b;
+            if (on && b.dataset.h !== undefined) selH = b;
+            if (on && b.dataset.m !== undefined) selM = b;
         });
-        var t = exact || near;
-        if (t) pop.querySelector('.ht-pop-list').scrollTop =
-                   t.offsetTop - pop.querySelector('.ht-pop-list').offsetTop - 60;
+
+        if (doScroll) {
+            if (selH) hEl.scrollTop = selH.offsetTop - hEl.clientHeight / 2 + 15;
+            if (selM) mEl.scrollTop = selM.offsetTop - mEl.clientHeight / 2 + 15;
+        }
     }
 
     function open(input) {
         if (!pop) pop = build();
         target = input;
         pop.classList.add('open');
+
         var r = input.getBoundingClientRect();
         var top = r.bottom + 6, left = r.left;
         if (top + pop.offsetHeight > window.innerHeight - 8)
@@ -356,7 +398,8 @@ window.hoursTimePicker = (function () {
             left = Math.max(8, window.innerWidth - pop.offsetWidth - 8);
         pop.style.top = top + 'px';
         pop.style.left = left + 'px';
-        mark();
+
+        mark(true);
     }
 
     function close() { if (pop) pop.classList.remove('open'); target = null; }
@@ -374,6 +417,7 @@ window.hoursTimePicker = (function () {
         }
         if (pop && !e.target.closest('.ht-pop')) close();
     });
+
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
     window.addEventListener('scroll', close, true);
 
@@ -656,25 +700,33 @@ td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
 
 .ht-pop{position:fixed;z-index:9500;display:none;background:var(--bg2);
   border:1px solid var(--border2);border-radius:14px;
-  box-shadow:0 20px 60px rgba(0,0,0,.6);padding:9px;direction:rtl;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);padding:11px;direction:rtl;
   font-family:var(--font)}
 .ht-pop.open{display:block}
-.ht-pop-hd{font-size:11px;font-weight:700;color:var(--text2);text-align:center;
-  margin-bottom:7px}
-.ht-pop-list{display:flex;flex-direction:column;gap:2px;width:104px;
-  max-height:232px;overflow-y:auto;scrollbar-width:thin;
-  scrollbar-color:var(--border2) transparent;padding-left:3px}
+.ht-pop-hd{font-size:11px;font-weight:700;color:var(--text3);text-align:center;
+  margin-bottom:6px}
+.ht-pop-live{font-size:19px;font-weight:800;letter-spacing:1px;text-align:center;
+  color:var(--accent);direction:ltr;margin-bottom:9px;
+  font-family:'SF Mono',Consolas,monospace}
+.ht-pop-cols{display:flex;gap:9px}
+.ht-pop-col{display:flex;flex-direction:column}
+.ht-pop-lbl{font-size:10px;font-weight:700;color:var(--text3);text-align:center;
+  padding:3px 0;margin-bottom:4px;background:var(--bg3);border-radius:5px}
+.ht-pop-list{display:flex;flex-direction:column;gap:3px;width:62px;
+  height:198px;overflow-y:auto;scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent;padding:0 3px}
 .ht-pop-list::-webkit-scrollbar{width:4px}
 .ht-pop-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
-.ht-pop-i{height:30px;display:flex;align-items:center;justify-content:center;
-  font-size:14px;font-weight:600;letter-spacing:.5px;border-radius:7px;
+.ht-pop-list::-webkit-scrollbar-track{background:transparent}
+.ht-pop-i{height:30px;flex-shrink:0;display:flex;align-items:center;
+  justify-content:center;font-size:14px;font-weight:600;border-radius:7px;
   cursor:pointer;border:1px solid transparent;color:var(--text2);
   background:var(--bg4);font-family:'SF Mono',Consolas,monospace;direction:ltr;
-  transition:background .1s,color .1s;flex-shrink:0}
+  transition:background .1s,color .1s}
 .ht-pop-i:hover{background:var(--accent-dim);color:var(--accent);
-  border-color:rgba(91,141,238,.2)}
-.ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;
-  box-shadow:0 2px 8px rgba(91,141,238,.4)}
+  border-color:rgba(91,141,238,.25)}
+.ht-pop-i.ht-pop-on{background:var(--accent);color:#fff;font-weight:800;
+  box-shadow:0 2px 8px rgba(91,141,238,.45)}
 
 /* ── טבלת הדרישות המרכזת ── */
 .hl-wrap{margin-top:22px;background:var(--bg2,#1a1a24);

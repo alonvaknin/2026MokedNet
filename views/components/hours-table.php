@@ -157,58 +157,119 @@ document.addEventListener('blur', function (e) {
     e.target.value = v;
 }, true);
 
-/* ── בורר שעה — נפתח מהאייקון, ההקלדה הידנית נשארת זמינה ── */
-window.hoursTimePicker = (function () {
-    var pop = null, target = null;
 
-    /* רשימת HH:MM בקפיצות 15 דקות; הגלילה קופצת לערך הקרוב לשעה הנוכחית */
+
+/* בחירת סיבת היעדרות מנטרלת את שדות השעות */
+document.addEventListener('change', function (e) {
+    if (!e.target.classList || !e.target.classList.contains('ht-type')) return;
+    var tr = e.target.closest('tr');
+    if (!tr) return;
+    var off = e.target.value !== 'regular';
+    ['.ht-in', '.ht-out'].forEach(function (sel) {
+        var f = tr.querySelector(sel);
+        if (!f) return;
+        f.disabled = off;
+        if (off) { f.value = ''; f.classList.remove('ht-bad'); }
+        var b = f.parentNode && f.parentNode.querySelector('.ht-tbtn');
+        if (b) b.disabled = off;
+    });
+});
+}
+
+/* ── בורר שעה: תיבת שעות ותיבת דקות, כל אחת נגללת ונבחרת בנפרד ──
+   מוגן בשמירה משלו כדי שייטען גם כשהרכיב כבר נטען בעמוד אחר. */
+if (!window.hoursTimePicker) {
+window.hoursTimePicker = (function () {
+    var pop = null, target = null, hEl = null, mEl = null;
+
     function build() {
         var el = document.createElement('div');
         el.className = 'ht-pop';
-        var h = '<div class="ht-pop-hd">בחר שעה</div>' +
-                '<div class="ht-pop-list">';
-        for (var hh = 0; hh < 24; hh++) {
-            for (var mm = 0; mm < 60; mm += 15) {
-                var v = ('0' + hh).slice(-2) + ':' + ('0' + mm).slice(-2);
-                h += '<button type="button" class="ht-pop-i" data-v="' + v + '">' + v + '</button>';
-            }
+
+        var h = '<div class="ht-pop-hd">בחירת שעה</div>' +
+                '<div class="ht-pop-live"><span id="ht-pv-h">--</span>:' +
+                '<span id="ht-pv-m">--</span></div>' +
+                '<div class="ht-pop-cols">';
+
+        h += '<div class="ht-pop-col"><div class="ht-pop-lbl">שעה</div>' +
+             '<div class="ht-pop-list" data-k="h">';
+        for (var i = 0; i < 24; i++) {
+            var v = ('0' + i).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-h="' + v + '">' + v + '</button>';
         }
-        h += '</div>';
+        h += '</div></div>';
+
+        h += '<div class="ht-pop-col"><div class="ht-pop-lbl">דקות</div>' +
+             '<div class="ht-pop-list" data-k="m">';
+        for (var m = 0; m < 60; m++) {
+            var v2 = ('0' + m).slice(-2);
+            h += '<button type="button" class="ht-pop-i" data-m="' + v2 + '">' + v2 + '</button>';
+        }
+        h += '</div></div></div>';
+
         el.innerHTML = h;
         document.body.appendChild(el);
 
+        hEl = el.querySelector('.ht-pop-list[data-k="h"]');
+        mEl = el.querySelector('.ht-pop-list[data-k="m"]');
+
+        /* מונע איבוד פוקוס מהשדה בזמן לחיצה בתוך הפופאובר */
         el.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+
         el.addEventListener('click', function (ev) {
             var b = ev.target.closest('.ht-pop-i');
             if (!b || !target) return;
-            target.value = b.dataset.v;
+            ev.stopPropagation();
+
+            var cur = split(target.value);
+            if (b.dataset.h !== undefined) cur[0] = b.dataset.h;
+            if (b.dataset.m !== undefined) cur[1] = b.dataset.m;
+
+            target.value = cur[0] + ':' + cur[1];
             target.classList.remove('ht-bad');
-            close();
-            target.focus();
+            mark(false);
         });
         return el;
     }
 
-    function mark() {
+    /* ערך נוכחי של השדה, עם ברירות מחדל סבירות */
+    function split(v) {
+        var p = String(v || '').split(':');
+        var hh = (p[0] || '').replace(/\D/g, '').slice(0, 2);
+        var mm = (p[1] || '').replace(/\D/g, '').slice(0, 2);
+        if (hh === '' || +hh > 23) hh = '09';
+        if (mm === '' || +mm > 59) mm = '00';
+        return [('0' + +hh).slice(-2), ('0' + +mm).slice(-2)];
+    }
+
+    function mark(doScroll) {
         if (!pop || !target) return;
-        var cur = (target.value || '').trim();
-        var exact = null, near = null;
+        var cur = split(target.value);
+        var hasVal = !!String(target.value || '').trim();
+
+        document.getElementById('ht-pv-h').textContent = hasVal ? cur[0] : '--';
+        document.getElementById('ht-pv-m').textContent = hasVal ? cur[1] : '--';
+
+        var selH = null, selM = null;
         pop.querySelectorAll('.ht-pop-i').forEach(function (b) {
-            var on = b.dataset.v === cur;
+            var on = (b.dataset.h !== undefined && b.dataset.h === cur[0]) ||
+                     (b.dataset.m !== undefined && b.dataset.m === cur[1]);
             b.classList.toggle('ht-pop-on', on);
-            if (on) exact = b;
-            /* אין התאמה מדויקת — גוללים לשעה העגולה הקרובה */
-            if (!near && cur.length >= 2 && b.dataset.v.slice(0, 2) === cur.slice(0, 2)) near = b;
+            if (on && b.dataset.h !== undefined) selH = b;
+            if (on && b.dataset.m !== undefined) selM = b;
         });
-        var t = exact || near;
-        if (t) pop.querySelector('.ht-pop-list').scrollTop =
-                   t.offsetTop - pop.querySelector('.ht-pop-list').offsetTop - 60;
+
+        if (doScroll) {
+            if (selH) hEl.scrollTop = selH.offsetTop - hEl.clientHeight / 2 + 15;
+            if (selM) mEl.scrollTop = selM.offsetTop - mEl.clientHeight / 2 + 15;
+        }
     }
 
     function open(input) {
         if (!pop) pop = build();
         target = input;
         pop.classList.add('open');
+
         var r = input.getBoundingClientRect();
         var top = r.bottom + 6, left = r.left;
         if (top + pop.offsetHeight > window.innerHeight - 8)
@@ -217,7 +278,8 @@ window.hoursTimePicker = (function () {
             left = Math.max(8, window.innerWidth - pop.offsetWidth - 8);
         pop.style.top = top + 'px';
         pop.style.left = left + 'px';
-        mark();
+
+        mark(true);
     }
 
     function close() { if (pop) pop.classList.remove('open'); target = null; }
@@ -235,26 +297,11 @@ window.hoursTimePicker = (function () {
         }
         if (pop && !e.target.closest('.ht-pop')) close();
     });
+
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
     window.addEventListener('scroll', close, true);
 
     return { open: open, close: close };
 })();
-
-/* בחירת סיבת היעדרות מנטרלת את שדות השעות */
-document.addEventListener('change', function (e) {
-    if (!e.target.classList || !e.target.classList.contains('ht-type')) return;
-    var tr = e.target.closest('tr');
-    if (!tr) return;
-    var off = e.target.value !== 'regular';
-    ['.ht-in', '.ht-out'].forEach(function (sel) {
-        var f = tr.querySelector(sel);
-        if (!f) return;
-        f.disabled = off;
-        if (off) { f.value = ''; f.classList.remove('ht-bad'); }
-        var b = f.parentNode && f.parentNode.querySelector('.ht-tbtn');
-        if (b) b.disabled = off;
-    });
-});
 }
 </script>
