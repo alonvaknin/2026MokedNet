@@ -82,6 +82,7 @@ class HoursModel
 
     public static function updateEntry(int $id, array $d): void
     {
+        $status = $d['status'] ?? 'requested';
         DB::execute(
             'UPDATE hours_entries
                 SET entry_type = ?, time_in = ?, time_out = ?, note = ?,
@@ -90,7 +91,10 @@ class HoursModel
             [
                 $d['entry_type'] ?? 'regular',
                 ($d['time_in'] ?? null) ?: null, ($d['time_out'] ?? null) ?: null,
-                $d['note'] ?? null, $d['status'] ?? 'requested', $d['filled_by'] ?? null, $id,
+                $d['note'] ?? null, $status,
+                // filled_by נמחק כששורה חוזרת ל-requested, כדי שלא יישאר ערך מטעה
+                $status === 'filled' ? ($d['filled_by'] ?? null) : null,
+                $id,
             ]
         );
     }
