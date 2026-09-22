@@ -97,6 +97,12 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
 <div class="hl-wrap">
   <div class="hl-head">
     <h2>דרישות ודיווחים — <?= View::e($monthLabel) ?></h2>
+    <div class="hl-exp">
+      <span class="hl-exp-n">נבחרו <b id="hl-marked"><?= (int)$markedCount ?></b> לייצוא</span>
+      <button type="button" class="hl-exp-b" onclick="hmExport()">
+        <i class="bi bi-file-earmark-excel"></i> הורד XLS
+      </button>
+    </div>
     <div class="hl-tabs">
       <button type="button" class="hl-tab on" data-f="pending">
         ממתינות <span class="hl-c"><?= count($pending) ?></span>
@@ -116,7 +122,10 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
   <table class="hl-table">
     <thead>
       <tr>
-        <th style="width:34px"></th>
+        <th class="hl-th-chk" title="סימון שורות לייצוא XLS">
+          <input type="checkbox" id="hl-all" class="hl-chk" title="סמן/נקה את כל השורות המוצגות">
+          <span>לדיווח</span>
+        </th>
         <th>עובד</th><th>תאריך</th><th>יום</th><th>סוג</th>
         <th>כניסה</th><th>יציאה</th><th>נדרש</th><th>הערה</th><th>סטטוס</th>
       </tr>
@@ -162,6 +171,14 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
 </div>
 
 <script>
+/* שני מוני "לדיווח" (בפס העליון ובטבלה) מתעדכנים יחד */
+function hlSetMarked(n) {
+    ['hm-marked', 'hl-marked'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = n;
+    });
+}
+
 /* סינון הטבלה המרכזת + סימון לדיווח ישירות ממנה */
 (function () {
     var tabs = document.querySelectorAll('.hl-tab');
@@ -187,19 +204,32 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
     });
     apply('pending');
 
-    /* צ'קבוקס "לדיווח" — מעדכן את המונה בפס העליון */
-    document.querySelectorAll('.hl-chk').forEach(function (chk) {
+    /* צ'קבוקס "לדיווח" בשורות בלבד — הצ'קבוקס בכותרת (#hl-all) מטופל בנפרד */
+    document.querySelectorAll('.hl-row .hl-chk').forEach(function (chk) {
         chk.addEventListener('change', function () {
             var tr = chk.closest('.hl-row');
+            if (!tr) return;
             hmPost('/hours/mark', { id: parseInt(tr.dataset.id, 10), on: chk.checked })
               .then(function (res) {
                   if (res.error) { showToast(res.error, 'error'); chk.checked = !chk.checked; return; }
-                  if (res.marked !== undefined)
-                      document.getElementById('hm-marked').textContent = res.marked;
+                  if (res.marked !== undefined) hlSetMarked(res.marked);
                   var fl = (tr.dataset.flags || '').replace(' marked', '');
                   tr.dataset.flags = fl + (chk.checked ? ' marked' : '');
               })
               .catch(function () { showToast('שגיאת רשת', 'error'); chk.checked = !chk.checked; });
+        });
+    });
+
+    /* סמן/נקה הכל — פועל רק על השורות הגלויות בלשונית הנוכחית */
+    var all = document.getElementById('hl-all');
+    if (all) all.addEventListener('change', function () {
+        var vis = [].filter.call(document.querySelectorAll('.hl-row'), function (tr) {
+            return tr.style.display !== 'none';
+        });
+        vis.forEach(function (tr) {
+            var chk = tr.querySelector('.hl-chk');
+            if (chk && chk.checked !== all.checked) { chk.checked = all.checked;
+                chk.dispatchEvent(new Event('change')); }
         });
     });
 
@@ -512,7 +542,7 @@ function hmLoadRows() {
                   var id = parseInt(chk.closest('.hm-r').dataset.id, 10);
                   hmPost('/hours/mark', { id: id, on: chk.checked }).then(function (res) {
                       if (res.marked !== undefined)
-                          document.getElementById('hm-marked').textContent = res.marked;
+                          hlSetMarked(res.marked);
                   }).catch(function () { showToast('שגיאת רשת', 'error'); });
               });
           });
@@ -879,5 +909,21 @@ td.hm-cell.hm-day-fri:hover,td.hm-cell.hm-day-sat:hover{opacity:1}
 .hl-day-fri,.hl-day-sat{opacity:.55}
 .hl-day-fri:hover,.hl-day-sat:hover{opacity:1}
 .hl-empty{text-align:center;color:var(--text3);padding:26px}
-.hl-chk{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+.hl-chk{width:17px;height:17px;cursor:pointer;accent-color:var(--accent)}
+.hl-th-chk{width:64px;text-align:center!important}
+.hl-th-chk span{display:block;font-size:9px;font-weight:700;color:var(--text3);
+  margin-top:2px}
+.hl-row td:first-child{text-align:center}
+
+/* ייצוא — צמוד לטבלה, כדי שהקשר לצ'קבוקסים יהיה ברור */
+.hl-exp{display:flex;align-items:center;gap:9px;margin-inline-start:auto}
+.hl-exp-n{font-size:12px;color:var(--text3);white-space:nowrap}
+.hl-exp-n b{color:var(--accent);font-size:13px;font-weight:800}
+.hl-exp-b{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
+  border:1px solid rgba(34,197,94,.4);border-radius:20px;
+  background:rgba(34,197,94,.14);color:#86efac;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .13s}
+.hl-exp-b:hover{background:rgba(34,197,94,.26);border-color:rgba(34,197,94,.65)}
+.hl-exp-b:active{transform:scale(.96)}
+.hl-tabs{margin-inline-start:0}
 </style>
