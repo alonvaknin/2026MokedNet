@@ -51,6 +51,18 @@ function hoursAddOwn() {
 .hours-table input[readonly]{opacity:.5;cursor:not-allowed}
 .hours-table input:disabled,.hours-table select:disabled{opacity:.35}
 .ht-req{border-color:var(--accent,#7c5cff)!important}
+
+/* ── שדות שעה — הקלדה חופשית, מונוספייס, ברורים ── */
+.ht-time{width:76px;text-align:center;font-size:15px;font-weight:600;letter-spacing:.5px;
+  font-family:'SF Mono',Consolas,'Courier New',monospace;direction:ltr;
+  padding:7px 6px;border-radius:8px;transition:border-color .15s,box-shadow .15s,background .15s}
+.ht-time:hover:not([readonly]):not(:disabled){border-color:var(--text3,#6b7280)}
+.ht-time:focus{outline:none;border-color:var(--accent,#7c5cff);
+  box-shadow:0 0 0 3px rgba(124,92,255,.18);background:var(--bg,#12121a)}
+.ht-time::placeholder{color:var(--text3,#6b7280);font-weight:400;letter-spacing:1px}
+.ht-time.ht-req{background:rgba(124,92,255,.07)}
+.ht-time.ht-bad{border-color:#ef4444!important;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+.ht-time[readonly]{background:rgba(255,255,255,.03);border-style:dashed}
 .ht-day-fri,.ht-day-sat{background:rgba(255,255,255,.03)}
 .ht-day-hol{background:rgba(245,158,11,.10)}
 .ht-day-erev{background:rgba(251,191,36,.06)}
