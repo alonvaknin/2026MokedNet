@@ -27,7 +27,7 @@ $base = rtrim(CFG['app']['url'], '/');
 <script>
 function hoursAddOwn() {
     var d = document.getElementById('ha-date').value;
-    if (!d) { showToast('בחר תאריך'); return; }
+    if (!d) { showToast('בחר תאריך', 'warning'); return; }
     fetch(window.__V2_BASE + '/hours/entry/add', {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': window.__CSRF, 'Content-Type': 'application/json' },
@@ -35,10 +35,10 @@ function hoursAddOwn() {
     })
     .then(function (r) { return r.json(); })
     .then(function (res) {
-        if (res.error) { showToast(res.error); return; }
+        if (res.error) { showToast(res.error, 'error'); return; }
         location.reload();
     })
-    .catch(function () { showToast('שגיאת רשת'); });
+    .catch(function () { showToast('שגיאת רשת', 'error'); });
 }
 </script>
 

@@ -1834,12 +1834,17 @@ function prankStop(){
   showToast('😌 בסדר בסדר... נגמר');
 }
 
-function showToast(msg){
+function showToast(msg,type){
+  /* type אופציונלי: success | error | warning. ללא type — העיצוב הניטרלי הישן. */
+  const TT={success:{b:'rgba(34,197,94,.45)',c:'#86efac'},
+            error:{b:'rgba(239,68,68,.55)',c:'#fca5a5'},
+            warning:{b:'rgba(245,158,11,.5)',c:'#fcd34d'}};
+  const st=TT[type]||{b:'rgba(255,255,255,.15)',c:'#e2e5f0'};
   const t=document.createElement('div');
-  t.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1a1e2b;border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:10px 22px;font-size:14px;color:#e2e5f0;z-index:99999;box-shadow:0 8px 30px rgba(0,0,0,.6);pointer-events:none;font-family:Assistant,sans-serif;';
+  t.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1a1e2b;border:1px solid '+st.b+';border-radius:10px;padding:10px 22px;font-size:14px;color:'+st.c+';z-index:99999;box-shadow:0 8px 30px rgba(0,0,0,.6);pointer-events:none;font-family:Assistant,sans-serif;';
   t.textContent=msg;
   document.body.appendChild(t);
-  setTimeout(()=>t.remove(),3000);
+  setTimeout(()=>t.remove(),type==='error'?4500:3000);
 }
 window.showToast = showToast;
 

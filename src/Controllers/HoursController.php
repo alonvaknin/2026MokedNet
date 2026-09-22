@@ -9,6 +9,9 @@ use Models\HoursModel;
 
 class HoursController extends Controller
 {
+    /** ערכי entry_type המותרים — חייב להתאים ל-ENUM בטבלה */
+    private const TYPES = ['regular','vacation','reserve','sick','duplicate_delete','other'];
+
     private const MONTHS = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני',
                             'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
@@ -65,6 +68,10 @@ class HoursController extends Controller
 
         $b    = $this->jsonBody();
         $type = (string)($b['entry_type'] ?? 'regular');
+        if (!in_array($type, self::TYPES, true)) {
+            $this->json(['error' => 'סוג דיווח לא תקין'], 400);
+            return;
+        }
         $in   = $type === 'regular' ? (($b['time_in']  ?? null) ?: null) : null;
         $out  = $type === 'regular' ? (($b['time_out'] ?? null) ?: null) : null;
 

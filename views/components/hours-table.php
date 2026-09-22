@@ -93,12 +93,12 @@ window.hoursSaveRow = function (id) {
     .then(function (r) { return r.json(); })
     .then(function (d) {
         btn.disabled = false;
-        if (d.error) { showToast(d.error); return; }
-        showToast('נשמר');
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('נשמר', 'success');
         if (d.status === 'filled') { tr.classList.add('ht-done'); btn.textContent = '✓'; }
         if (typeof hoursRefreshBadge === 'function') hoursRefreshBadge();
     })
-    .catch(function () { btn.disabled = false; showToast('שגיאת רשת'); });
+    .catch(function () { btn.disabled = false; showToast('שגיאת רשת', 'error'); });
 };
 
 /* בחירת סיבת היעדרות מנטרלת את שדות השעות */
