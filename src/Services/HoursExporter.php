@@ -68,6 +68,9 @@ class HoursExporter
     /** בריחת XML מלאה — אקסל מסרב לפתוח SpreadsheetML לא תקין */
     private static function esc(string $s): string
     {
+        // תווי בקרה אינם חוקיים ב-XML 1.0 ויגרמו לאקסל לסרב לפתוח את הקובץ.
+        // הערה שהגיעה דרך API (ולא מהדפדפן) עלולה להכיל אותם.
+        $s = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', $s) ?? $s;
         return htmlspecialchars($s, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 }
