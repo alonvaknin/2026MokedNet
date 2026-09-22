@@ -182,3 +182,8 @@ $router->get ('/api/invoice-change-name',              'Controllers\\InvoiceChan
 $router->post('/api/invoice-change-name/create',       'Controllers\\InvoiceChangeNameController@create');
 $router->post('/api/invoice-change-name/{id}/status',  'Controllers\\InvoiceChangeNameController@updateStatus');
 $router->post('/api/invoice-change-name/{id}/edit',    'Controllers\\InvoiceChangeNameController@editField');
+
+// Hours Reporting — נציג
+$router->get ('/hours',                  'Controllers\\HoursController@index');
+$router->post('/hours/entry/add',        'Controllers\\HoursController@addOwnEntry');
+$router->post('/hours/entry/{id}/save',  'Controllers\\HoursController@saveEntry');
