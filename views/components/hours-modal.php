@@ -159,7 +159,7 @@ window.hoursNormalizeTime = function (v) {
 
 /* מכניס נקודתיים תוך כדי הקלדה, בלי להפריע למחיקה */
 document.addEventListener('input', function (e) {
-    if (!e.target.classList.contains('ht-time')) return;
+    if (!e.target.classList || !e.target.classList.contains('ht-time')) return;
     var d = e.target.value.replace(/\D/g, '').slice(0, 4);
     e.target.value = d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d;
     e.target.classList.remove('ht-bad');
@@ -167,7 +167,7 @@ document.addEventListener('input', function (e) {
 
 /* ביציאה מהשדה — משלים לפורמט מלא ומסמן שגיאה */
 document.addEventListener('blur', function (e) {
-    if (!e.target.classList.contains('ht-time')) return;
+    if (!e.target.classList || !e.target.classList.contains('ht-time')) return;
     var v = window.hoursNormalizeTime(e.target.value);
     if (v === null) { e.target.classList.add('ht-bad'); return; }
     e.target.classList.remove('ht-bad');
