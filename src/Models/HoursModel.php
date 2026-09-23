@@ -188,7 +188,10 @@ class HoursModel
 
     public static function markedCount(): int
     {
-        return (int)DB::value('SELECT COUNT(*) FROM hours_entries WHERE marked_for_export = 1');
+        return (int)DB::value(
+            'SELECT COUNT(*) FROM hours_entries
+              WHERE marked_for_export = 1 AND exported_at IS NULL'
+        );
     }
 
     public static function markedRows(): array
@@ -198,16 +201,47 @@ class HoursModel
              FROM hours_entries h
              LEFT JOIN users u ON u.id = h.user_id
              WHERE h.marked_for_export = 1
+               AND h.exported_at IS NULL
              ORDER BY u.first_name ASC, h.work_date ASC, h.id ASC"
         );
     }
 
+    /**
+     * "סגירת" שורות: מחתים exported_at ומנקה את סימון הייצוא, כדי ששורה
+     * סגורה לא תיכלל שוב בקובץ הבא. שורה סגורה נעולה לעריכה בממשק.
+     */
     public static function stampExported(array $ids): void
     {
         if (!$ids) return;
         $ph = implode(',', array_fill(0, count($ids), '?'));
         DB::execute(
-            "UPDATE hours_entries SET exported_at = NOW() WHERE id IN ($ph)",
+            "UPDATE hours_entries
+                SET exported_at = NOW(), marked_for_export = 0
+              WHERE id IN ($ph)",
+            array_map('intval', array_values($ids))
+        );
+    }
+
+    /** סגירה ידנית של שורות שנבחרו, ללא הורדת קובץ */
+    public static function closeRows(array $ids): int
+    {
+        if (!$ids) return 0;
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        return DB::execute(
+            "UPDATE hours_entries
+                SET exported_at = NOW(), marked_for_export = 0
+              WHERE id IN ($ph) AND exported_at IS NULL",
+            array_map('intval', array_values($ids))
+        );
+    }
+
+    /** פתיחה מחדש של שורה שנסגרה */
+    public static function reopenRows(array $ids): int
+    {
+        if (!$ids) return 0;
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        return DB::execute(
+            "UPDATE hours_entries SET exported_at = NULL WHERE id IN ($ph)",
             array_map('intval', array_values($ids))
         );
     }

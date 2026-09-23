@@ -10,7 +10,8 @@ use Models\HoursModel;
 class HoursController extends Controller
 {
     /** ערכי entry_type המותרים — חייב להתאים ל-ENUM בטבלה */
-    private const TYPES = ['regular','vacation','reserve','sick','duplicate_delete','other'];
+    private const TYPES = ['regular','vacation','reserve','sick','duplicate_delete',
+                           'duplicate_in','duplicate_out','other'];
 
     private const MONTHS = ['','ינואר','פברואר','מרץ','אפריל','מאי','יוני',
                             'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
@@ -268,8 +269,14 @@ class HoursController extends Controller
         $this->verifyCsrf();
         $b = $this->jsonBody();
 
-        if (!HoursModel::find((int)$id)) {
+        $row = HoursModel::find((int)$id);
+        if (!$row) {
             $this->json(['error' => 'שורה לא נמצאה'], 404);
+            return;
+        }
+        // שורה שנסגרה (יוצאה לדיווח) נעולה עד לפתיחה מחדש
+        if (!empty($row['exported_at'])) {
+            $this->json(['error' => 'השורה נסגרה ואינה ניתנת לעריכה'], 409);
             return;
         }
 
@@ -326,6 +333,46 @@ class HoursController extends Controller
      * GET /hours/export — הורדת השורות המסומנות כ-SpreadsheetML.
      * זהו GET (הורדה ישירה מהדפדפן) ולכן אין טוקן CSRF לאמת.
      */
+    /** סגירת שורות שנבחרו, ללא הורדת קובץ */
+    public function closeRows(): void
+    {
+        $this->requirePermission('canManageHours');
+        $this->verifyCsrf();
+
+        $ids = $this->jsonBody()['ids'] ?? [];
+        if (!is_array($ids) || !$ids) {
+            $this->json(['error' => 'לא נבחרו שורות'], 400);
+            return;
+        }
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) { $this->json(['error' => 'לא נבחרו שורות'], 400); return; }
+
+        $n = HoursModel::closeRows($ids);
+        \Core\ActivityLog::log('סגירת שורות דיווח שעות', 'hours_entry', null, null,
+                                "נסגרו $n שורות");
+        $this->json(['ok' => true, 'closed' => $n, 'marked' => HoursModel::markedCount()]);
+    }
+
+    /** פתיחה מחדש של שורה שנסגרה */
+    public function reopenRows(): void
+    {
+        $this->requirePermission('canManageHours');
+        $this->verifyCsrf();
+
+        $ids = $this->jsonBody()['ids'] ?? [];
+        if (!is_array($ids) || !$ids) {
+            $this->json(['error' => 'לא נבחרו שורות'], 400);
+            return;
+        }
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (!$ids) { $this->json(['error' => 'לא נבחרו שורות'], 400); return; }
+
+        $n = HoursModel::reopenRows($ids);
+        \Core\ActivityLog::log('פתיחת שורות דיווח שעות', 'hours_entry', null, null,
+                                "נפתחו $n שורות");
+        $this->json(['ok' => true, 'reopened' => $n, 'marked' => HoursModel::markedCount()]);
+    }
+
     public function exportXls(): void
     {
         $this->requirePermission('canManageHours');

@@ -15,9 +15,11 @@ $base = rtrim(CFG['app']['url'], '/');
 $DAYS = ['א','ב','ג','ד','ה','ו','ש'];
 // שמות מלאים לטבלה הרחבה; $ABS הוא הקיצור לתאי הרשת הצרים
 $FULL = ['regular'=>'רגיל','vacation'=>'חופש','reserve'=>'מילואים',
-         'sick'=>'מחלה','duplicate_delete'=>'מחיקת כפולים','other'=>'אחר'];
+         'sick'=>'מחלה','duplicate_delete'=>'מחיקת כפולים',
+         'duplicate_in'=>'כניסה כפולה','duplicate_out'=>'יציאה כפולה','other'=>'אחר'];
 $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
-         'duplicate_delete'=>'כפל׳','other'=>'אחר'];
+         'duplicate_delete'=>'כפל׳','duplicate_in'=>'כנ׳ כפ׳','duplicate_out'=>'יצ׳ כפ׳',
+         'other'=>'אחר'];
 ?>
 <div class="page-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
   <div class="page-title" style="margin-bottom:0;"><i class="bi bi-calendar3" style="margin-left:8px;"></i>ניהול דיווח שעות</div>
@@ -99,8 +101,12 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
     <h2>דרישות ודיווחים — <?= View::e($monthLabel) ?></h2>
     <div class="hl-exp">
       <span class="hl-exp-n">נבחרו <b id="hl-marked"><?= (int)$markedCount ?></b> לייצוא</span>
+      <button type="button" class="hl-close-b" onclick="hlCloseSelected()"
+              title="סגירת השורות המסומנות ללא הורדת קובץ">
+        <i class="bi bi-lock"></i> סגור מסומנות
+      </button>
       <button type="button" class="hl-exp-b" onclick="hmExport()">
-        <i class="bi bi-file-earmark-excel"></i> הורד XLS
+        <i class="bi bi-file-earmark-excel"></i> הורד וסגור
       </button>
     </div>
     <div class="hl-tabs">
@@ -119,6 +125,7 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
     </div>
   </div>
 
+  <div class="hl-scroll">
   <table class="hl-table">
     <thead>
       <tr>
@@ -127,26 +134,28 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
           <span>לדיווח</span>
         </th>
         <th>עובד</th><th>תאריך</th><th>יום</th><th>סוג</th>
-        <th>כניסה</th><th>יציאה</th><th>נדרש</th><th>הערה</th><th>סטטוס</th>
+        <th>כניסה</th><th>יציאה</th><th>נדרש</th><th>הערה</th><th>סטטוס</th><th></th>
       </tr>
     </thead>
     <tbody>
     <?php if (!$list): ?>
-      <tr><td colspan="10" class="hl-empty">אין דיווחים בחודש זה</td></tr>
+      <tr><td colspan="11" class="hl-empty">אין דיווחים בחודש זה</td></tr>
     <?php endif; ?>
     <?php foreach ($list as $r):
         $ts   = strtotime($r['work_date']);
         $dt   = Holidays::dayType($r['work_date']);
         $hol  = Holidays::get($r['work_date']);
         $done = $r['status'] === 'filled';
-        $mk   = (int)$r['marked_for_export'] === 1;
+        $mk     = (int)$r['marked_for_export'] === 1;
+        $closed = !empty($r['exported_at']);
         $flags = ($done ? 'filled' : 'pending') . ($mk ? ' marked' : '');
     ?>
-      <tr class="hl-row hl-day-<?= View::e($dt) ?>" data-flags="<?= View::e($flags) ?>"
+      <tr class="hl-row hl-day-<?= View::e($dt) ?><?= $closed ? ' hl-closed' : '' ?>"
+          data-flags="<?= View::e($flags) ?>"
           data-id="<?= (int)$r['id'] ?>"
           data-user="<?= (int)$r['user_id'] ?>" data-date="<?= View::e($r['work_date']) ?>">
         <td><input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
-                   title="סימון לדיווח"></td>
+                   <?= $closed ? 'disabled' : '' ?> title="סימון לדיווח"></td>
         <td class="hl-name"><?= View::e((string)$r['full_name']) ?></td>
         <td class="hl-mono"><?= View::e(date('d/m', $ts)) ?></td>
         <td>
@@ -161,16 +170,73 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         <td class="hl-req"><?= View::e($REQ[$r['requires']] ?? '') ?></td>
         <td class="hl-note" title="<?= View::e((string)$r['note']) ?>"><?= View::e((string)$r['note']) ?></td>
         <td>
-          <span class="hl-st <?= $done ? 'ok' : 'wait' ?>"><?= $done ? 'הושלם' : 'ממתין' ?></span>
-          <?php if ($mk): ?><span class="hl-st mk">לדיווח</span><?php endif; ?>
+          <?php if ($closed): ?>
+            <span class="hl-st cl"><i class="bi bi-lock-fill"></i> נסגר</span>
+          <?php else: ?>
+            <span class="hl-st <?= $done ? 'ok' : 'wait' ?>"><?= $done ? 'הושלם' : 'ממתין' ?></span>
+            <?php if ($mk): ?><span class="hl-st mk">לדיווח</span><?php endif; ?>
+          <?php endif; ?>
+        </td>
+        <td class="hl-act">
+          <?php if ($closed): ?>
+            <button type="button" class="hl-rb" title="פתיחה מחדש"
+                    onclick="hlReopen(<?= (int)$r['id'] ?>,event)"><i class="bi bi-unlock"></i></button>
+          <?php else: ?>
+            <button type="button" class="hl-cb" title="סגירת השורה"
+                    onclick="hlClose(<?= (int)$r['id'] ?>,event)"><i class="bi bi-lock"></i></button>
+          <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
+  </div>
 </div>
 
 <script>
+/* ── סגירת שורות ──
+   שורה סגורה (exported_at מלא) נעולה לעריכה בשרת ובממשק, ואינה
+   נכללת בייצוא הבא. הורדת הקובץ סוגרת את המסומנות אוטומטית. */
+function hlPostIds(url, ids) {
+    return fetch(window.__V2_BASE + url, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+    }).then(function (r) { return r.json(); });
+}
+
+function hlClose(id, ev) {
+    if (ev) ev.stopPropagation();
+    if (!confirm('לסגור את השורה? לא יהיה ניתן לערוך אותה עד לפתיחה מחדש.')) return;
+    hlPostIds('/hours/close', [id]).then(function (d) {
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('השורה נסגרה', 'success');
+        location.reload();
+    }).catch(function () { showToast('שגיאת רשת', 'error'); });
+}
+
+function hlReopen(id, ev) {
+    if (ev) ev.stopPropagation();
+    hlPostIds('/hours/reopen', [id]).then(function (d) {
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('השורה נפתחה מחדש', 'success');
+        location.reload();
+    }).catch(function () { showToast('שגיאת רשת', 'error'); });
+}
+
+function hlCloseSelected() {
+    var ids = [].map.call(
+        document.querySelectorAll('.hl-row:not(.hl-closed) .hl-chk:checked'),
+        function (c) { return parseInt(c.closest('.hl-row').dataset.id, 10); });
+    if (!ids.length) { showToast('לא נבחרו שורות לסגירה', 'warning'); return; }
+    if (!confirm('לסגור ' + ids.length + ' שורות? לא יהיה ניתן לערוך אותן עד לפתיחה מחדש.')) return;
+    hlPostIds('/hours/close', ids).then(function (d) {
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('נסגרו ' + d.closed + ' שורות', 'success');
+        location.reload();
+    }).catch(function () { showToast('שגיאת רשת', 'error'); });
+}
+
 /* שני מוני "לדיווח" (בפס העליון ובטבלה) מתעדכנים יחד */
 function hlSetMarked(n) {
     ['hm-marked', 'hl-marked'].forEach(function (id) {
@@ -236,7 +302,11 @@ function hlSetMarked(n) {
     /* לחיצה על שורה פותחת את מודל התא של אותו עובד/תאריך */
     document.querySelectorAll('.hl-row').forEach(function (tr) {
         tr.addEventListener('click', function (e) {
-            if (e.target.closest('.hl-chk')) return;
+            if (e.target.closest('.hl-chk') || e.target.closest('.hl-act')) return;
+            if (tr.classList.contains('hl-closed')) {
+                showToast('השורה נסגרה — יש לפתוח אותה מחדש כדי לערוך', 'warning');
+                return;
+            }
             hmOpenCell(parseInt(tr.dataset.user, 10), tr.dataset.date);
         });
     });
@@ -264,12 +334,14 @@ function hlSetMarked(n) {
     <details class="hm-add">
       <summary><i class="bi bi-plus-circle"></i> הוסף דרישה חדשה</summary>
       <div class="hm-form">
-        <label>כניסה:
+        <div class="hm-f-col">
+          <label class="hm-cb"><input type="checkbox" id="hm-need-in"><span>דרושה כניסה</span></label>
           <span class="ht-tw"><input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
-        </label>
-        <label>יציאה:
+        </div>
+        <div class="hm-f-col">
+          <label class="hm-cb"><input type="checkbox" id="hm-need-out"><span>דרושה יציאה</span></label>
           <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
-        </label>
+        </div>
         <label class="hm-f-note">הערה: <input type="text" id="hm-note" maxlength="500"></label>
         <div class="hm-req-hint" id="hm-req-hint"></div>
         <button type="button" class="btn btn-primary hm-add-btn" onclick="hmAddRequest()">
@@ -317,7 +389,8 @@ document.addEventListener('blur', function (e) {
 
 var HM_CTX = { user: 0, date: '', sel: [], dragging: false, moved: false };
 var HM_TYPES = { regular:'רגיל', vacation:'חופש', reserve:'מילואים', sick:'מחלה',
-                 duplicate_delete:'למחוק דיווחים כפולים', other:'אחר' };
+                 duplicate_delete:'למחוק דיווחים כפולים',
+                 duplicate_in:'כניסה כפולה', duplicate_out:'יציאה כפולה', other:'אחר' };
 
 function hmEsc(s) {
     return String(s === null || s === undefined ? '' : s)
@@ -586,6 +659,13 @@ function hmDelRow(id) {
 /* "דרוש" נגזר ממה שהמנהל מילא: מילא כניסה → דרושה יציאה,
    מילא יציאה → דרושה כניסה, לא מילא כלום → דרושות שתיהן. */
 function hmDeriveReq(tin, tout) {
+    /* סימון מפורש גובר; ללא סימון — נגזר ממה שהמנהל מילא */
+    var ci = document.getElementById('hm-need-in'),
+        co = document.getElementById('hm-need-out');
+    if (ci && co && (ci.checked || co.checked)) {
+        if (ci.checked && co.checked) return 'both';
+        return ci.checked ? 'in' : 'out';
+    }
     if (tin && !tout) return 'out';
     if (tout && !tin) return 'in';
     return 'both';   /* שניהם ריקים, או שניהם מלאים (אז אין מה להשלים ממילא) */
@@ -599,7 +679,11 @@ function hmReqHint() {
     var txt = { out:  'הנציג יתבקש להשלים <b>שעת יציאה</b>',
                 in:   'הנציג יתבקש להשלים <b>שעת כניסה</b>',
                 both: 'הנציג יתבקש להשלים <b>כניסה ויציאה</b>' }[hmDeriveReq(tin, tout)];
-    if (tin && tout) txt = 'השורה מלאה — תיווצר כדיווח מושלם, ללא דרישה מהנציג';
+    var ci = document.getElementById('hm-need-in'),
+        co = document.getElementById('hm-need-out');
+    var explicit = (ci && ci.checked) || (co && co.checked);
+    if (tin && tout && !explicit)
+        txt = 'השורה מלאה — תיווצר כדיווח מושלם, ללא דרישה מהנציג';
     /* בבחירה מרובה השעות אינן נשמרות, ולכן הדרישה תמיד "כניסה ויציאה" */
     if (HM_CTX.sel.length > 1)
         txt = 'בחירה מרובה (' + HM_CTX.sel.length + ' תאים) — ' +
@@ -607,7 +691,7 @@ function hmReqHint() {
     el.innerHTML = '<i class="bi bi-info-circle"></i> ' + txt;
 }
 
-['hm-in', 'hm-out'].forEach(function (id) {
+['hm-in', 'hm-out', 'hm-need-in', 'hm-need-out'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) { el.addEventListener('input', hmReqHint); el.addEventListener('change', hmReqHint); }
 });
@@ -714,7 +798,10 @@ document.addEventListener('mouseup', function () {
 function hmExport() {
     var n = parseInt(document.getElementById('hm-marked').textContent, 10);
     if (!n) { showToast('לא נבחרו שורות לדיווח', 'warning'); return; }
+    if (!confirm('להוריד ' + n + ' שורות ולסגור אותן? שורה סגורה אינה ניתנת לעריכה.')) return;
     location.href = window.__V2_BASE + '/hours/export';
+    /* השרת סוגר את השורות בזמן ההורדה — מרעננים כדי שהמצב החדש יוצג */
+    setTimeout(function () { location.reload(); }, 2500);
 }
 </script>
 
@@ -906,7 +993,15 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
 
 /* ── טבלת הדרישות המרכזת ── */
 .hl-wrap{margin-top:22px;background:var(--bg2,#1a1a24);
-  border:1px solid var(--border,#2a2a3a);border-radius:10px;overflow:hidden}
+  border:1px solid var(--border,#2a2a3a);border-radius:10px;overflow:hidden;
+  max-width:100%}
+/* הטבלה חרגה מרוחב המסך — נגללת בתוך המכל במקום לדחוף את העמוד */
+.hl-scroll{overflow-x:auto;scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent}
+.hl-scroll::-webkit-scrollbar{height:6px}
+.hl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
+/* ווידג'ט היומן צף בפינה שמאל־תחתונה ומסתיר את סוף הטבלה */
+.hl-wrap{margin-bottom:96px}
 .hl-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
   padding:12px 15px;border-bottom:1px solid var(--border,#2a2a3a)}
 .hl-head h2{margin:0;font-size:15px;font-weight:700;color:var(--text)}
@@ -946,6 +1041,36 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
 .hl-day-fri:hover,.hl-day-sat:hover{opacity:1}
 .hl-empty{text-align:center;color:var(--text3);padding:26px}
 .hl-chk{width:17px;height:17px;cursor:pointer;accent-color:var(--accent)}
+.hl-chk:disabled{cursor:not-allowed;opacity:.35}
+
+/* סגירת שורות */
+.hl-close-b{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
+  border:1px solid rgba(148,163,184,.4);border-radius:20px;
+  background:rgba(148,163,184,.12);color:#cbd5e1;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .13s}
+.hl-close-b:hover{background:rgba(148,163,184,.24);border-color:rgba(148,163,184,.65)}
+.hl-close-b:active{transform:scale(.96)}
+.hl-act{width:44px;text-align:center}
+.hl-cb,.hl-rb{width:30px;height:30px;display:inline-flex;align-items:center;
+  justify-content:center;border-radius:7px;cursor:pointer;font-size:13px;
+  transition:all .13s;background:none}
+.hl-cb{border:1px solid rgba(148,163,184,.32);color:#94a3b8}
+.hl-cb:hover{background:rgba(148,163,184,.18);color:#e2e8f0}
+.hl-rb{border:1px solid rgba(124,92,255,.35);color:#a78bfa}
+.hl-rb:hover{background:rgba(124,92,255,.18);color:#c4b5fd}
+.hl-st.cl{display:inline-flex;align-items:center;gap:4px;
+  background:rgba(148,163,184,.20);color:#cbd5e1}
+.hl-row.hl-closed{opacity:.6;cursor:default}
+.hl-row.hl-closed:hover{opacity:.85;background:transparent}
+
+/* צ'קבוקסים בטופס הדרישה */
+.hm-f-col{display:flex;flex-direction:column;gap:5px}
+.hm-cb{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  font-size:11px;font-weight:700;color:var(--text3);white-space:nowrap;
+  user-select:none;transition:color .13s}
+.hm-cb:hover{color:var(--text2)}
+.hm-cb input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin:0}
+.hm-cb:has(input:checked){color:var(--accent)}
 .hl-th-chk{width:64px;text-align:center!important}
 .hl-th-chk span{display:block;font-size:9px;font-weight:700;color:var(--text3);
   margin-top:2px}

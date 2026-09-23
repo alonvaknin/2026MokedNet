@@ -9,7 +9,9 @@ $context = $context ?? 'page';
 $rows    = $rows ?? [];
 $TYPES = [
     'regular' => 'רגיל', 'vacation' => 'חופש', 'reserve' => 'מילואים',
-    'sick' => 'מחלה', 'duplicate_delete' => 'למחוק דיווחים כפולים', 'other' => 'אחר',
+    'sick' => 'מחלה', 'duplicate_delete' => 'למחוק דיווחים כפולים',
+    'duplicate_in' => 'כניסה כפולה', 'duplicate_out' => 'יציאה כפולה',
+    'other' => 'אחר',
 ];
 $DAYS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 ?>

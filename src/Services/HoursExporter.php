@@ -16,7 +16,9 @@ class HoursExporter
 {
     private const TYPES = [
         'regular' => 'רגיל', 'vacation' => 'חופש', 'reserve' => 'מילואים',
-        'sick' => 'מחלה', 'duplicate_delete' => 'למחוק דיווחים כפולים', 'other' => 'אחר',
+        'sick' => 'מחלה', 'duplicate_delete' => 'למחוק דיווחים כפולים',
+        'duplicate_in' => 'כניסה כפולה', 'duplicate_out' => 'יציאה כפולה',
+        'other' => 'אחר',
     ];
     private const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
     private const HEAD = ['שם עובד','תאריך','יום','סוג יום','סוג דיווח','כניסה','יציאה','הערה'];
