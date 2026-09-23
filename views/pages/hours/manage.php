@@ -879,7 +879,7 @@ function hmExport() {
 .hm-d{min-width:58px;vertical-align:bottom;padding:3px 2px!important}
 
 /* היום הנוכחי בלוח */
-.hm-grid thead th.hm-today{background:var(--accent)!important;color:#fff;
+.hm-grid thead th.hm-today{background:var(--accent)!important;
   box-shadow:inset 0 -3px 0 #fff}
 .hm-grid thead th.hm-today .hm-dn,.hm-grid thead th.hm-today .hm-dw,
 .hm-grid thead th.hm-today .hm-hn{color:#fff!important;opacity:1}
@@ -899,14 +899,26 @@ td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
   font-family:var(--font);font-size:13px;font-weight:600;text-align:center}
 /* פינת "עובד" נדבקת בשני הצירים, ולכן גוברת על שאר הכותרת */
 .hm-grid thead th.hm-name{z-index:6;top:0;right:0}
-/* הרקע של כותרת יום צבועה חייב להישאר גלוי מעל התוכן הנגלל */
-.hm-grid thead th.hm-day-fri,.hm-grid thead th.hm-day-sat{background:#0b0b12}
-.hm-grid thead th.hm-day-hol{background:#2a2110}
-.hm-grid thead th.hm-day-erev{background:#20190c}
-.hm-grid thead th.hm-day-chol{background:#231a0d}
-.hm-dn{display:block;font-size:15px;font-weight:800;color:var(--text);
+/* ══ כותרת הימים — עיצוב אחיד לכל סוגי הימים ══
+   מספר היום תמיד באותו גודל, משקל וצבע בהיר, כך שהוא קריא
+   בכל עמודה. סוג היום נמסר דרך רקע הכותרת ואות היום בלבד. */
+.hm-grid thead th{background:#171a24}
+.hm-dn{display:block;font-size:15px;font-weight:800;color:#f1f4fa;
   line-height:1.15;letter-spacing:.2px}
-.hm-dw{display:block;font-size:10px;font-weight:700;color:var(--text3)}
+.hm-dw{display:block;font-size:10px;font-weight:700;color:#9aa4bb;opacity:1}
+
+/* רקע הכותרת לפי סוג היום — אטום, כדי שהתוכן הנגלל לא ייראה מבעדו */
+.hm-grid thead th.hm-day-fri{background:#12161f}
+.hm-grid thead th.hm-day-sat{background:#0e1119}
+.hm-grid thead th.hm-day-hol{background:#33280f}
+.hm-grid thead th.hm-day-erev{background:#292110}
+.hm-grid thead th.hm-day-chol{background:#2c2411}
+
+/* אות היום נושאת את הצבע המבחין */
+th.hm-day-fri .hm-dw{color:#fbbf24}
+th.hm-day-sat .hm-dw{color:#f87171}
+th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
+
 .hm-cell{min-width:58px;height:40px;cursor:pointer;vertical-align:top;user-select:none;
   padding:2px 3px!important}
 .hm-cell:hover{outline:1px solid var(--accent,#7c5cff)}
@@ -925,11 +937,6 @@ td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
   50%{border-inline-start-color:#fbbf24}}
 /* שישי/שבת — ימי מנוחה, מעומעמים כדי שלא יתחרו על תשומת הלב */
 .hm-day-fri,.hm-day-sat{background:rgba(0,0,0,.28)}
-/* קודם opacity:.45 הוחל על כל הכותרת והחליש גם את מספר היום.
-   ההבחנה נעשית כעת בצבע אות היום בלבד. */
-th.hm-day-fri .hm-dn,th.hm-day-sat .hm-dn{color:#8e97ad}
-th.hm-day-fri .hm-dw{color:#f59e0b;opacity:.9}
-th.hm-day-sat .hm-dw{color:#ef4444;opacity:.9}
 /* תאי שישי/שבת מובחנים ברקע הכהה בלבד. אין עליהם opacity:
    הוא היה מחליש גם צ'יפים שיושבים בתוכם, ואי אפשר לבטל זאת מהילד. */
 .hm-day-sat{background:rgba(0,0,0,.38)}
@@ -938,16 +945,15 @@ th.hm-day-sat .hm-dw{color:#ef4444;opacity:.9}
 .hm-day-erev{background:rgba(251,191,36,.07)}
 .hm-day-chol{background:rgba(217,119,6,.07)}
 
-/* שם החג מעל מספר היום, בתוך כותרת העמודה */
 /* שורת שם החג מוצגת רק כשיש חג בעמודה; קודם היא שמרה מקום
    בכל העמודות ויצרה פס ריק בראש הטבלה */
 .hm-hn{font-size:8px;font-weight:700;line-height:1.15;
-  padding:1px 1px 0;color:#f59e0b;max-height:20px;
+  padding:1px 1px 0;color:#fcd34d;max-height:20px;
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;word-break:break-word}
 .hm-hn-e{display:none}
-.hm-day-erev .hm-hn{color:#fbbf24}
-.hm-day-chol .hm-hn{color:#d97706}
+.hm-day-erev .hm-hn{color:#fde68a}
+.hm-day-chol .hm-hn{color:#f0b429}
 .hm-has-hol{border-bottom:2px solid rgba(245,158,11,.45)}
 
 /* מודל */
