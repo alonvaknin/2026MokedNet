@@ -855,14 +855,15 @@ function hmExport() {
 .hm-bar{display:flex;align-items:center;gap:14px;margin:14px 0;padding:10px 14px;
   background:var(--bg2,#1a1a24);border-radius:8px}
 .hm-hint{color:var(--text3);font-size:12px;margin-inline-start:auto}
-/* הערה: overflow-x:auto מכריח את הדפדפן להתייחס ל-overflow-y כ-auto,
-   מה שהופך את המכל לאב גלילה וחותך את הכותרת הדביקה. הפתרון:
-   המכל גולל אופקית, והכותרת נדבקת ביחס אליו (top פועל בתוך המכל)
-   רק אם אין לו גובה מוגבל — ולכן אין max-height כאן. */
-.hm-scroll{overflow-x:auto;max-width:100%;scrollbar-color:var(--border2) var(--bg3,#15151f);
+/* חלון בגודל קבוע: הטבלה גוללת בשני הצירים בתוכו, והכותרת
+   נדבקת ביחס למכל הזה (top:0) ולא ביחס לעמוד — כך היא עובדת
+   בלי תלות ב-overflow של body. */
+.hm-scroll{overflow:auto;max-width:100%;
+  height:clamp(320px, calc(100vh - 340px), 720px);
   border:1px solid var(--border,#2a2a3a);border-radius:8px;
-  scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
-.hm-scroll::-webkit-scrollbar{height:10px}
+  scrollbar-width:thin;scrollbar-color:var(--border2) var(--bg3,#15151f);
+  overscroll-behavior:contain}
+.hm-scroll::-webkit-scrollbar{height:10px;width:10px}
 .hm-scroll::-webkit-scrollbar-track{background:var(--bg3,#15151f);border-radius:10px}
 .hm-scroll::-webkit-scrollbar-thumb{background:var(--border2,#3a3a4a);border-radius:10px;
   border:2px solid var(--bg3,#15151f)}
@@ -876,8 +877,8 @@ function hmExport() {
 .hm-grid thead th{border-top:1px solid var(--border,#2a2a3a)}
 .hm-name{position:sticky;right:0;z-index:2;background:var(--bg,#12121a);
   text-align:right!important;min-width:130px;white-space:nowrap}
-/* כותרת הימים נדבקת מתחת ל-topbar בזמן גלילה */
-.hm-grid thead th{position:sticky;top:var(--header-h,58px);z-index:3;
+/* הכותרת נדבקת לראש החלון הגולל */
+.hm-grid thead th{position:sticky;top:0;z-index:3;
   background:var(--bg,#12121a)}
 .hm-d{min-width:58px;vertical-align:bottom;padding:3px 2px!important}
 
@@ -901,7 +902,7 @@ td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
   border:1px solid var(--border);border-radius:7px;padding:7px 9px;
   font-family:var(--font);font-size:13px;font-weight:600;text-align:center}
 /* פינת "עובד" נדבקת בשני הצירים, ולכן גוברת על שאר הכותרת */
-.hm-grid thead th.hm-name{z-index:5}
+.hm-grid thead th.hm-name{z-index:6;top:0;right:0}
 /* הרקע של כותרת יום צבועה חייב להישאר גלוי מעל התוכן הנגלל */
 .hm-grid thead th.hm-day-fri,.hm-grid thead th.hm-day-sat{background:#0b0b12}
 .hm-grid thead th.hm-day-hol{background:#2a2110}
@@ -937,11 +938,13 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
 .hm-day-chol{background:rgba(217,119,6,.07)}
 
 /* שם החג מעל מספר היום, בתוך כותרת העמודה */
-.hm-hn{display:block;font-size:8px;font-weight:700;line-height:1.15;
-  min-height:19px;padding:1px 1px 0;color:#f59e0b;
+/* שורת שם החג מוצגת רק כשיש חג בעמודה; קודם היא שמרה מקום
+   בכל העמודות ויצרה פס ריק בראש הטבלה */
+.hm-hn{font-size:8px;font-weight:700;line-height:1.15;
+  padding:1px 1px 0;color:#f59e0b;max-height:20px;
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;word-break:break-word}
-.hm-hn-e{visibility:hidden}
+.hm-hn-e{display:none}
 .hm-day-erev .hm-hn{color:#fbbf24}
 .hm-day-chol .hm-hn{color:#d97706}
 .hm-has-hol{border-bottom:2px solid rgba(245,158,11,.45)}
