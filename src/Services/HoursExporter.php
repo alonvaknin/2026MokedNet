@@ -3,14 +3,16 @@ declare(strict_types=1);
 
 namespace Services;
 
-use Core\Holidays;
-
 /**
- * מפיק SpreadsheetML 2003 — קובץ .xls שהוא XML.
- * נבחר על פני PhpSpreadsheet (אין Composer בפרויקט) ועל פני CSV
- * (שמפרק עמודות בעברית באקסל).
+ * מפיק את קובץ דיווח השעות בשני פורמטים:
+ *   buildXlsx() — xlsx אמיתי (ZIP של חלקי XML), כשהרחבת zip זמינה
+ *   build()     — SpreadsheetML 2003 בסיומת xls, כנפילה חזרה
  *
- * build() היא פונקציה טהורה — ללא גישת DB, כדי שניתן יהיה לבדוק אותה בנפרד.
+ * נכתב ידנית ולא דרך PhpSpreadsheet, כי אין Composer בפרויקט; ו-CSV
+ * נפסל כי אקסל מפרק בו עמודות בעברית.
+ *
+ * שתי המתודות טהורות (ללא גישת DB) ושתיהן שואבות את ערכי השורה
+ * מ-cells(), כדי שרשימת העמודות לא תתפצל ביניהן.
  */
 class HoursExporter
 {
@@ -20,8 +22,7 @@ class HoursExporter
         'duplicate_in' => 'כניסה כפולה', 'duplicate_out' => 'יציאה כפולה',
         'other' => 'אחר',
     ];
-    private const DAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-    private const HEAD = ['שם עובד','תאריך','יום','סוג יום','סוג דיווח','כניסה','יציאה','הערה'];
+    private const HEAD = ['שם עובד','תאריך','סוג','כניסה','יציאה','הערה'];
 
     /** @param array<int,array<string,mixed>> $rows */
     public static function build(array $rows): string
@@ -42,20 +43,7 @@ class HoursExporter
         $x .= '</Row>' . "\n";
 
         foreach ($rows as $r) {
-            $date = (string)($r['work_date'] ?? '');
-            $ts   = strtotime($date) ?: time();
-            $type = (string)($r['entry_type'] ?? '');
-
-            $cells = [
-                (string)($r['full_name'] ?? ''),
-                date('d/m/Y', $ts),
-                self::DAYS[(int)date('w', $ts)],
-                Holidays::label(Holidays::dayType($date)),
-                self::TYPES[$type] ?? $type,
-                substr((string)($r['time_in'] ?? ''), 0, 5),
-                substr((string)($r['time_out'] ?? ''), 0, 5),
-                (string)($r['note'] ?? ''),
-            ];
+            $cells = self::cells($r);
 
             $x .= '<Row>';
             foreach ($cells as $c) {
@@ -171,11 +159,11 @@ class HoursExporter
            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
            . '<sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>'
            . '<cols>'
-           . '<col min="1" max="1" width="22" customWidth="1"/>'
-           . '<col min="2" max="4" width="12" customWidth="1"/>'
-           . '<col min="5" max="5" width="18" customWidth="1"/>'
-           . '<col min="6" max="7" width="10" customWidth="1"/>'
-           . '<col min="8" max="8" width="32" customWidth="1"/>'
+           . '<col min="1" max="1" width="24" customWidth="1"/>'
+           . '<col min="2" max="2" width="13" customWidth="1"/>'
+           . '<col min="3" max="3" width="20" customWidth="1"/>'
+           . '<col min="4" max="5" width="11" customWidth="1"/>'
+           . '<col min="6" max="6" width="36" customWidth="1"/>'
            . '</cols><sheetData>';
 
         $x .= self::rowXml(1, self::HEAD, 1);
@@ -212,6 +200,11 @@ class HoursExporter
     }
 
     /** ערכי שורה אחת, באותו סדר של HEAD */
+    /**
+     * ערכי שורה אחת, בסדר של HEAD.
+     * שני הפורמטים (xlsx ו-SpreadsheetML) משתמשים במתודה הזו, כדי
+     * שרשימת העמודות לא תתפצל ביניהם.
+     */
     private static function cells(array $r): array
     {
         $date = (string)($r['work_date'] ?? '');
@@ -221,8 +214,6 @@ class HoursExporter
         return [
             (string)($r['full_name'] ?? ''),
             date('d/m/Y', $ts),
-            self::DAYS[(int)date('w', $ts)],
-            Holidays::label(Holidays::dayType($date)),
             self::TYPES[$type] ?? $type,
             substr((string)($r['time_in'] ?? ''), 0, 5),
             substr((string)($r['time_out'] ?? ''), 0, 5),
