@@ -313,9 +313,13 @@ function hoursAddOwn() {
 .ht-tag-sat{background:#4a1616;color:#fca5a5}
 
 /* ── שדה נדרש מודגש; שדה שאינו נדרש מושבת ומאופר ── */
-.ht-time.ht-opt,.ht-time:disabled{opacity:.38;border-style:dashed;
-  cursor:not-allowed;background:transparent}
+/* מושבת בפועל — אפור וחסום */
+.ht-time:disabled{opacity:.38;border-style:dashed;cursor:not-allowed;
+  background:transparent}
 .ht-tw:has(.ht-time:disabled) .ht-tbtn{display:none}
+/* ניתן למילוי אך אינו נדרש (בעיקר בדיווח עצמי) — מאופק, לא כבוי */
+.ht-time.ht-opt:not(:disabled){opacity:.85;border-style:solid;cursor:text}
+.ht-time.ht-opt:not(:disabled):focus{opacity:1}
 .ht-time.ht-req{border-color:var(--accent)!important;
   background:rgba(124,92,255,.10);box-shadow:0 0 0 1px rgba(124,92,255,.25)}
 
