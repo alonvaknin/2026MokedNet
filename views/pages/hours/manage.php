@@ -28,6 +28,9 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
     <a class="btn btn-ghost btn-sm" href="<?= View::e($base) ?>/hours/manage?month=<?= View::e($prevMonth) ?>">▶</a>
     <span class="hours-month"><?= View::e($monthLabel) ?></span>
     <a class="btn btn-ghost btn-sm" href="<?= View::e($base) ?>/hours/manage?month=<?= View::e($nextMonth) ?>">◀</a>
+    <button type="button" class="hm-today-b" id="hm-today-b" onclick="hmJumpToday()">
+      <i class="bi bi-crosshair"></i> היום
+    </button>
     <span class="hm-hint"><i class="bi bi-hand-index"></i> גרור על תאים לבחירה מרובה</span>
   </div>
 </div>
@@ -256,6 +259,33 @@ function hlCloseSelected() {
         location.reload();
     }).catch(function () { showToast('שגיאת רשת', 'error'); });
 }
+
+/* גלילת הלוח לעמודת היום — בלוח של 31 עמודות זה מקצר את החיפוש */
+function hmJumpToday(instant) {
+    var col = document.querySelector('.hm-grid thead th.hm-today');
+    var box = document.querySelector('.hm-scroll');
+    if (!col || !box) { showToast('היום אינו בחודש המוצג', 'warning'); return; }
+
+    /* scrollIntoView מטפל נכון ב-RTL, שבו scrollLeft מתנהג שונה בין
+       דפדפנים (ערכים שליליים/הפוכים). inline:'center' ממרכז אופקית. */
+    col.scrollIntoView({ block: 'nearest', inline: 'center',
+                         behavior: instant ? 'auto' : 'smooth' });
+
+    if (!instant) {
+        col.classList.add('hm-flash');
+        setTimeout(function () { col.classList.remove('hm-flash'); }, 1200);
+    }
+}
+
+/* בפתיחת הלוח, אם היום בחודש המוצג — מתמקדים בו מיד */
+document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('hm-today-b');
+    if (!document.querySelector('.hm-grid thead th.hm-today')) {
+        if (btn) btn.style.display = 'none';   /* חודש אחר — אין למה לקפוץ */
+        return;
+    }
+    hmJumpToday(true);   /* בטעינה — מיידי, בלי אנימציה מסיחה */
+});
 
 /* שני מוני "לדיווח" (בפס העליון ובטבלה) מתעדכנים יחד */
 function hlSetMarked(n) {
@@ -981,6 +1011,15 @@ function hmExport(close) {
 
 <style>
 .hours-nav{display:flex;align-items:center;gap:12px}
+.hm-today-b{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;
+  border:1px solid rgba(91,141,238,.35);border-radius:20px;
+  background:rgba(91,141,238,.12);color:#a9c4f7;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--font);white-space:nowrap;
+  transition:background .13s,border-color .13s}
+.hm-today-b:hover{background:rgba(91,141,238,.22);border-color:rgba(91,141,238,.6)}
+@keyframes hmFlash{0%,100%{box-shadow:inset 0 -3px 0 #fff}
+  50%{box-shadow:inset 0 -3px 0 #fff,0 0 0 3px rgba(255,255,255,.35)}}
+.hm-grid thead th.hm-flash{animation:hmFlash .4s ease-in-out 3}
 .hours-month{font-weight:600;min-width:120px;text-align:center}
 .hm-hint{display:inline-flex;align-items:center;gap:5px;color:var(--text3);
   font-size:12px;white-space:nowrap;margin-inline-start:14px}
