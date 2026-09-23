@@ -137,8 +137,10 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
     <thead>
       <tr>
         <th class="hl-th-chk" title="סימון שורות לייצוא XLS">
-          <input type="checkbox" id="hl-all" class="hl-chk" title="סמן/נקה את כל השורות המוצגות">
-          <span>לדיווח</span>
+          <label class="hl-chk-l" title="סמן/נקה את כל השורות המוצגות">
+            <input type="checkbox" id="hl-all" class="hl-chk">
+            <span>לדיווח</span>
+          </label>
         </th>
         <th>עובד</th><th>תאריך</th><th>יום</th><th>סוג</th>
         <th>כניסה</th><th>יציאה</th><th>נדרש</th><th>הערה</th><th>סטטוס</th><th></th>
@@ -166,8 +168,12 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
           data-flags="<?= View::e($flags) ?>"
           data-id="<?= (int)$r['id'] ?>"
           data-user="<?= (int)$r['user_id'] ?>" data-date="<?= View::e($r['work_date']) ?>">
-        <td><input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
-                   <?= $closed ? 'disabled' : '' ?> title="סימון לדיווח"></td>
+        <td class="hl-chk-td">
+          <label class="hl-chk-l" title="סימון לדיווח">
+            <input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
+                   <?= $closed ? 'disabled' : '' ?>>
+          </label>
+        </td>
         <td class="hl-name"><?= View::e((string)$r['full_name']) ?></td>
         <td class="hl-mono"><?= View::e(date('d/m', $ts)) ?></td>
         <td>
@@ -320,7 +326,8 @@ function hlSetMarked(n) {
     /* לחיצה על שורה פותחת את מודל התא של אותו עובד/תאריך */
     document.querySelectorAll('.hl-row').forEach(function (tr) {
         tr.addEventListener('click', function (e) {
-            if (e.target.closest('.hl-chk') || e.target.closest('.hl-act')) return;
+            /* כל תא הסימון והתא של הפעולות אינם פותחים את המודל */
+            if (e.target.closest('.hl-chk-td') || e.target.closest('.hl-act')) return;
             if (tr.classList.contains('hl-closed')) {
                 showToast('השורה נסגרה — יש לפתוח אותה מחדש כדי לערוך', 'warning');
                 return;
@@ -1137,8 +1144,20 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
 .hl-day-fri,.hl-day-sat{opacity:.55}
 .hl-day-fri:hover,.hl-day-sat:hover{opacity:1}
 .hl-empty{text-align:center;color:var(--text3);padding:26px}
-.hl-chk{width:17px;height:17px;cursor:pointer;accent-color:var(--accent)}
+.hl-chk{width:17px;height:17px;cursor:pointer;accent-color:var(--accent);margin:0}
 .hl-chk:disabled{cursor:not-allowed;opacity:.35}
+
+/* התווית ממלאת את התא כולו, כך שלחיצה בכל מקום בו מסמנת ולא
+   פותחת את מודל השורה */
+.hl-chk-td{padding:0!important}
+.hl-chk-l{display:flex;align-items:center;justify-content:center;gap:5px;
+  width:100%;height:100%;min-height:38px;padding:4px 8px;cursor:pointer;
+  border-radius:6px;transition:background .12s;user-select:none}
+.hl-chk-l:hover{background:rgba(124,92,255,.14)}
+.hl-chk-l:active{background:rgba(124,92,255,.22)}
+.hl-chk-l:has(input:disabled){cursor:not-allowed}
+.hl-chk-l:has(input:disabled):hover{background:transparent}
+.hl-th-chk .hl-chk-l{min-height:0;flex-direction:column;gap:2px}
 
 /* סגירת שורות */
 .hl-close-b{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
@@ -1171,8 +1190,7 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
 .hm-cb input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin:0}
 .hm-cb:has(input:checked){color:var(--accent)}
 .hl-th-chk{width:64px;text-align:center!important}
-.hl-th-chk span{display:block;font-size:9px;font-weight:700;color:var(--text3);
-  margin-top:2px}
+.hl-th-chk span{font-size:9px;font-weight:700;color:var(--text3)}
 .hl-row td:first-child{text-align:center}
 
 /* ייצוא — צמוד לטבלה, כדי שהקשר לצ'קבוקסים יהיה ברור */
