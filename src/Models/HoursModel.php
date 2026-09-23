@@ -8,7 +8,8 @@ use Core\DB;
 class HoursModel
 {
     private const SELECT = 'SELECT id, user_id, work_date, entry_type, time_in, time_out,
-                                   requires, note, status, marked_for_export, exported_at,
+                                   requires, is_self_report, note, status,
+                                   marked_for_export, exported_at,
                                    created_by, filled_by, created_at, updated_at
                             FROM hours_entries';
 
@@ -69,11 +70,14 @@ class HoursModel
         };
     }
 
-    /** שורה שנוצרה בידי הנציג עצמו ולא בידי מנהל */
+    /**
+     * שורה שהנציג יזם, לפי הדגל השמור.
+     * לא נגזר מ-created_by === user_id: מנהל שיוצר דרישה לעצמו מקיים
+     * את השוויון הזה, והשורה הייתה מסווגת בטעות כדיווח עצמי.
+     */
     public static function isSelfAdded(array $row): bool
     {
-        return isset($row['created_by'], $row['user_id'])
-            && (int)$row['created_by'] === (int)$row['user_id'];
+        return !empty($row['is_self_report']);
     }
 
     public static function createEntry(array $d): int
@@ -81,13 +85,14 @@ class HoursModel
         $status = self::isComplete($d) ? 'filled' : 'requested';
         return DB::insert(
             'INSERT INTO hours_entries
-               (user_id, work_date, entry_type, time_in, time_out, requires, note,
-                status, created_by, filled_by)
-             VALUES (?,?,?,?,?,?,?,?,?,?)',
+               (user_id, work_date, entry_type, time_in, time_out, requires,
+                is_self_report, note, status, created_by, filled_by)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $d['user_id'], $d['work_date'], $d['entry_type'] ?? 'regular',
                 ($d['time_in'] ?? null) ?: null, ($d['time_out'] ?? null) ?: null,
                 $d['requires'] ?? 'both',
+                !empty($d['is_self_report']) ? 1 : 0,
                 $d['note'] ?? null, $status, $d['created_by'] ?? null,
                 $status === 'filled' ? ($d['created_by'] ?? null) : null,
             ]

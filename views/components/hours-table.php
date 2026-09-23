@@ -26,12 +26,13 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
     $dt      = Holidays::dayType($r['work_date']);
     $hol     = Holidays::get($r['work_date']);
     $ts      = strtotime($r['work_date']);
-    // ננעלים רק שדות שכבר מולאו בידי המנהל
-    $lockIn  = !empty($r['time_in'])  && (int)$r['created_by'] !== (int)$r['user_id'];
-    $lockOut = !empty($r['time_out']) && (int)$r['created_by'] !== (int)$r['user_id'];
-    // שורה עצמית: הנציג בוחר מה לדווח, ולכן שני השדות פתוחים ואף
-    // אחד מהם אינו "נדרש" — די באחד מהם כדי לסגור אותה
-    $selfAdded = (int)$r['created_by'] === (int)$r['user_id'];
+    // ננעלים רק שדות שהמנהל מילא בדרישה (לא בשורה שהנציג יזם)
+    $isRequest = empty($r['is_self_report']);
+    $lockIn  = $isRequest && !empty($r['time_in']);
+    $lockOut = $isRequest && !empty($r['time_out']);
+    // שורה עצמית לפי הדגל השמור, ולא לפי השוואת מזהים — מנהל
+    // שיוצר דרישה לעצמו אינו "דיווח עצמי"
+    $selfAdded = !empty($r['is_self_report']);
     $reqIn   = !$selfAdded && in_array($r['requires'], ['both','in'],  true);
     $reqOut  = !$selfAdded && in_array($r['requires'], ['both','out'], true);
     ?>
@@ -91,7 +92,7 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
                     'out'  => 'דרושה שעת יציאה'][$r['requires']] ?? '');
         ?>
         <?php // שורה שהנציג הוסיף בעצמו וטרם השלים — ניתנת להסרה
-              $ownDraft = (int)$r['created_by'] === (int)$r['user_id']; ?>
+              $ownDraft = $selfAdded; ?>
         <div class="ht-actions">
           <span class="ht-need<?= $selfAdded ? ' ht-need-self' : '' ?>">
             <i class="bi bi-<?= $selfAdded ? 'info-circle' : 'exclamation-circle' ?>"></i>

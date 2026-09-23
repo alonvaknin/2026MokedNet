@@ -164,9 +164,9 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         $done = $r['status'] === 'filled';
         $mk     = (int)$r['marked_for_export'] === 1;
         $closed = !empty($r['exported_at']);
-        // שורה שהנציג הוסיף לעצמו — requires שלה חסר משמעות, כי היא
-        // נסגרת עם כל שעה שמולאה
-        $selfAdded = (int)$r['created_by'] === (int)$r['user_id'];
+        // שורה שהנציג יזם — requires שלה חסר משמעות, כי היא נסגרת
+        // עם כל שעה שמולאה
+        $selfAdded = !empty($r['is_self_report']);
         $flags = ($closed ? 'closed' : 'open')
                . ($done ? ' filled' : ' pending')
                . ($mk && !$closed ? ' marked' : '');
@@ -693,7 +693,7 @@ function hmLoadRows() {
                   'placeholder="--:--" value="' + hmEsc((r.time_in || '').slice(0, 5)) + '"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>' +
                 '<span class="ht-tw"><input type="text" class="ht-time r-out" inputmode="numeric" maxlength="5" ' +
                   'placeholder="--:--" value="' + hmEsc((r.time_out || '').slice(0, 5)) + '"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>' +
-                (String(r.created_by) === String(r.user_id)
+                (String(r.is_self_report) === '1'
                   /* שורה עצמית: אין מה לדרוש, ולכן תווית במקום בחירה */
                   ? '<span class="r-self" title="הנציג הוסיף את השורה בעצמו">' +
                       'דיווח עצמאי</span><input type="hidden" class="r-req" value="' +

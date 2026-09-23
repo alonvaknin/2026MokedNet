@@ -113,12 +113,10 @@ class HoursController extends Controller
         if (!empty($row['time_in'])  && (int)$row['created_by'] !== $uid) $in  = $row['time_in'];
         if (!empty($row['time_out']) && (int)$row['created_by'] !== $uid) $out = $row['time_out'];
 
-        // created_by/user_id נדרשים כדי ש-isComplete תזהה שורה עצמית,
-        // שנסגרת גם עם שעה אחת בלבד
+        // is_self_report קובע אם די בשעה אחת כדי לסגור את השורה
         $candidate = ['entry_type' => $type, 'time_in' => $in, 'time_out' => $out,
-                      'requires'   => $row['requires'],
-                      'created_by' => $row['created_by'],
-                      'user_id'    => $row['user_id']];
+                      'requires'       => $row['requires'],
+                      'is_self_report' => $row['is_self_report']];
         $status = HoursModel::isComplete($candidate) ? 'filled' : 'requested';
 
         HoursModel::updateEntry((int)$id, [
@@ -150,6 +148,7 @@ class HoursController extends Controller
         $id = HoursModel::createEntry([
             'user_id' => $uid, 'work_date' => $date, 'entry_type' => 'regular',
             'time_in' => null, 'time_out' => null, 'requires' => 'both',
+            'is_self_report' => 1,
             'note' => null, 'created_by' => $uid,
         ]);
 
@@ -203,7 +202,7 @@ class HoursController extends Controller
             $this->json(['error' => 'אין הרשאה לשורה זו'], 403);
             return;
         }
-        if ((int)$row['created_by'] !== $uid) {
+        if (!HoursModel::isSelfAdded($row) || (int)$row['created_by'] !== $uid) {
             $this->json(['error' => 'שורה שנוצרה על ידי המנהל אינה ניתנת למחיקה'], 403);
             return;
         }
