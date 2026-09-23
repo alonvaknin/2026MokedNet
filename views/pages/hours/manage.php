@@ -164,6 +164,9 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         $done = $r['status'] === 'filled';
         $mk     = (int)$r['marked_for_export'] === 1;
         $closed = !empty($r['exported_at']);
+        // שורה שהנציג הוסיף לעצמו — requires שלה חסר משמעות, כי היא
+        // נסגרת עם כל שעה שמולאה
+        $selfAdded = (int)$r['created_by'] === (int)$r['user_id'];
         $flags = ($closed ? 'closed' : 'open')
                . ($done ? ' filled' : ' pending')
                . ($mk && !$closed ? ' marked' : '');
@@ -190,7 +193,13 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         <td><?= View::e($FULL[$r['entry_type']] ?? $r['entry_type']) ?></td>
         <td class="hl-mono"><?= View::e(substr((string)$r['time_in'], 0, 5) ?: '—') ?></td>
         <td class="hl-mono"><?= View::e(substr((string)$r['time_out'], 0, 5) ?: '—') ?></td>
-        <td class="hl-req"><?= View::e($REQ[$r['requires']] ?? '') ?></td>
+        <td class="hl-req">
+          <?php if ($selfAdded): ?>
+            <span class="hl-self">דיווח עצמאי</span>
+          <?php else: ?>
+            <?= View::e($REQ[$r['requires']] ?? '') ?>
+          <?php endif; ?>
+        </td>
         <td class="hl-note" title="<?= View::e((string)$r['note']) ?>"><?= View::e((string)$r['note']) ?></td>
         <td>
           <?php if ($closed): ?>
@@ -684,11 +693,17 @@ function hmLoadRows() {
                   'placeholder="--:--" value="' + hmEsc((r.time_in || '').slice(0, 5)) + '"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>' +
                 '<span class="ht-tw"><input type="text" class="ht-time r-out" inputmode="numeric" maxlength="5" ' +
                   'placeholder="--:--" value="' + hmEsc((r.time_out || '').slice(0, 5)) + '"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>' +
-                '<select class="r-req">' +
-                  ['both','in','out'].map(function (k) {
-                      var lbl = { both:'שתיהן', in:'כניסה', out:'יציאה' }[k];
-                      return '<option value="' + k + '"' + (r.requires === k ? ' selected' : '') + '>' +
-                             lbl + '</option>'; }).join('') + '</select>' +
+                (String(r.created_by) === String(r.user_id)
+                  /* שורה עצמית: אין מה לדרוש, ולכן תווית במקום בחירה */
+                  ? '<span class="r-self" title="הנציג הוסיף את השורה בעצמו">' +
+                      'דיווח עצמאי</span><input type="hidden" class="r-req" value="' +
+                      hmEsc(r.requires || 'both') + '">'
+                  : '<select class="r-req">' +
+                      ['both','in','out'].map(function (k) {
+                          var lbl = { both:'שתיהן', in:'כניסה', out:'יציאה' }[k];
+                          return '<option value="' + k + '"' +
+                                 (r.requires === k ? ' selected' : '') + '>' +
+                                 lbl + '</option>'; }).join('') + '</select>') +
                 '<input type="text" class="r-note" maxlength="500" value="' + hmEsc(r.note || '') +
                   '" placeholder="הערה">' +
                 '<label class="r-mark" title="כלול בקובץ הייצוא"><input type="checkbox" class="r-chk"' +
@@ -1355,6 +1370,10 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hl-name{font-weight:600;color:var(--text);white-space:nowrap}
 .hl-mono{font-family:'SF Mono',Consolas,monospace;direction:ltr;text-align:center}
 .hl-req{font-size:11px;color:var(--text3);white-space:nowrap}
+.hl-self,.r-self{display:inline-block;font-size:10px;font-weight:700;
+  color:#8fa7c9;background:rgba(91,141,238,.12);border-radius:5px;
+  padding:3px 9px;white-space:nowrap}
+.r-self{font-size:11px;padding:7px 11px;border:1px solid rgba(91,141,238,.22)}
 .hl-note{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font-size:12px;color:var(--text3)}
 .hl-hol{display:inline-block;font-size:9px;font-weight:700;color:#f59e0b;
