@@ -1215,19 +1215,23 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hl-head h2{margin:0;font-size:15px;font-weight:700;color:var(--text)}
 .hl-tabs{display:flex;gap:5px;margin-inline-start:auto}
 /* ── כפתורים: מסגרת, הבלטה וצל — נבדלים ויזואלית מהתגיות ── */
-.hl-tab{display:inline-flex;align-items:center;gap:7px;padding:7px 15px;
-  border:1px solid var(--border2,#3a3a4a);border-radius:20px;background:var(--bg4);
-  color:#c8cddb;font-size:12px;font-weight:700;cursor:pointer;
+/* לשוניות הסינון: רקע בהיר מהכרטיס שמאחוריהן וטקסט לבן כמעט מלא,
+   כדי שהטקסט לא ייבלע ברקע הכהה */
+.hl-tab{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
+  border:1px solid #454c66;border-radius:20px;background:#2b3145;
+  color:#eef1f8;font-size:12.5px;font-weight:700;cursor:pointer;
   font-family:var(--font);transition:all .13s;
-  box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.hl-tab:hover{background:var(--accent-dim);color:#fff;
-  border-color:rgba(91,141,238,.6);transform:translateY(-1px)}
+  box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.hl-tab:hover{background:#39415c;color:#fff;border-color:#6b7699;
+  transform:translateY(-1px)}
 .hl-tab:active{transform:translateY(0)}
-.hl-tab.on{background:var(--accent);color:#fff;border-color:var(--accent);
-  box-shadow:0 3px 10px rgba(91,141,238,.45)}
-.hl-c{font-size:11px;font-weight:800;background:#0d1117;color:#e6edf3;
-  border-radius:9px;padding:1px 7px;min-width:19px;text-align:center}
-.hl-tab.on .hl-c{background:rgba(255,255,255,.28);color:#fff}
+.hl-tab.on{background:var(--accent);color:#fff;border-color:#9bb8f5;
+  box-shadow:0 3px 12px rgba(91,141,238,.55)}
+/* המונה: רקע בהיר על לשונית כהה, והפוך על הלשונית הפעילה */
+.hl-c{font-size:11px;font-weight:800;background:#0f1320;color:#fff;
+  border-radius:9px;padding:2px 8px;min-width:20px;text-align:center;
+  line-height:1.3}
+.hl-tab.on .hl-c{background:#fff;color:var(--accent)}
 
 /* min-width מפעיל את הגלילה האופקית כשהמסך צר מדי לעמודות */
 .hl-table{width:100%;min-width:940px;border-collapse:separate;
