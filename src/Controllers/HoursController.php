@@ -164,11 +164,16 @@ class HoursController extends Controller
     public function apiPendingCount(): void
     {
         $this->requireAuth();
+        // reporter מבחין בין "מדווח ללא שורות פתוחות" לבין "אינו מדווח",
+        // כדי שהקישור בתפריט יוצג רק למי שרלוונטי
         if (!$this->isReporter()) {
-            $this->json(['count' => 0]);
+            $this->json(['count' => 0, 'reporter' => false]);
             return;
         }
-        $this->json(['count' => HoursModel::pendingCount((int)Auth::user()['id'])]);
+        $this->json([
+            'count'    => HoursModel::pendingCount((int)Auth::user()['id']),
+            'reporter' => true,
+        ]);
     }
 
     public function apiPendingList(): void

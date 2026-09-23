@@ -165,6 +165,15 @@ body.nav-collapsed #main{margin-right:var(--sidebar-mini)}
 .ud-item i{font-size:16px;width:18px;text-align:center;transition:transform .15s}
 .ud-item:hover i{transform:scale(1.15)}
 .ud-sep{height:1px;background:var(--border);margin:4px 0}
+/* פריט דיווח שעות — מונה השורות הפתוחות בצד */
+/* מוסתר עד שנדע שהמשתמש מדווח שעות */
+.ud-hours[hidden]{display:none}
+.ud-hours{justify-content:flex-start}
+.ud-hours span:first-of-type{flex:1}
+.ud-badge{background:#b45309;color:#fff;font-size:10px;font-weight:800;
+  border-radius:9px;padding:1px 7px;min-width:19px;text-align:center;
+  line-height:1.5;flex-shrink:0}
+.ud-badge[hidden]{display:none}
 #mobile-toggle{display:none;width:34px;height:34px;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;border-radius:var(--radius-sm);align-items:center;justify-content:center;transition:background .13s,color .13s}
 #mobile-toggle:hover{background:var(--bg3);color:var(--text)}
 #nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199}
@@ -283,6 +292,12 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
             <div class="ud-role"><?= View::e($deptName) ?><?= $deptName&&$groupName?' · ':'' ?><?= View::e($groupName) ?></div>
           </div>
         </div>
+        <a href="<?= $base ?>/hours" class="ud-item ud-hours" id="ud-hours"
+           hidden onclick="closeUserMenu()">
+          <i class="bi bi-clock-history" style="color:#f59e0b"></i>
+          <span>דיווח שעות</span>
+          <span class="ud-badge" id="ud-hours-badge" hidden>0</span>
+        </a>
         <a href="<?= $base ?>/preferences" class="ud-item" onclick="closeUserMenu()">
           <i class="bi bi-palette-fill" style="color:var(--accent)"></i> העדפות תצוגה
         </a>

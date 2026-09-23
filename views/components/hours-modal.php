@@ -438,15 +438,18 @@ window.hoursRefreshBadge = function () {
     fetch(window.__V2_BASE + '/api/hours/pending-count')
       .then(function (r) { return r.json(); })
       .then(function (d) {
+          var n    = (d && d.count) ? d.count : 0;
           var bell = document.getElementById('hours-bell');
-          if (!bell) return;
-          if (d && d.count > 0) {
-              bell.classList.add('on');
+          if (bell) {
+              bell.classList.toggle('on', n > 0);
               var b = document.getElementById('hours-badge');
-              if (b) b.textContent = d.count;
-          } else {
-              bell.classList.remove('on');
+              if (b) b.textContent = n;
           }
+          /* הקישור בתפריט הפרופיל: מוצג רק למי שמדווח שעות */
+          var link = document.getElementById('ud-hours');
+          if (link) link.hidden = !(d && d.reporter);
+          var ud = document.getElementById('ud-hours-badge');
+          if (ud) { ud.textContent = n; ud.hidden = n === 0; }
       })
       .catch(function () { /* שקט — הפעמון פשוט נשאר מוסתר */ });
 };
