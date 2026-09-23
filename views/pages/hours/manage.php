@@ -828,15 +828,35 @@ function hmExport() {
 .hm-bar{display:flex;align-items:center;gap:14px;margin:14px 0;padding:10px 14px;
   background:var(--bg2,#1a1a24);border-radius:8px}
 .hm-hint{color:var(--text3);font-size:12px;margin-inline-start:auto}
-.hm-scroll{overflow-x:auto;max-width:100%;border:1px solid var(--border,#2a2a3a);
-  border-radius:8px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+/* הערה: overflow-x:auto מכריח את הדפדפן להתייחס ל-overflow-y כ-auto,
+   מה שהופך את המכל לאב גלילה וחותך את הכותרת הדביקה. הפתרון:
+   המכל גולל אופקית, והכותרת נדבקת ביחס אליו (top פועל בתוך המכל)
+   רק אם אין לו גובה מוגבל — ולכן אין max-height כאן. */
+.hm-scroll{overflow-x:auto;max-width:100%;
+  border:1px solid var(--border,#2a2a3a);border-radius:8px;
+  scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
 .hm-scroll::-webkit-scrollbar{height:6px}
 .hm-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
-.hm-grid{border-collapse:collapse;font-size:12px}
-.hm-grid th,.hm-grid td{border:1px solid var(--border,#2a2a3a);padding:2px 4px;text-align:center}
-.hm-name{position:sticky;right:0;background:var(--bg,#12121a);text-align:right!important;
-  min-width:130px;white-space:nowrap;z-index:2}
+/* separate ולא collapse: בתאים דביקים המסגרות נעלמות תחת collapse */
+.hm-grid{border-collapse:separate;border-spacing:0;font-size:12px}
+/* עם border-spacing:0 מסגרת מלאה בכל תא מוכפלת — לכן רק שני צדדים */
+.hm-grid th,.hm-grid td{border-bottom:1px solid var(--border,#2a2a3a);
+  border-left:1px solid var(--border,#2a2a3a);padding:2px 4px;text-align:center}
+.hm-grid tr th:first-child,.hm-grid tr td:first-child{border-left:0}
+.hm-grid thead th{border-top:1px solid var(--border,#2a2a3a)}
+.hm-name{position:sticky;right:0;z-index:2;background:var(--bg,#12121a);
+  text-align:right!important;min-width:130px;white-space:nowrap}
+/* כותרת הימים נדבקת מתחת ל-topbar בזמן גלילה */
+.hm-grid thead th{position:sticky;top:var(--header-h,58px);z-index:3;
+  background:var(--bg,#12121a)}
 .hm-d{min-width:58px;vertical-align:bottom;padding:3px 2px!important}
+/* פינת "עובד" נדבקת בשני הצירים, ולכן גוברת על שאר הכותרת */
+.hm-grid thead th.hm-name{z-index:5}
+/* הרקע של כותרת יום צבועה חייב להישאר גלוי מעל התוכן הנגלל */
+.hm-grid thead th.hm-day-fri,.hm-grid thead th.hm-day-sat{background:#0b0b12}
+.hm-grid thead th.hm-day-hol{background:#2a2110}
+.hm-grid thead th.hm-day-erev{background:#20190c}
+.hm-grid thead th.hm-day-chol{background:#231a0d}
 .hm-dn{display:block;font-weight:700}
 .hm-dw{display:block;font-size:10px;color:var(--text3)}
 .hm-cell{min-width:58px;height:40px;cursor:pointer;vertical-align:top;user-select:none;
