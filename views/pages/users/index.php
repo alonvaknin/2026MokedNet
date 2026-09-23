@@ -159,6 +159,10 @@ $groupMap = array_column($permGroups, 'permmisionsGroupHeb', 'id');
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
           <input type="checkbox" id="f-active" checked> פעיל
         </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin-top:10px;"
+               title="המשתמש יופיע בלוח ניהול דיווח השעות ויידרש לדווח">
+          <input type="checkbox" id="f-hours"> מדווח שעות
+        </label>
       </div>
 
       <div id="modal-error" style="color:var(--danger);font-size:13px;margin:10px 0;display:none;"></div>
@@ -319,6 +323,7 @@ function openModal(id) {
       document.getElementById('f-sip').value     = u.sip_voice  || '';
       document.getElementById('f-note').value    = u.note       || '';
       document.getElementById('f-active').checked = !!parseInt(u.is_active);
+      document.getElementById('f-hours').checked  = !!parseInt(u.hours_reports || 0);
       const btn = document.getElementById('toggle-btn');
       btn.textContent = parseInt(u.is_active) ? 'השבת משתמש' : 'הפעל משתמש';
       btn.style.background = parseInt(u.is_active) ? 'var(--danger)' : 'var(--success)';
@@ -327,6 +332,7 @@ function openModal(id) {
     ['f-id','f-fname','f-lname','f-email','f-phone','f-mvoice','f-sip','f-note']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
     document.getElementById('f-active').checked = true;
+    document.getElementById('f-hours').checked  = false;
   }
   document.getElementById('usr-modal').style.display = 'flex';
 }
@@ -358,6 +364,7 @@ async function saveUser() {
     sipVoice: document.getElementById('f-sip').value.trim(),
     userNote: document.getElementById('f-note').value.trim(),
     active: document.getElementById('f-active').checked ? '1' : '0',
+    hoursReports: document.getElementById('f-hours').checked ? '1' : '0',
   });
 
   const res  = await fetch(`${BASE_URL}/users/save`, { method:'POST', body });

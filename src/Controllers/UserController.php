@@ -53,6 +53,7 @@ class UserController extends Controller
             'note'                => trim($this->post('userNote', '')),
             'mvoice_id'           => trim($this->post('mvoiceid', '')),
             'sip_voice'           => trim($this->post('sipVoice', '')),
+            'hours_reports'       => (int)$this->post('hoursReports', 0),
         ];
 
         if (!$data['first_name']) {

@@ -5,6 +5,7 @@ namespace Controllers;
 
 use Core\Controller;
 use Core\Auth;
+use Core\DB;
 use Models\HoursModel;
 
 class HoursController extends Controller
@@ -26,6 +27,33 @@ class HoursController extends Controller
         return $body = is_array($d) ? $d : [];
     }
 
+    /**
+     * גישה לדיווח שעות נקבעת לפי הדגל הפרטני users.hours_reports,
+     * ולא לפי קבוצת הרשאות. מנהל דיווח (canManageHours) תמיד רשאי.
+     */
+    private function requireReporter(): void
+    {
+        $this->requireAuth();
+        if ($this->isReporter()) return;
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            $this->json(['error' => 'אינך מוגדר לדיווח שעות'], 403);
+            return;
+        }
+        http_response_code(403);
+        $this->view('pages/403', [], 'layouts/main');
+        exit;
+    }
+
+    private function isReporter(): bool
+    {
+        if (Auth::can('canManageHours')) return true;
+        $u = Auth::user();
+        return !empty($u) && (int)DB::value(
+            'SELECT hours_reports FROM users WHERE id = ?', [(int)$u['id']]
+        ) === 1;
+    }
+
     private function normalizeMonth(mixed $m): string
     {
         return (is_string($m) && preg_match('/^\d{4}-\d{2}$/', $m)) ? $m : date('Y-m');
@@ -39,7 +67,7 @@ class HoursController extends Controller
 
     public function index(): void
     {
-        $this->requirePermission('canReportHours');
+        $this->requireReporter();
         $uid   = (int)Auth::user()['id'];
         $month = $this->normalizeMonth($this->get('month'));
         $ts    = strtotime($month . '-01');
@@ -55,7 +83,7 @@ class HoursController extends Controller
 
     public function saveEntry(string $id): void
     {
-        $this->requirePermission('canReportHours');
+        $this->requireReporter();
         $this->verifyCsrf();
 
         $uid = (int)Auth::user()['id'];
@@ -100,7 +128,7 @@ class HoursController extends Controller
 
     public function addOwnEntry(): void
     {
-        $this->requirePermission('canReportHours');
+        $this->requireReporter();
         $this->verifyCsrf();
 
         $uid  = (int)Auth::user()['id'];
@@ -133,7 +161,7 @@ class HoursController extends Controller
     public function apiPendingCount(): void
     {
         $this->requireAuth();
-        if (!Auth::can('canReportHours')) {
+        if (!$this->isReporter()) {
             $this->json(['count' => 0]);
             return;
         }
@@ -142,7 +170,7 @@ class HoursController extends Controller
 
     public function apiPendingList(): void
     {
-        $this->requirePermission('canReportHours');
+        $this->requireReporter();
         $rows = HoursModel::pendingForUser((int)Auth::user()['id']);
 
         // View::component() מדפיסה ומחזירה void — לוכדים את הפלט לבאפר

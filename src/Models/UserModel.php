@@ -41,7 +41,6 @@ class UserModel
             'canAddReport'      => 'הוספת דיווח',
             'canEditSupportPro' => 'עריכת מוצרי תמיכה',
             'canManageDuty'     => 'ניהול תורנות',
-            'canReportHours'    => 'דיווח שעות (נציג)',
             'canManageHours'    => 'ניהול דיווח שעות',
         ],
         'כספים' => [
@@ -94,7 +93,6 @@ class UserModel
         'canOrianorder'                => 'הזמנות אוריאן',
         'canViewLogs'                  => 'צפייה בלוג פעולות',
         'canManageDuty'                => 'ניהול תורנות',
-        'canReportHours'               => 'דיווח שעות (נציג)',
         'canManageHours'               => 'ניהול דיווח שעות',
         'task_settings.manage'         => 'ניהול הגדרות משימות',
         'tasks.viewAll'                => 'צפייה בכל המשימות (כל נציגים)',
@@ -106,7 +104,7 @@ class UserModel
     {
         return DB::query(
             'SELECT u.id, u.first_name, u.last_name, u.email,
-                    u.phone, u.department_id, u.is_active, u.last_login,
+                    u.phone, u.department_id, u.is_active, u.hours_reports, u.last_login,
                     u.created_at, u.must_change_password,
                     u.permission_group_id,
                     d.name_heb  AS dept_name,
@@ -165,7 +163,7 @@ class UserModel
                     first_name=?, last_name=?, email=?,
                     phone=?, department_id=?, is_active=?,
                     permission_group_id=?, note=?,
-                    mvoice_id=?, sip_voice=?
+                    mvoice_id=?, sip_voice=?, hours_reports=?
                  WHERE id=?',
                 [
                     $d['first_name'], $d['last_name'], $d['email'],
@@ -175,6 +173,7 @@ class UserModel
                     $d['note'],
                     $d['mvoice_id'] ?: null,
                     $d['sip_voice']  ?: null,
+                    !empty($d['hours_reports']) ? 1 : 0,
                     $d['id'],
                 ]
             );
@@ -183,14 +182,17 @@ class UserModel
             DB::execute(
                 'INSERT INTO users
                     (first_name, last_name, email, phone, department_id,
-                     is_active, permission_group_id, note, password_hash, created_at)
-                 VALUES (?,?,?,?,?,?,?,?,?,NOW())',
+                     is_active, permission_group_id, note, hours_reports,
+                     password_hash, created_at)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,NOW())',
                 [
                     $d['first_name'], $d['last_name'], $d['email'],
                     $d['phone'], $d['department_id'] ?: null,
                     $d['is_active'] ? 1 : 0,
                     $d['permission_group_id'] ?: null,
-                    $d['note'], $hash,
+                    $d['note'],
+                    !empty($d['hours_reports']) ? 1 : 0,
+                    $hash,
                 ]
             );
         }
