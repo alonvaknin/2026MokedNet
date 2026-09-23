@@ -116,10 +116,12 @@ class HoursModel
     }
 
     /** [userId => ['YYYY-MM-DD' => [rows...]]] */
+    /** שורות סגורות (יוצאו לדיווח) אינן מוצגות ברשת החודשית */
     public static function monthGrid(string $month): array
     {
         $rows = DB::query(
             self::SELECT . " WHERE DATE_FORMAT(work_date, '%Y-%m') = ?
+                               AND exported_at IS NULL
                              ORDER BY work_date ASC, id ASC",
             [$month]
         );
@@ -146,10 +148,16 @@ class HoursModel
         );
     }
 
+    /**
+     * שורות התא במודל — ללא שורות סגורות, בעקבות הרשת.
+     * שורה סגורה עדיין נראית (וניתנת לפתיחה מחדש) בטבלת הדרישות.
+     */
     public static function forUserDate(int $userId, string $date): array
     {
         return DB::query(
-            self::SELECT . ' WHERE user_id = ? AND work_date = ? ORDER BY id ASC',
+            self::SELECT . ' WHERE user_id = ? AND work_date = ?
+                               AND exported_at IS NULL
+                             ORDER BY id ASC',
             [$userId, $date]
         );
     }
