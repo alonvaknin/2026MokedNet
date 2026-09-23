@@ -28,13 +28,8 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
     <a class="btn btn-ghost btn-sm" href="<?= View::e($base) ?>/hours/manage?month=<?= View::e($prevMonth) ?>">▶</a>
     <span class="hours-month"><?= View::e($monthLabel) ?></span>
     <a class="btn btn-ghost btn-sm" href="<?= View::e($base) ?>/hours/manage?month=<?= View::e($nextMonth) ?>">◀</a>
+    <span class="hm-hint"><i class="bi bi-hand-index"></i> גרור על תאים לבחירה מרובה</span>
   </div>
-</div>
-
-<div class="hm-bar">
-  <span>נבחרו <b id="hm-marked"><?= (int)$markedCount ?></b> שורות לדיווח</span>
-  <button type="button" class="btn btn-primary" onclick="hmExport()">הורד XLS</button>
-  <span class="hm-hint">גרור על תאים לבחירה מרובה</span>
 </div>
 
 <div class="hm-scroll">
@@ -104,6 +99,7 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
   <div class="hl-head">
     <h2>דרישות ודיווחים — <?= View::e($monthLabel) ?></h2>
     <div class="hl-exp">
+      <span id="hm-marked" hidden><?= (int)$markedCount ?></span>
       <span class="hl-exp-n">נבחרו <b id="hl-marked"><?= (int)$markedCount ?></b> לייצוא</span>
       <button type="button" class="hl-close-b" onclick="hlCloseSelected()"
               title="סגירת השורות המסומנות ללא הורדת קובץ">
@@ -852,14 +848,14 @@ function hmExport() {
 <style>
 .hours-nav{display:flex;align-items:center;gap:12px}
 .hours-month{font-weight:600;min-width:120px;text-align:center}
-.hm-bar{display:flex;align-items:center;gap:14px;margin:14px 0;padding:10px 14px;
-  background:var(--bg2,#1a1a24);border-radius:8px}
-.hm-hint{color:var(--text3);font-size:12px;margin-inline-start:auto}
+.hm-hint{display:inline-flex;align-items:center;gap:5px;color:var(--text3);
+  font-size:12px;white-space:nowrap;margin-inline-start:14px}
+.hm-hint i{font-size:13px;opacity:.8}
 /* חלון בגודל קבוע: הטבלה גוללת בשני הצירים בתוכו, והכותרת
    נדבקת ביחס למכל הזה (top:0) ולא ביחס לעמוד — כך היא עובדת
    בלי תלות ב-overflow של body. */
 .hm-scroll{overflow:auto;max-width:100%;
-  height:clamp(320px, calc(100vh - 340px), 720px);
+  height:clamp(420px, calc(100vh - 230px), 900px);
   border:1px solid var(--border,#2a2a3a);border-radius:8px;
   scrollbar-width:thin;scrollbar-color:var(--border2) var(--bg3,#15151f);
   overscroll-behavior:contain}
@@ -908,8 +904,9 @@ td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
 .hm-grid thead th.hm-day-hol{background:#2a2110}
 .hm-grid thead th.hm-day-erev{background:#20190c}
 .hm-grid thead th.hm-day-chol{background:#231a0d}
-.hm-dn{display:block;font-weight:700}
-.hm-dw{display:block;font-size:10px;color:var(--text3)}
+.hm-dn{display:block;font-size:15px;font-weight:800;color:var(--text);
+  line-height:1.15;letter-spacing:.2px}
+.hm-dw{display:block;font-size:10px;font-weight:700;color:var(--text3)}
 .hm-cell{min-width:58px;height:40px;cursor:pointer;vertical-align:top;user-select:none;
   padding:2px 3px!important}
 .hm-cell:hover{outline:1px solid var(--accent,#7c5cff)}
@@ -928,7 +925,11 @@ td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
   50%{border-inline-start-color:#fbbf24}}
 /* שישי/שבת — ימי מנוחה, מעומעמים כדי שלא יתחרו על תשומת הלב */
 .hm-day-fri,.hm-day-sat{background:rgba(0,0,0,.28)}
-th.hm-day-fri,th.hm-day-sat{opacity:.45}
+/* קודם opacity:.45 הוחל על כל הכותרת והחליש גם את מספר היום.
+   ההבחנה נעשית כעת בצבע אות היום בלבד. */
+th.hm-day-fri .hm-dn,th.hm-day-sat .hm-dn{color:#8e97ad}
+th.hm-day-fri .hm-dw{color:#f59e0b;opacity:.9}
+th.hm-day-sat .hm-dw{color:#ef4444;opacity:.9}
 /* תאי שישי/שבת מובחנים ברקע הכהה בלבד. אין עליהם opacity:
    הוא היה מחליש גם צ'יפים שיושבים בתוכם, ואי אפשר לבטל זאת מהילד. */
 .hm-day-sat{background:rgba(0,0,0,.38)}
