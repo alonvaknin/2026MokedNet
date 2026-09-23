@@ -333,4 +333,7 @@ function hoursAddOwn() {
   font-size:13px;transition:background .13s,color .13s,border-color .13s}
 .ht-del:hover{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.55);
   color:#fca5a5}
+
+/* שורה עצמית: רמז מידע, לא דרישה */
+.ht-need.ht-need-self{background:rgba(255,255,255,.05);color:#9aa4bb}
 </style>

@@ -29,8 +29,11 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
     // ננעלים רק שדות שכבר מולאו בידי המנהל
     $lockIn  = !empty($r['time_in'])  && (int)$r['created_by'] !== (int)$r['user_id'];
     $lockOut = !empty($r['time_out']) && (int)$r['created_by'] !== (int)$r['user_id'];
-    $reqIn   = in_array($r['requires'], ['both','in'],  true);
-    $reqOut  = in_array($r['requires'], ['both','out'], true);
+    // שורה עצמית: הנציג בוחר מה לדווח, ולכן שני השדות פתוחים ואף
+    // אחד מהם אינו "נדרש" — די באחד מהם כדי לסגור אותה
+    $selfAdded = (int)$r['created_by'] === (int)$r['user_id'];
+    $reqIn   = !$selfAdded && in_array($r['requires'], ['both','in'],  true);
+    $reqOut  = !$selfAdded && in_array($r['requires'], ['both','out'], true);
     ?>
     <tr class="ht-row ht-day-<?= View::e($dt) ?>" data-id="<?= (int)$r['id'] ?>">
       <td><?= View::e(date('d/m', $ts)) ?></td>
@@ -56,9 +59,9 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
           <input type="text" class="ht-time ht-in<?= $reqIn ? ' ht-req' : ' ht-opt' ?>"
                  inputmode="numeric" maxlength="5" placeholder="--:--"
                  value="<?= View::e(substr((string)$r['time_in'], 0, 5)) ?>"
-                 <?= $lockIn ? 'readonly' : '' ?><?= $reqIn ? '' : ' disabled' ?>
-                 title="<?= $reqIn ? 'שעת כניסה — נדרשת' : 'לא נדרשת בשורה זו' ?>">
-          <?php if (!$lockIn && $reqIn): ?>
+                 <?= $lockIn ? 'readonly' : '' ?><?= ($reqIn || $selfAdded) ? '' : ' disabled' ?>
+                 title="<?= $selfAdded ? 'שעת כניסה' : ($reqIn ? 'שעת כניסה — נדרשת' : 'לא נדרשת בשורה זו') ?>">
+          <?php if (!$lockIn && ($reqIn || $selfAdded)): ?>
             <button type="button" class="ht-tbtn" tabindex="-1"
                     title="בחירת שעה"><i class="bi bi-clock"></i></button>
           <?php endif; ?>
@@ -69,9 +72,9 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
           <input type="text" class="ht-time ht-out<?= $reqOut ? ' ht-req' : ' ht-opt' ?>"
                  inputmode="numeric" maxlength="5" placeholder="--:--"
                  value="<?= View::e(substr((string)$r['time_out'], 0, 5)) ?>"
-                 <?= $lockOut ? 'readonly' : '' ?><?= $reqOut ? '' : ' disabled' ?>
-                 title="<?= $reqOut ? 'שעת יציאה — נדרשת' : 'לא נדרשת בשורה זו' ?>">
-          <?php if (!$lockOut && $reqOut): ?>
+                 <?= $lockOut ? 'readonly' : '' ?><?= ($reqOut || $selfAdded) ? '' : ' disabled' ?>
+                 title="<?= $selfAdded ? 'שעת יציאה' : ($reqOut ? 'שעת יציאה — נדרשת' : 'לא נדרשת בשורה זו') ?>">
+          <?php if (!$lockOut && ($reqOut || $selfAdded)): ?>
             <button type="button" class="ht-tbtn" tabindex="-1"
                     title="בחירת שעה"><i class="bi bi-clock"></i></button>
           <?php endif; ?>
@@ -81,14 +84,19 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
                  value="<?= View::e((string)$r['note']) ?>"></td>
       <td>
         <?php
-          $need = ['both' => 'דרושות כניסה ויציאה',
-                   'in'   => 'דרושה שעת כניסה',
-                   'out'  => 'דרושה שעת יציאה'][$r['requires']] ?? '';
+          $need = $selfAdded
+                ? 'דיווח עצמי — מלא כניסה, יציאה או שתיהן'
+                : (['both' => 'דרושות כניסה ויציאה',
+                    'in'   => 'דרושה שעת כניסה',
+                    'out'  => 'דרושה שעת יציאה'][$r['requires']] ?? '');
         ?>
         <?php // שורה שהנציג הוסיף בעצמו וטרם השלים — ניתנת להסרה
               $ownDraft = (int)$r['created_by'] === (int)$r['user_id']; ?>
         <div class="ht-actions">
-          <span class="ht-need"><i class="bi bi-exclamation-circle"></i> <?= View::e($need) ?></span>
+          <span class="ht-need<?= $selfAdded ? ' ht-need-self' : '' ?>">
+            <i class="bi bi-<?= $selfAdded ? 'info-circle' : 'exclamation-circle' ?>"></i>
+            <?= View::e($need) ?>
+          </span>
           <button type="button" class="ht-save" onclick="hoursSaveRow(<?= (int)$r['id'] ?>)">שמור</button>
           <?php if ($ownDraft): ?>
             <button type="button" class="ht-del" title="הסרת השורה"

@@ -113,8 +113,12 @@ class HoursController extends Controller
         if (!empty($row['time_in'])  && (int)$row['created_by'] !== $uid) $in  = $row['time_in'];
         if (!empty($row['time_out']) && (int)$row['created_by'] !== $uid) $out = $row['time_out'];
 
+        // created_by/user_id נדרשים כדי ש-isComplete תזהה שורה עצמית,
+        // שנסגרת גם עם שעה אחת בלבד
         $candidate = ['entry_type' => $type, 'time_in' => $in, 'time_out' => $out,
-                      'requires' => $row['requires']];
+                      'requires'   => $row['requires'],
+                      'created_by' => $row['created_by'],
+                      'user_id'    => $row['user_id']];
         $status = HoursModel::isComplete($candidate) ? 'filled' : 'requested';
 
         HoursModel::updateEntry((int)$id, [

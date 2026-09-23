@@ -55,11 +55,25 @@ class HoursModel
         $in  = !empty($row['time_in']);
         $out = !empty($row['time_out']);
 
+        // שורה שהנציג הוסיף לעצמו: הוא מחליט מה לדווח, ולכן די בשעה
+        // אחת כדי לסגור אותה. אחרת דיווח של יציאה בלבד היה נשאר פתוח
+        // לנצח וממשיך להיספר בהתראה.
+        if (self::isSelfAdded($row)) {
+            return $in || $out;
+        }
+
         return match ($row['requires'] ?? 'both') {
             'in'    => $in,
             'out'   => $out,
             default => $in && $out,
         };
+    }
+
+    /** שורה שנוצרה בידי הנציג עצמו ולא בידי מנהל */
+    public static function isSelfAdded(array $row): bool
+    {
+        return isset($row['created_by'], $row['user_id'])
+            && (int)$row['created_by'] === (int)$row['user_id'];
     }
 
     public static function createEntry(array $d): int
