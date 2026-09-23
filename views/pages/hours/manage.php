@@ -1104,7 +1104,7 @@ function hmExport(close) {
    נדבקת ביחס למכל הזה (top:0) ולא ביחס לעמוד — כך היא עובדת
    בלי תלות ב-overflow של body. */
 .hm-scroll{overflow:auto;max-width:100%;
-  height:clamp(420px, calc(100vh - 230px), 900px);
+  height:clamp(378px, calc(90vh - 207px), 810px);
   border:1px solid var(--border,#2a2a3a);border-radius:8px;
   scrollbar-width:thin;scrollbar-color:var(--border2) var(--bg3,#15151f);
   overscroll-behavior:contain}
