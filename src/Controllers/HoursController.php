@@ -401,6 +401,14 @@ class HoursController extends Controller
         $this->json(['ok' => true, 'reopened' => $n, 'marked' => HoursModel::markedCount()]);
     }
 
+    /**
+     * הורדת השורות המסומנות.
+     * ?close=1 סוגר אותן לאחר ההורדה; בלעדיו הקובץ יורד והשורות
+     * נשארות פתוחות וניתנות לעריכה.
+     *
+     * הפורמט הוא xlsx אמיתי כשהרחבת zip זמינה, ואחרת SpreadsheetML
+     * בסיומת xls — כדי שההורדה לא תיכשל בשרת ללא ZipArchive.
+     */
     public function exportXls(): void
     {
         $this->requirePermission('canManageHours');
@@ -411,17 +419,30 @@ class HoursController extends Controller
             return;
         }
 
-        $xml = \Services\HoursExporter::build($rows);
+        $close = $this->get('close') === '1';
 
-        HoursModel::stampExported(array_column($rows, 'id'));
+        if (\Services\HoursExporter::supportsXlsx()) {
+            $body = \Services\HoursExporter::buildXlsx($rows);
+            $name = 'hours-' . date('Y-m-d') . '.xlsx';
+            $mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } else {
+            $body = \Services\HoursExporter::build($rows);
+            $name = 'hours-' . date('Y-m-d') . '.xls';
+            $mime = 'application/vnd.ms-excel; charset=UTF-8';
+        }
+
+        if ($close) {
+            HoursModel::stampExported(array_column($rows, 'id'));
+        }
         \Core\ActivityLog::log('ייצוא דיווח שעות', 'hours_entry', null, null,
-                               'יוצאו ' . count($rows) . ' שורות');
+                               'הורדו ' . count($rows) . ' שורות'
+                               . ($close ? ' ונסגרו' : ' ללא סגירה'));
 
-        $name = 'hours-' . date('Y-m-d') . '.xls';
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Type: ' . $mime);
         header('Content-Disposition: attachment; filename="' . $name . '"');
-        header('Content-Length: ' . strlen($xml));
-        echo $xml;
+        header('Content-Length: ' . strlen($body));
+        header('Cache-Control: no-store');
+        echo $body;
         exit;
     }
 }

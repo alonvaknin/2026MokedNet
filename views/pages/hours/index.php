@@ -312,9 +312,10 @@ function hoursAddOwn() {
 .ht-tag-fri{background:#4a3a08;color:#fcd34d}
 .ht-tag-sat{background:#4a1616;color:#fca5a5}
 
-/* ── שדה נדרש מודגש, השני מאופר ── */
-.ht-time.ht-opt{opacity:.45;border-style:dashed}
-.ht-time.ht-opt:focus{opacity:1;border-style:solid}
+/* ── שדה נדרש מודגש; שדה שאינו נדרש מושבת ומאופר ── */
+.ht-time.ht-opt,.ht-time:disabled{opacity:.38;border-style:dashed;
+  cursor:not-allowed;background:transparent}
+.ht-tw:has(.ht-time:disabled) .ht-tbtn{display:none}
 .ht-time.ht-req{border-color:var(--accent)!important;
   background:rgba(124,92,255,.10);box-shadow:0 0 0 1px rgba(124,92,255,.25)}
 

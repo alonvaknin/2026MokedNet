@@ -105,7 +105,12 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
               title="סגירת השורות המסומנות ללא הורדת קובץ">
         <i class="bi bi-lock"></i> סגור מסומנות
       </button>
-      <button type="button" class="hl-exp-b" onclick="hmExport()">
+      <button type="button" class="hl-dl-b" onclick="hmExport(false)"
+              title="הורדת הקובץ בלבד — השורות נשארות פתוחות">
+        <i class="bi bi-download"></i> הורד קובץ
+      </button>
+      <button type="button" class="hl-exp-b" onclick="hmExport(true)"
+              title="הורדת הקובץ וסגירת השורות">
         <i class="bi bi-file-earmark-excel"></i> הורד וסגור
       </button>
     </div>
@@ -913,13 +918,21 @@ document.addEventListener('mouseup', function () {
     if (one) hmOpenCell(one.user_id, one.work_date);
 });
 
-function hmExport() {
+function hmExport(close) {
     var n = parseInt(document.getElementById('hm-marked').textContent, 10);
     if (!n) { showToast('לא נבחרו שורות לדיווח', 'warning'); return; }
-    if (!confirm('להוריד ' + n + ' שורות ולסגור אותן? שורה סגורה אינה ניתנת לעריכה.')) return;
+
+    if (close) {
+        if (!confirm('להוריד ' + n + ' שורות ולסגור אותן? שורה סגורה אינה ניתנת לעריכה.')) return;
+        location.href = window.__V2_BASE + '/hours/export?close=1';
+        /* השרת סוגר בזמן ההורדה — מרעננים כדי שהמצב החדש יוצג */
+        setTimeout(function () { location.reload(); }, 2500);
+        return;
+    }
+
+    /* הורדה בלבד: השורות נשארות פתוחות, ואין צורך לרענן */
     location.href = window.__V2_BASE + '/hours/export';
-    /* השרת סוגר את השורות בזמן ההורדה — מרעננים כדי שהמצב החדש יוצג */
-    setTimeout(function () { location.reload(); }, 2500);
+    showToast('הקובץ יורד — השורות נשארו פתוחות', 'success');
 }
 </script>
 
@@ -1323,6 +1336,13 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hl-exp-n b{color:#fff;font-size:14px;font-weight:800;
   background:var(--accent);border-radius:5px;padding:1px 8px;
   margin-inline:2px;display:inline-block}
+.hl-dl-b{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
+  border:1px solid #5b8dee;border-radius:8px;background:#2f4a7d;color:#fff;
+  font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);
+  white-space:nowrap;transition:all .13s;box-shadow:0 2px 8px rgba(91,141,238,.3)}
+.hl-dl-b:hover{background:#3a5a94;box-shadow:0 4px 14px rgba(91,141,238,.45);
+  transform:translateY(-1px)}
+.hl-dl-b:active{transform:translateY(0)}
 .hl-exp-b{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
   border:1px solid #22c55e;border-radius:8px;
   background:#15803d;color:#fff;font-size:12px;font-weight:700;

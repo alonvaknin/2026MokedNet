@@ -56,8 +56,9 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
           <input type="text" class="ht-time ht-in<?= $reqIn ? ' ht-req' : ' ht-opt' ?>"
                  inputmode="numeric" maxlength="5" placeholder="--:--"
                  value="<?= View::e(substr((string)$r['time_in'], 0, 5)) ?>"
-                 <?= $lockIn ? 'readonly' : '' ?>>
-          <?php if (!$lockIn): ?>
+                 <?= $lockIn ? 'readonly' : '' ?><?= $reqIn ? '' : ' disabled' ?>
+                 title="<?= $reqIn ? 'שעת כניסה — נדרשת' : 'לא נדרשת בשורה זו' ?>">
+          <?php if (!$lockIn && $reqIn): ?>
             <button type="button" class="ht-tbtn" tabindex="-1"
                     title="בחירת שעה"><i class="bi bi-clock"></i></button>
           <?php endif; ?>
@@ -68,8 +69,9 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
           <input type="text" class="ht-time ht-out<?= $reqOut ? ' ht-req' : ' ht-opt' ?>"
                  inputmode="numeric" maxlength="5" placeholder="--:--"
                  value="<?= View::e(substr((string)$r['time_out'], 0, 5)) ?>"
-                 <?= $lockOut ? 'readonly' : '' ?>>
-          <?php if (!$lockOut): ?>
+                 <?= $lockOut ? 'readonly' : '' ?><?= $reqOut ? '' : ' disabled' ?>
+                 title="<?= $reqOut ? 'שעת יציאה — נדרשת' : 'לא נדרשת בשורה זו' ?>">
+          <?php if (!$lockOut && $reqOut): ?>
             <button type="button" class="ht-tbtn" tabindex="-1"
                     title="בחירת שעה"><i class="bi bi-clock"></i></button>
           <?php endif; ?>
