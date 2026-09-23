@@ -65,8 +65,11 @@ body{visibility:visible}
   --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
   --radius:10px;--radius-sm:6px;--shadow:0 8px 32px rgba(0,0,0,.4);
 }
-html{font-size:15px}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;overflow-x:hidden}
+/* overflow-x כאן ולא על body: overflow-x:hidden על body הופך אותו
+   לאב גלילה, ואז position:sticky בתוך העמוד נפתר מולו ולא מול
+   החלון — מה ששבר כותרות דביקות בטבלאות. */
+html{font-size:15px;overflow-x:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
 #sidebar{width:var(--sidebar-w);height:100vh;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;position:fixed;right:0;top:0;z-index:200;transition:width .25s cubic-bezier(.4,0,.2,1);overflow:visible;font-family:var(--font)}
 body.nav-collapsed #sidebar{width:var(--sidebar-mini)}
 body.nav-collapsed #sidebar:hover{width:var(--sidebar-w);box-shadow:-10px 0 40px rgba(0,0,0,.6)}

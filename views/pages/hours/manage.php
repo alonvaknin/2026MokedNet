@@ -12,7 +12,8 @@ use Core\Holidays;
 /** @var string $nextMonth */
 /** @var int $markedCount */
 $base = rtrim(CFG['app']['url'], '/');
-$DAYS = ['א','ב','ג','ד','ה','ו','ש'];
+$DAYS  = ['א','ב','ג','ד','ה','ו','ש'];
+$today = date('Y-m-d');
 // שמות מלאים לטבלה הרחבה; $ABS הוא הקיצור לתאי הרשת הצרים
 $FULL = ['regular'=>'רגיל','vacation'=>'חופש','reserve'=>'מילואים',
          'sick'=>'מחלה','duplicate_delete'=>'מחיקת כפולים',
@@ -46,8 +47,8 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
           $dt   = Holidays::dayType($date);
           $hol  = Holidays::get($date);
       ?>
-        <th class="hm-d hm-day-<?= View::e($dt) ?><?= $hol ? ' hm-has-hol' : '' ?>"
-            title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?>">
+        <th class="hm-d hm-day-<?= View::e($dt) ?><?= $hol ? ' hm-has-hol' : '' ?><?= $date === $today ? ' hm-today' : '' ?>"
+            title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?><?= $date === $today ? ' · היום' : '' ?>">
           <span class="hm-hn<?= $hol ? '' : ' hm-hn-e' ?>"><?= View::e($hol['n'] ?? '') ?></span>
           <span class="hm-dn"><?= (int)$d ?></span>
           <span class="hm-dw"><?= View::e($DAYS[(int)date('w', strtotime($date))]) ?></span>
@@ -64,7 +65,7 @@ $ABS  = ['vacation'=>'חופ׳','reserve'=>'מיל׳','sick'=>'מחל׳',
           $dt   = Holidays::dayType($date);
           $rows = $grid[(int)$u['id']][$date] ?? [];
       ?>
-        <td class="hm-cell hm-day-<?= View::e($dt) ?>"
+        <td class="hm-cell hm-day-<?= View::e($dt) ?><?= $date === $today ? ' hm-today-c' : '' ?>"
             data-user="<?= (int)$u['id'] ?>" data-date="<?= View::e($date) ?>">
           <?php foreach ($rows as $r):
               $done = $r['status'] === 'filled';
@@ -360,6 +361,9 @@ function hlSetMarked(n) {
           <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
         </div>
         <label class="hm-f-note">הערה: <input type="text" id="hm-note" maxlength="500"></label>
+        <label class="hm-f-qty">כמות שורות:
+          <input type="number" id="hm-qty" min="1" max="20" value="1">
+        </label>
         <div class="hm-req-hint" id="hm-req-hint"></div>
         <button type="button" class="btn btn-primary hm-add-btn" onclick="hmAddRequest()">
           <i class="bi bi-plus-lg"></i> הוסף
@@ -597,8 +601,9 @@ function hmLoadRows() {
               return;
           }
           if (cEl) cEl.textContent = d.rows.length;
-          box.innerHTML = d.rows.map(function (r) {
+          box.innerHTML = d.rows.map(function (r, i) {
               return '<div class="hm-r" data-id="' + parseInt(r.id, 10) + '">' +
+                '<span class="hm-rn">' + (i + 1) + '</span>' +
                 '<select class="r-type">' + Object.keys(HM_TYPES).map(function (k) {
                     return '<option value="' + k + '"' + (r.entry_type === k ? ' selected' : '') + '>' +
                            hmEsc(HM_TYPES[k]) + '</option>'; }).join('') + '</select>' +
@@ -742,12 +747,27 @@ function hmAddRequest() {
 
     if (!HM_CTX.user || !HM_CTX.date) { showToast('לא נבחר תא', 'warning'); return; }
     body.user_id = HM_CTX.user; body.work_date = HM_CTX.date;
-    hmPost('/hours/request/add', body).then(function (d) {
-        if (d.error) { showToast(d.error, 'error'); return; }
-        showToast('נוספה דרישה', 'success');
-        hmReqHint();
-        location.reload();
-    }).catch(function () { showToast('שגיאת רשת', 'error'); });
+
+    var qtyEl = document.getElementById('hm-qty');
+    var qty = Math.min(20, Math.max(1, parseInt((qtyEl || {}).value, 10) || 1));
+
+    /* יוצרים בזו אחר זו כדי שהשרת יקצה id לכל שורה בנפרד */
+    var made = 0, failed = null;
+    function step(i) {
+        if (i >= qty) {
+            if (failed) { showToast(failed, 'error'); return; }
+            showToast(made > 1 ? 'נוספו ' + made + ' שורות' : 'נוספה דרישה', 'success');
+            hmReqHint();
+            location.reload();
+            return;
+        }
+        hmPost('/hours/request/add', body).then(function (d) {
+            if (d.error) { failed = d.error; step(qty); return; }
+            made++;
+            step(i + 1);
+        }).catch(function () { failed = 'שגיאת רשת'; step(qty); });
+    }
+    step(0);
 }
 
 function hmClose() {
@@ -832,11 +852,14 @@ function hmExport() {
    מה שהופך את המכל לאב גלילה וחותך את הכותרת הדביקה. הפתרון:
    המכל גולל אופקית, והכותרת נדבקת ביחס אליו (top פועל בתוך המכל)
    רק אם אין לו גובה מוגבל — ולכן אין max-height כאן. */
-.hm-scroll{overflow-x:auto;max-width:100%;
+.hm-scroll{overflow-x:auto;max-width:100%;scrollbar-color:var(--border2) var(--bg3,#15151f);
   border:1px solid var(--border,#2a2a3a);border-radius:8px;
   scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
-.hm-scroll::-webkit-scrollbar{height:6px}
-.hm-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
+.hm-scroll::-webkit-scrollbar{height:10px}
+.hm-scroll::-webkit-scrollbar-track{background:var(--bg3,#15151f);border-radius:10px}
+.hm-scroll::-webkit-scrollbar-thumb{background:var(--border2,#3a3a4a);border-radius:10px;
+  border:2px solid var(--bg3,#15151f)}
+.hm-scroll::-webkit-scrollbar-thumb:hover{background:var(--accent)}
 /* separate ולא collapse: בתאים דביקים המסגרות נעלמות תחת collapse */
 .hm-grid{border-collapse:separate;border-spacing:0;font-size:12px}
 /* עם border-spacing:0 מסגרת מלאה בכל תא מוכפלת — לכן רק שני צדדים */
@@ -850,6 +873,26 @@ function hmExport() {
 .hm-grid thead th{position:sticky;top:var(--header-h,58px);z-index:3;
   background:var(--bg,#12121a)}
 .hm-d{min-width:58px;vertical-align:bottom;padding:3px 2px!important}
+
+/* היום הנוכחי בלוח */
+.hm-grid thead th.hm-today{background:var(--accent)!important;color:#fff;
+  box-shadow:inset 0 -3px 0 #fff}
+.hm-grid thead th.hm-today .hm-dn,.hm-grid thead th.hm-today .hm-dw,
+.hm-grid thead th.hm-today .hm-hn{color:#fff!important;opacity:1}
+td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
+  background:rgba(91,141,238,.10)}
+
+/* מספור השורות במודל התא */
+.hm-rn{display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;flex-shrink:0;border-radius:50%;
+  background:var(--bg4);border:1px solid var(--border2,#3a3a4a);
+  font-size:11px;font-weight:800;color:var(--text3)}
+
+/* כמות שורות ליצירה */
+.hm-f-qty{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text3)}
+.hm-f-qty input{width:68px;background:var(--bg4);color:var(--text);
+  border:1px solid var(--border);border-radius:7px;padding:7px 9px;
+  font-family:var(--font);font-size:13px;font-weight:600;text-align:center}
 /* פינת "עובד" נדבקת בשני הצירים, ולכן גוברת על שאר הכותרת */
 .hm-grid thead th.hm-name{z-index:5}
 /* הרקע של כותרת יום צבועה חייב להישאר גלוי מעל התוכן הנגלל */
@@ -1037,9 +1080,13 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
   max-width:100%}
 /* הטבלה חרגה מרוחב המסך — נגללת בתוך המכל במקום לדחוף את העמוד */
 .hl-scroll{overflow-x:auto;max-width:100%;scrollbar-width:thin;
-  scrollbar-color:var(--border2) transparent}
-.hl-scroll::-webkit-scrollbar{height:6px}
-.hl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
+  scrollbar-color:var(--border2) var(--bg3,#15151f)}
+.hl-scroll::-webkit-scrollbar{height:10px}
+.hl-scroll::-webkit-scrollbar-track{background:var(--bg3,#15151f);border-radius:10px}
+.hl-scroll::-webkit-scrollbar-thumb{background:var(--border2,#3a3a4a);border-radius:10px;
+  border:2px solid var(--bg3,#15151f)}
+.hl-scroll::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
 /* ווידג'ט היומן צף בפינה שמאל־תחתונה ומסתיר את סוף הטבלה */
 .hl-wrap{margin-bottom:96px}
 .hl-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
@@ -1061,10 +1108,13 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
   border-radius:9px;padding:1px 7px;min-width:19px;text-align:center}
 .hl-tab.on .hl-c{background:rgba(255,255,255,.28);color:#fff}
 
-.hl-table{width:100%;border-collapse:collapse;font-size:13px}
+/* min-width מפעיל את הגלילה האופקית כשהמסך צר מדי לעמודות */
+.hl-table{width:100%;min-width:940px;border-collapse:separate;
+  border-spacing:0;font-size:13px}
 .hl-table th{padding:8px 10px;text-align:right;font-size:11px;font-weight:700;
   color:var(--text3);background:var(--bg3,#15151f);white-space:nowrap;
-  position:sticky;top:0;z-index:1}
+  position:sticky;top:var(--header-h,58px);z-index:4;
+  border-bottom:1px solid var(--border,#2a2a3a)}
 .hl-table td{padding:8px 10px;text-align:right;
   border-bottom:1px solid var(--border,#2a2a3a);color:var(--text2)}
 .hl-row{cursor:pointer;transition:background .1s}
