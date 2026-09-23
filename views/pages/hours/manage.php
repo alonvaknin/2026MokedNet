@@ -108,6 +108,10 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
               title="סגירת השורות המסומנות ללא הורדת קובץ">
         <i class="bi bi-lock"></i> סגור מסומנות
       </button>
+      <button type="button" class="hl-dl-b" onclick="hlCopyMarked()"
+              title="העתקת השורות המסומנות ללוח, להדבקה באקסל או בהודעה">
+        <i class="bi bi-clipboard"></i> העתק ללוח
+      </button>
       <button type="button" class="hl-dl-b" onclick="hmExport(false)"
               title="הורדת הקובץ בלבד — השורות נשארות פתוחות">
         <i class="bi bi-download"></i> הורד קובץ
@@ -175,7 +179,15 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
           data-flags="<?= View::e($flags) ?>"
           data-id="<?= (int)$r['id'] ?>"
           data-user="<?= (int)$r['user_id'] ?>" data-date="<?= View::e($r['work_date']) ?>"
-          data-name="<?= View::e((string)$r['full_name']) ?>">
+          data-name="<?= View::e((string)$r['full_name']) ?>"
+          data-copy="<?= View::e(implode("\t", [
+              (string)$r['full_name'],
+              date('d/m/Y', $ts),
+              $FULL[$r['entry_type']] ?? (string)$r['entry_type'],
+              substr((string)$r['time_in'], 0, 5),
+              substr((string)$r['time_out'], 0, 5),
+              str_replace(["\t", "\r", "\n"], ' ', (string)$r['note']),
+          ])) ?>">
         <td class="hl-chk-td">
           <label class="hl-chk-l" title="סימון לדיווח">
             <input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
@@ -226,6 +238,55 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
 </div>
 
 <script>
+/* ── העתקה ללוח ──
+   אותן עמודות של קובץ הייצוא, מופרדות בטאבים כדי שהדבקה באקסל
+   תתפרס לעמודות נפרדות. */
+function hlCopyMarked() {
+    var rows = [].filter.call(
+        document.querySelectorAll('.hl-row:not(.hl-closed)'),
+        function (tr) {
+            var c = tr.querySelector('.hl-chk');
+            return c && c.checked;
+        });
+
+    if (!rows.length) { showToast('לא נבחרו שורות להעתקה', 'warning'); return; }
+
+    var head = ['שם עובד', 'תאריך', 'סוג', 'כניסה', 'יציאה', 'הערה'].join('\t');
+    var body = rows.map(function (tr) { return tr.dataset.copy || ''; });
+    var text = [head].concat(body).join('\n');
+
+    hlToClipboard(text, rows.length);
+}
+
+function hlToClipboard(text, n) {
+    var done = function () {
+        showToast('הועתקו ' + n + ' שורות ללוח', 'success');
+    };
+    var fail = function () { showToast('ההעתקה נכשלה', 'error'); };
+
+    /* navigator.clipboard דורש הקשר מאובטח; יש נפילה חזרה ל-execCommand */
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(done).catch(function () {
+            hlLegacyCopy(text) ? done() : fail();
+        });
+        return;
+    }
+    hlLegacyCopy(text) ? done() : fail();
+}
+
+function hlLegacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+}
+
 /* ── סגירת שורות ──
    שורה סגורה (exported_at מלא) נעולה לעריכה בשרת ובממשק, ואינה
    נכללת בייצוא הבא. הורדת הקובץ סוגרת את המסומנות אוטומטית. */
