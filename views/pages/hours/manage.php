@@ -191,7 +191,7 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         <td class="hl-note" title="<?= View::e((string)$r['note']) ?>"><?= View::e((string)$r['note']) ?></td>
         <td>
           <?php if ($closed): ?>
-            <span class="hl-st cl"><i class="bi bi-lock-fill"></i> נסגר</span>
+            <span class="hl-st cl">נסגר</span>
           <?php else: ?>
             <span class="hl-st <?= $done ? 'ok' : 'wait' ?>"><?= $done ? 'הושלם' : 'ממתין' ?></span>
             <?php if ($mk): ?><span class="hl-st mk">לדיווח</span><?php endif; ?>
@@ -1098,7 +1098,7 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hm-head h2{margin:0;font-size:22px;font-weight:800;color:var(--text);
   line-height:1.25}
 .hm-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:5px}
-.hm-sub-d{font-size:13px;font-weight:600;color:#aab3c5;direction:rtl}
+.hm-sub-d{font-size:17px;font-weight:600;color:#aab3c5;direction:rtl}
 .hm-sub-tag{font-size:10px;font-weight:800;border-radius:4px;padding:2px 8px;
   white-space:nowrap}
 .hm-sub-h,.hm-sub-i{background:#4a3a08;color:#ffd97a}
@@ -1286,27 +1286,24 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 /* ── כפתורים: מסגרת, הבלטה וצל — נבדלים ויזואלית מהתגיות ── */
 /* לשוניות הסינון: רקע בהיר מהכרטיס שמאחוריהן וטקסט לבן כמעט מלא,
    כדי שהטקסט לא ייבלע ברקע הכהה */
-.hl-tab{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
-  border:1px solid #454c66;border-radius:20px;background:#2b3145;
-  color:#eef1f8;font-size:12.5px;font-weight:700;cursor:pointer;
-  font-family:var(--font);transition:all .13s;
-  box-shadow:0 1px 3px rgba(0,0,0,.35)}
-.hl-tab:hover{background:#39415c;color:#fff;border-color:#6b7699;
-  transform:translateY(-1px)}
-.hl-tab:active{transform:translateY(0)}
-.hl-tab.on{background:var(--accent);color:#fff;border-color:#9bb8f5;
-  box-shadow:0 3px 12px rgba(91,141,238,.55)}
-/* המונה: רקע בהיר על לשונית כהה, והפוך על הלשונית הפעילה */
-.hl-c{font-size:11px;font-weight:800;background:#0f1320;color:#fff;
-  border-radius:9px;padding:2px 8px;min-width:20px;text-align:center;
-  line-height:1.3}
-.hl-tab.on .hl-c{background:#fff;color:var(--accent)}
+/* ══ לשוניות: שקטות כברירת מחדל, רק הפעילה מודגשת ══ */
+.hl-tab{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  border:1px solid transparent;border-radius:8px;background:transparent;
+  color:#8f97ab;font-size:12.5px;font-weight:600;cursor:pointer;
+  font-family:var(--font);transition:background .13s,color .13s}
+.hl-tab:hover{background:rgba(255,255,255,.05);color:#c9d0e0}
+.hl-tab.on{background:rgba(91,141,238,.13);color:#a9c4f7;
+  border-color:rgba(91,141,238,.32);font-weight:700}
+.hl-c{font-size:11px;font-weight:700;background:rgba(255,255,255,.07);
+  color:inherit;border-radius:6px;padding:1px 7px;min-width:19px;
+  text-align:center;line-height:1.45}
+.hl-tab.on .hl-c{background:rgba(91,141,238,.28)}
 
 /* min-width מפעיל את הגלילה האופקית כשהמסך צר מדי לעמודות */
 .hl-table{width:100%;min-width:940px;border-collapse:separate;
   border-spacing:0;font-size:13px}
 .hl-table th{padding:8px 10px;text-align:right;font-size:11px;font-weight:700;
-  color:#c3cadb;background:#232838;white-space:nowrap;
+  color:#98a1b6;background:#1b1f2c;white-space:nowrap;
   /* top:0 ולא --header-h: .hl-scroll הוא אב גלילה (overflow-x:auto
      הופך גם את ציר ה-Y ל-auto), ולכן ההיצמדות נפתרת בתוכו —
      ערך גדול מאפס הותיר פס ריק בראש הטבלה. */
@@ -1325,12 +1322,15 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
   background:rgba(245,158,11,.14);border-radius:4px;padding:1px 5px;
   margin-inline-start:4px}
 /* ── תגיות: רקע אטום, שטוחות, ללא מסגרת — מידע בלבד, לא נלחצות ── */
-.hl-st{display:inline-block;font-size:10px;font-weight:800;border-radius:4px;
-  padding:3px 9px;white-space:nowrap;letter-spacing:.2px;
-  border:0;cursor:default;line-height:1.4}
-.hl-st.ok{background:#1b4332;color:#8ff0b4}
-.hl-st.wait{background:#5a3a06;color:#ffd97a}
-.hl-st.mk{background:#3b2a78;color:#d6ccff;margin-inline-start:4px}
+/* ══ תגיות מצב: נקודת צבע + טקסט, בלי מלבנים רוויים ══ */
+.hl-st{display:inline-flex;align-items:center;gap:6px;font-size:11px;
+  font-weight:600;white-space:nowrap;border:0;cursor:default;
+  background:none;padding:0;line-height:1.5}
+.hl-st::before{content:'';width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.hl-st.ok{color:#7fcf9f}   .hl-st.ok::before{background:#34a06a}
+.hl-st.wait{color:#d9ab5a} .hl-st.wait::before{background:#c78a2e}
+.hl-st.mk{color:#9d96d6;margin-inline-start:10px}
+.hl-st.mk::before{background:#6f66b8}
 .hl-day-fri,.hl-day-sat{opacity:.55}
 .hl-day-fri:hover,.hl-day-sat:hover{opacity:1}
 .hl-empty{text-align:center;color:var(--text3);padding:26px}
@@ -1350,24 +1350,19 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hl-th-chk .hl-chk-l{min-height:0;flex-direction:column;gap:2px}
 
 /* סגירת שורות */
-.hl-close-b{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
-  border:1px solid #64748b;border-radius:8px;
-  background:#475569;color:#fff;font-size:12px;font-weight:700;
-  cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .13s;
-  box-shadow:0 2px 8px rgba(0,0,0,.35)}
-.hl-close-b:hover{background:#556378;border-color:#94a3b8;transform:translateY(-1px)}
-.hl-close-b:active{transform:translateY(0)}
 .hl-act{width:44px;text-align:center}
-.hl-cb,.hl-rb{width:32px;height:32px;display:inline-flex;align-items:center;
-  justify-content:center;border-radius:8px;cursor:pointer;font-size:14px;
-  transition:all .13s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.hl-cb{border:1px solid #64748b;background:#3f4a5c;color:#e2e8f0}
-.hl-cb:hover{background:#556378;border-color:#94a3b8;transform:translateY(-1px)}
-.hl-rb{border:1px solid #7c5cff;background:#3b2a78;color:#ddd6fe}
-.hl-rb:hover{background:#4c37a0;border-color:#a78bfa;transform:translateY(-1px)}
-.hl-cb:active,.hl-rb:active{transform:translateY(0)}
-.hl-st.cl{display:inline-flex;align-items:center;gap:4px;
-  background:#37415a;color:#e2e8f0}
+/* פעולות שורה: שקופות עד ריחוף, כדי לא להציף את הטבלה */
+.hl-cb,.hl-rb{width:30px;height:30px;display:inline-flex;align-items:center;
+  justify-content:center;border-radius:7px;cursor:pointer;font-size:13px;
+  background:transparent;border:1px solid transparent;color:#79839c;
+  transition:background .13s,color .13s,border-color .13s}
+.hl-row:hover .hl-cb,.hl-row:hover .hl-rb{border-color:rgba(255,255,255,.10)}
+.hl-cb:hover{background:rgba(255,255,255,.08);color:#dbe1ee;
+  border-color:rgba(255,255,255,.18)}
+.hl-rb:hover{background:rgba(124,92,255,.15);color:#c4b5fd;
+  border-color:rgba(124,92,255,.35)}
+.hl-st.cl{color:#94a0b8}
+.hl-st.cl::before{background:#5b6479}
 .hl-row.hl-closed{opacity:.6;cursor:default}
 .hl-row.hl-closed:hover{opacity:.85;background:transparent}
 
@@ -1380,7 +1375,7 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hm-cb input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin:0}
 .hm-cb:has(input:checked){color:var(--accent)}
 .hl-th-chk{width:64px;text-align:center!important}
-.hl-th-chk span{font-size:9px;font-weight:700;color:#c3cadb}
+.hl-th-chk span{font-size:9px;font-weight:700;color:#98a1b6}
 .hl-row td:first-child{text-align:center}
 
 /* ייצוא — צמוד לטבלה, כדי שהקשר לצ'קבוקסים יהיה ברור */
@@ -1388,24 +1383,23 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 /* display:flex על ההורה גובר על התכונה hidden, ולכן אלמנט מוסתר
    עדיין תופס מקום כפריט flex */
 .hl-exp [hidden]{display:none!important}
-.hl-exp-n{font-size:12px;color:#aab3c5;white-space:nowrap}
-.hl-exp-n b{color:#fff;font-size:14px;font-weight:800;
-  background:var(--accent);border-radius:5px;padding:1px 8px;
-  margin-inline:2px;display:inline-block}
-.hl-dl-b{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
-  border:1px solid #5b8dee;border-radius:8px;background:#2f4a7d;color:#fff;
-  font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);
-  white-space:nowrap;transition:all .13s;box-shadow:0 2px 8px rgba(91,141,238,.3)}
-.hl-dl-b:hover{background:#3a5a94;box-shadow:0 4px 14px rgba(91,141,238,.45);
-  transform:translateY(-1px)}
-.hl-dl-b:active{transform:translateY(0)}
-.hl-exp-b{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;
-  border:1px solid #22c55e;border-radius:8px;
-  background:#15803d;color:#fff;font-size:12px;font-weight:700;
-  cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .13s;
-  box-shadow:0 2px 8px rgba(34,197,94,.35)}
-.hl-exp-b:hover{background:#16a34a;box-shadow:0 4px 14px rgba(34,197,94,.5);
-  transform:translateY(-1px)}
-.hl-exp-b:active{transform:translateY(0)}
+.hl-exp-n{font-size:12px;color:#8f97ab;white-space:nowrap}
+.hl-exp-n b{color:#c9d0e0;font-size:13px;font-weight:700;margin-inline:3px}
+/* ══ כפתורי הסרגל: מסגרת בלבד, פרט לפעולה הראשית ══ */
+.hl-dl-b,.hl-close-b{display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;border:1px solid var(--border2,#39405a);border-radius:8px;
+  background:transparent;color:#aab3c5;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:var(--font);white-space:nowrap;
+  transition:background .13s,color .13s,border-color .13s}
+.hl-dl-b:hover,.hl-close-b:hover{background:rgba(255,255,255,.06);
+  color:#e4e8f2;border-color:#4d5573}
+
+/* "הורד וסגור" — הפעולה הראשית, ולכן היחידה עם מילוי */
+.hl-exp-b{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;
+  border:1px solid transparent;border-radius:8px;
+  background:#2f7a52;color:#fff;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--font);white-space:nowrap;
+  transition:background .13s}
+.hl-exp-b:hover{background:#368c5e}
 .hl-tabs{margin-inline-start:0}
 </style>
