@@ -126,6 +126,30 @@
   white-space:nowrap}
 .hours-table tr.ht-done{opacity:.8}
 .hours-table tr.ht-done:hover{opacity:1}
+
+/* ── תגית סוג יום בטבלת הנציג ── */
+.ht-dw{font-weight:700}
+.ht-tag{display:inline-block;font-size:9px;font-weight:800;border-radius:4px;
+  padding:2px 6px;margin-inline-start:5px;white-space:nowrap;vertical-align:middle}
+.ht-tag-h,.ht-tag-i{background:#4a3a08;color:#ffd97a}
+.ht-tag-e{background:#3d3110;color:#fde68a}
+.ht-tag-c{background:#402d0c;color:#f0b429}
+.ht-tag-r{background:#33285c;color:#c4b5fd}
+.ht-tag-fri{background:#4a3a08;color:#fcd34d}
+.ht-tag-sat{background:#4a1616;color:#fca5a5}
+
+/* ── שדה נדרש מודגש, השני מאופר ── */
+.ht-time.ht-opt{opacity:.45;border-style:dashed}
+.ht-time.ht-opt:focus{opacity:1;border-style:solid}
+.ht-time.ht-req{border-color:var(--accent)!important;
+  background:rgba(124,92,255,.10);box-shadow:0 0 0 1px rgba(124,92,255,.25)}
+
+/* ── מה נדרש בשורה ── */
+.ht-actions{display:flex;align-items:center;gap:9px;justify-content:flex-end}
+.ht-need{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+  font-weight:700;color:#fcd34d;background:#4a3105;border-radius:4px;
+  padding:3px 8px;white-space:nowrap}
+.ht-need i{font-size:11px}
 </style>
 
 <script>
@@ -217,6 +241,9 @@ document.addEventListener('change', function (e) {
         var b = f.parentNode && f.parentNode.querySelector('.ht-tbtn');
         if (b) b.disabled = off;
     });
+    /* סיבת היעדרות סוגרת את השורה — אין יותר דרישת שעות להציג */
+    var need = tr.querySelector('.ht-need');
+    if (need) need.style.display = off ? 'none' : '';
 });
 }
 

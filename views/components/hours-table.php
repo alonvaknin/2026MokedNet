@@ -35,7 +35,12 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
     <tr class="ht-row ht-day-<?= View::e($dt) ?>" data-id="<?= (int)$r['id'] ?>">
       <td><?= View::e(date('d/m', $ts)) ?></td>
       <td title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?>">
-        <?= View::e($DAYS[(int)date('w', $ts)]) ?>
+        <span class="ht-dw"><?= View::e($DAYS[(int)date('w', $ts)]) ?></span>
+        <?php if ($hol): ?>
+          <span class="ht-tag ht-tag-<?= View::e($hol['t']) ?>"><?= View::e($hol['n']) ?></span>
+        <?php elseif ($dt === 'fri' || $dt === 'sat'): ?>
+          <span class="ht-tag ht-tag-<?= View::e($dt) ?>"><?= View::e(Holidays::label($dt)) ?></span>
+        <?php endif; ?>
       </td>
       <td>
         <select class="ht-type">
@@ -48,7 +53,7 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
       </td>
       <td>
         <span class="ht-tw">
-          <input type="text" class="ht-time ht-in<?= $reqIn ? ' ht-req' : '' ?>"
+          <input type="text" class="ht-time ht-in<?= $reqIn ? ' ht-req' : ' ht-opt' ?>"
                  inputmode="numeric" maxlength="5" placeholder="--:--"
                  value="<?= View::e(substr((string)$r['time_in'], 0, 5)) ?>"
                  <?= $lockIn ? 'readonly' : '' ?>>
@@ -60,7 +65,7 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
       </td>
       <td>
         <span class="ht-tw">
-          <input type="text" class="ht-time ht-out<?= $reqOut ? ' ht-req' : '' ?>"
+          <input type="text" class="ht-time ht-out<?= $reqOut ? ' ht-req' : ' ht-opt' ?>"
                  inputmode="numeric" maxlength="5" placeholder="--:--"
                  value="<?= View::e(substr((string)$r['time_out'], 0, 5)) ?>"
                  <?= $lockOut ? 'readonly' : '' ?>>
@@ -73,7 +78,15 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
       <td><input type="text" class="ht-note" maxlength="500"
                  value="<?= View::e((string)$r['note']) ?>"></td>
       <td>
-        <button type="button" class="ht-save" onclick="hoursSaveRow(<?= (int)$r['id'] ?>)">שמור</button>
+        <?php
+          $need = ['both' => 'דרושות כניסה ויציאה',
+                   'in'   => 'דרושה שעת כניסה',
+                   'out'  => 'דרושה שעת יציאה'][$r['requires']] ?? '';
+        ?>
+        <div class="ht-actions">
+          <span class="ht-need"><i class="bi bi-exclamation-circle"></i> <?= View::e($need) ?></span>
+          <button type="button" class="ht-save" onclick="hoursSaveRow(<?= (int)$r['id'] ?>)">שמור</button>
+        </div>
       </td>
     </tr>
     <?php
@@ -88,7 +101,12 @@ $renderDone = function (array $r) use ($TYPES, $DAYS) {
     <tr class="ht-row ht-done ht-day-<?= View::e($dt) ?>" data-id="<?= (int)$r['id'] ?>">
       <td><?= View::e(date('d/m', $ts)) ?></td>
       <td title="<?= View::e($hol['n'] ?? Holidays::label($dt)) ?>">
-        <?= View::e($DAYS[(int)date('w', $ts)]) ?>
+        <span class="ht-dw"><?= View::e($DAYS[(int)date('w', $ts)]) ?></span>
+        <?php if ($hol): ?>
+          <span class="ht-tag ht-tag-<?= View::e($hol['t']) ?>"><?= View::e($hol['n']) ?></span>
+        <?php elseif ($dt === 'fri' || $dt === 'sat'): ?>
+          <span class="ht-tag ht-tag-<?= View::e($dt) ?>"><?= View::e(Holidays::label($dt)) ?></span>
+        <?php endif; ?>
       </td>
       <td><?= View::e($TYPES[$r['entry_type']] ?? $r['entry_type']) ?></td>
       <td class="ht-v"><?= View::e(substr((string)$r['time_in'], 0, 5) ?: '—') ?></td>
@@ -231,6 +249,9 @@ document.addEventListener('change', function (e) {
         var b = f.parentNode && f.parentNode.querySelector('.ht-tbtn');
         if (b) b.disabled = off;
     });
+    /* סיבת היעדרות סוגרת את השורה — אין יותר דרישת שעות להציג */
+    var need = tr.querySelector('.ht-need');
+    if (need) need.style.display = off ? 'none' : '';
 });
 }
 
