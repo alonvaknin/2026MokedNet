@@ -128,7 +128,7 @@ body.nav-collapsed #sidebar:not(:hover) .nav-item[data-tip]:hover::after{opacity
 .sidebar-name{flex:1;overflow:hidden;transition:opacity .2s,width .25s}
 .sidebar-name-text{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sidebar-name-sub{font-size:11px;color:var(--text3);white-space:nowrap}
-#main{flex:1;margin-right:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;transition:margin-right .25s cubic-bezier(.4,0,.2,1)}
+#main{flex:1;min-width:0;margin-right:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column;transition:margin-right .25s cubic-bezier(.4,0,.2,1)}
 body.nav-collapsed #main{margin-right:var(--sidebar-mini)}
 #topbar{height:var(--header-h);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:10px;position:sticky;top:0;z-index:100;font-family:var(--font)}
 .topbar-search{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:0 12px;max-width:300px;flex:1;transition:border-color .15s,box-shadow .15s}
@@ -174,7 +174,9 @@ body.nav-collapsed #main{margin-right:var(--sidebar-mini)}
   #nav-toggle{display:none}
   #content{padding:16px}
 }
-#content{flex:1;padding:24px 26px}
+/* min-width:0 — בלעדיו תוכן רחב (טבלאות) מותח את ה-flex item
+   מעבר לרוחב המסך במקום להיגלל בתוכו */
+#content{flex:1;min-width:0;padding:24px 26px}
 .page-title{font-size:21px;font-weight:700;margin-bottom:20px;color:var(--text)}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:border-color .15s,box-shadow .15s}
 .card:hover{border-color:var(--border2)}

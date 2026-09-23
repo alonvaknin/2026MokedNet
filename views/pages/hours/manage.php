@@ -811,7 +811,10 @@ function hmExport() {
 .hm-bar{display:flex;align-items:center;gap:14px;margin:14px 0;padding:10px 14px;
   background:var(--bg2,#1a1a24);border-radius:8px}
 .hm-hint{color:var(--text3);font-size:12px;margin-inline-start:auto}
-.hm-scroll{overflow-x:auto;border:1px solid var(--border,#2a2a3a);border-radius:8px}
+.hm-scroll{overflow-x:auto;max-width:100%;border:1px solid var(--border,#2a2a3a);
+  border-radius:8px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.hm-scroll::-webkit-scrollbar{height:6px}
+.hm-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
 .hm-grid{border-collapse:collapse;font-size:12px}
 .hm-grid th,.hm-grid td{border:1px solid var(--border,#2a2a3a);padding:2px 4px;text-align:center}
 .hm-name{position:sticky;right:0;background:var(--bg,#12121a);text-align:right!important;
@@ -996,7 +999,7 @@ th.hm-day-fri,th.hm-day-sat{opacity:.45}
   border:1px solid var(--border,#2a2a3a);border-radius:10px;overflow:hidden;
   max-width:100%}
 /* הטבלה חרגה מרוחב המסך — נגללת בתוך המכל במקום לדחוף את העמוד */
-.hl-scroll{overflow-x:auto;scrollbar-width:thin;
+.hl-scroll{overflow-x:auto;max-width:100%;scrollbar-width:thin;
   scrollbar-color:var(--border2) transparent}
 .hl-scroll::-webkit-scrollbar{height:6px}
 .hl-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
