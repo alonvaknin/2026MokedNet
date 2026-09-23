@@ -353,24 +353,19 @@ function hlSetMarked(n) {
 
     <!-- הוספת דרישה — מקופל, נפתח בלחיצה -->
     <details class="hm-add" open>
-      <summary><i class="bi bi-plus-circle"></i> הוסף דרישה חדשה</summary>
-      <div class="hm-form">
-        <div class="hm-f-col">
-          <label class="hm-cb"><input type="checkbox" id="hm-need-in"><span>דרושה כניסה</span></label>
-          <span class="ht-tw"><input type="text" id="hm-in" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
-        </div>
-        <div class="hm-f-col">
-          <label class="hm-cb"><input type="checkbox" id="hm-need-out"><span>דרושה יציאה</span></label>
-          <span class="ht-tw"><input type="text" id="hm-out" class="ht-time" inputmode="numeric" maxlength="5" placeholder="--:--"><button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה"><i class="bi bi-clock"></i></button></span>
-        </div>
-        <label class="hm-f-note">הערה: <input type="text" id="hm-note" maxlength="500"></label>
-        <label class="hm-f-qty">כמות שורות:
-          <input type="number" id="hm-qty" min="1" max="20" value="1">
-        </label>
-        <div class="hm-req-hint" id="hm-req-hint"></div>
-        <button type="button" class="btn btn-primary hm-add-btn" onclick="hmAddRequest()">
-          <i class="bi bi-plus-lg"></i> הוסף
+      <summary><i class="bi bi-plus-circle"></i> הוסף דרישות</summary>
+      <div class="hm-add-body">
+        <!-- כל שורת טיוטה עם שעות משלה — לעובד עם כמה משמרות באותו יום -->
+        <div id="hm-drafts"></div>
+        <button type="button" class="hm-more" onclick="hmAddDraft()">
+          <i class="bi bi-plus-lg"></i> הוסף שורה נוספת
         </button>
+        <div class="hm-add-foot">
+          <div class="hm-req-hint" id="hm-req-hint"></div>
+          <button type="button" class="btn btn-primary hm-add-btn" onclick="hmAddRequest()">
+            <i class="bi bi-check-lg"></i> צור דרישות
+          </button>
+        </div>
       </div>
     </details>
   </div>
@@ -585,7 +580,7 @@ function hmOpenCell(uid, date) {
     HM_CTX.user = uid; HM_CTX.date = date;
     document.getElementById('hm-title').textContent = date;
     document.getElementById('hm-modal').classList.add('open');
-    if (typeof hmReqHint === 'function') hmReqHint();
+    if (typeof hmResetDrafts === 'function') hmResetDrafts();
     hmLoadRows();
 }
 
@@ -683,64 +678,131 @@ function hmDelRow(id) {
 
 /* "דרוש" נגזר ממה שהמנהל מילא: מילא כניסה → דרושה יציאה,
    מילא יציאה → דרושה כניסה, לא מילא כלום → דרושות שתיהן. */
-function hmDeriveReq(tin, tout) {
-    /* סימון מפורש גובר; ללא סימון — נגזר ממה שהמנהל מילא */
-    var ci = document.getElementById('hm-need-in'),
-        co = document.getElementById('hm-need-out');
-    if (ci && co && (ci.checked || co.checked)) {
+/* ── שורות טיוטה בטופס הדרישה ──
+   כל שורה עומדת בפני עצמה: שעות, סימוני "דרוש" והערה משלה, כדי
+   שאפשר יהיה ליצור כמה דרישות לאותו עובד ותאריך בפעולה אחת. */
+var HM_DRAFT_SEQ = 0;
+
+function hmDraftHtml(n) {
+    return '<div class="hm-draft" data-d="d' + (++HM_DRAFT_SEQ) + '">' +
+      '<span class="hm-draft-n">' + n + '</span>' +
+      '<div class="hm-f-col">' +
+        '<label class="hm-cb"><input type="checkbox" class="d-need-in"><span>דרושה כניסה</span></label>' +
+        '<span class="ht-tw"><input type="text" class="ht-time d-in" inputmode="numeric" ' +
+          'maxlength="5" placeholder="--:--">' +
+          '<button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה">' +
+          '<i class="bi bi-clock"></i></button></span>' +
+      '</div>' +
+      '<div class="hm-f-col">' +
+        '<label class="hm-cb"><input type="checkbox" class="d-need-out"><span>דרושה יציאה</span></label>' +
+        '<span class="ht-tw"><input type="text" class="ht-time d-out" inputmode="numeric" ' +
+          'maxlength="5" placeholder="--:--">' +
+          '<button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה">' +
+          '<i class="bi bi-clock"></i></button></span>' +
+      '</div>' +
+      '<input type="text" class="d-note" maxlength="500" placeholder="הערה">' +
+      '<button type="button" class="hm-draft-x" title="הסרת השורה" ' +
+        'onclick="hmDelDraft(this)"><i class="bi bi-x-lg"></i></button>' +
+    '</div>';
+}
+
+function hmRenumberDrafts() {
+    var box = document.getElementById('hm-drafts');
+    if (!box) return;
+    var all = box.querySelectorAll('.hm-draft');
+    [].forEach.call(all, function (d, i) {
+        var n = d.querySelector('.hm-draft-n');
+        if (n) n.textContent = i + 1;
+        var x = d.querySelector('.hm-draft-x');
+        if (x) x.style.visibility = all.length > 1 ? '' : 'hidden';   /* שורה יחידה לא מוסרת */
+    });
+}
+
+function hmAddDraft() {
+    var box = document.getElementById('hm-drafts');
+    if (!box) return;
+    box.insertAdjacentHTML('beforeend',
+        hmDraftHtml(box.querySelectorAll('.hm-draft').length + 1));
+    hmRenumberDrafts();
+    hmReqHint();
+}
+
+function hmDelDraft(btn) {
+    var box = document.getElementById('hm-drafts');
+    var d = btn.closest('.hm-draft');
+    if (!d || !box || box.querySelectorAll('.hm-draft').length <= 1) return;
+    d.remove();
+    hmRenumberDrafts();
+    hmReqHint();
+}
+
+function hmResetDrafts() {
+    var box = document.getElementById('hm-drafts');
+    if (!box) return;
+    HM_DRAFT_SEQ = 0;
+    box.innerHTML = hmDraftHtml(1);
+    hmRenumberDrafts();
+    hmReqHint();
+}
+
+/* "דרוש" לשורה בודדת: סימון מפורש גובר, אחרת נגזר מהשעות שמולאו */
+function hmDeriveReqFor(el, tin, tout) {
+    var ci = el.querySelector('.d-need-in'), co = el.querySelector('.d-need-out');
+    if ((ci && ci.checked) || (co && co.checked)) {
         if (ci.checked && co.checked) return 'both';
         return ci.checked ? 'in' : 'out';
     }
     if (tin && !tout) return 'out';
     if (tout && !tin) return 'in';
-    return 'both';   /* שניהם ריקים, או שניהם מלאים (אז אין מה להשלים ממילא) */
+    return 'both';
 }
 
 function hmReqHint() {
     var el = document.getElementById('hm-req-hint');
     if (!el) return;
-    var tin  = (document.getElementById('hm-in')  || {}).value || '';
-    var tout = (document.getElementById('hm-out') || {}).value || '';
-    var txt = { out:  'הנציג יתבקש להשלים <b>שעת יציאה</b>',
-                in:   'הנציג יתבקש להשלים <b>שעת כניסה</b>',
-                both: 'הנציג יתבקש להשלים <b>כניסה ויציאה</b>' }[hmDeriveReq(tin, tout)];
-    var ci = document.getElementById('hm-need-in'),
-        co = document.getElementById('hm-need-out');
-    var explicit = (ci && ci.checked) || (co && co.checked);
-    if (tin && tout && !explicit)
-        txt = 'השורה מלאה — תיווצר כדיווח מושלם, ללא דרישה מהנציג';
-    /* בבחירה מרובה השעות אינן נשמרות, ולכן הדרישה תמיד "כניסה ויציאה" */
-    if (HM_CTX.sel.length > 1)
-        txt = 'בחירה מרובה (' + HM_CTX.sel.length + ' תאים) — ' +
-              'כל נציג יתבקש להשלים <b>כניסה ויציאה</b>, ללא שעות מוקדמות';
-    el.innerHTML = '<i class="bi bi-info-circle"></i> ' + txt;
+
+    if (HM_CTX.sel.length > 1) {
+        el.innerHTML = '<i class="bi bi-info-circle"></i> בחירה מרובה (' +
+            HM_CTX.sel.length + ' תאים) — כל נציג יתבקש להשלים ' +
+            '<b>כניסה ויציאה</b>, ללא שעות מוקדמות';
+        return;
+    }
+
+    var box = document.getElementById('hm-drafts');
+    var rows = box ? box.querySelectorAll('.hm-draft') : [];
+    if (!rows.length) { el.innerHTML = ''; return; }
+
+    var LBL = { both: 'כניסה ויציאה', in: 'כניסה', out: 'יציאה' };
+    var parts = [].map.call(rows, function (d, i) {
+        var tin  = (d.querySelector('.d-in')  || {}).value || '';
+        var tout = (d.querySelector('.d-out') || {}).value || '';
+        var ci = d.querySelector('.d-need-in'), co = d.querySelector('.d-need-out');
+        if (tin && tout && !(ci && ci.checked) && !(co && co.checked))
+            return (i + 1) + ': דיווח מלא';
+        return (i + 1) + ': ' + LBL[hmDeriveReqFor(d, tin, tout)];
+    });
+
+    el.innerHTML = '<i class="bi bi-info-circle"></i> ' +
+        (rows.length > 1 ? 'ייווצרו ' + rows.length + ' שורות — ' : 'נדרש: ') +
+        parts.join(' · ');
 }
 
-['hm-in', 'hm-out', 'hm-need-in', 'hm-need-out'].forEach(function (id) {
-    var el = document.getElementById(id);
-    if (el) { el.addEventListener('input', hmReqHint); el.addEventListener('change', hmReqHint); }
+/* כל שינוי בטיוטות מרענן את ההסבר */
+document.addEventListener('input',  function (e) {
+    if (e.target.closest && e.target.closest('.hm-draft')) hmReqHint();
 });
-document.addEventListener('DOMContentLoaded', hmReqHint);
-hmReqHint();
+document.addEventListener('change', function (e) {
+    if (e.target.closest && e.target.closest('.hm-draft')) hmReqHint();
+});
 
 function hmAddRequest() {
-    var inEl = document.getElementById('hm-in'), outEl = document.getElementById('hm-out');
-    var tin = hmTime(inEl), tout = hmTime(outEl);
-    if (tin === null || tout === null) { showToast('שעה לא תקינה — פורמט HH:MM', 'error'); return; }
-
-    var body = {
-        requires: hmDeriveReq(tin, tout),
-        time_in:  tin,
-        time_out: tout,
-        note:     document.getElementById('hm-note').value
-    };
-
-    /* בחירה מרובה → bulk. השרת לא שומר שעות בנתיב הזה, ולכן
-       הדרישה היא תמיד "כניסה ויציאה" ולא נגזרת מהשדות. */
+    /* בחירה מרובה → bulk. השרת אינו שומר שעות בנתיב הזה, ולכן
+       נשלחת דרישה אחת "כניסה ויציאה" לכל תא שנבחר. */
     if (HM_CTX.sel.length > 1) {
-        body.cells    = HM_CTX.sel;
-        body.requires = 'both';
-        hmPost('/hours/request/bulk', body).then(function (d) {
+        hmPost('/hours/request/bulk', {
+            cells: HM_CTX.sel, requires: 'both',
+            note: (document.querySelector('.hm-draft .d-note') || {}).value || ''
+        }).then(function (d) {
             if (d.error) { showToast(d.error, 'error'); return; }
             showToast('נוצרו ' + d.created + ' דרישות', 'success');
             location.reload();
@@ -749,26 +811,42 @@ function hmAddRequest() {
     }
 
     if (!HM_CTX.user || !HM_CTX.date) { showToast('לא נבחר תא', 'warning'); return; }
-    body.user_id = HM_CTX.user; body.work_date = HM_CTX.date;
 
-    var qtyEl = document.getElementById('hm-qty');
-    var qty = Math.min(20, Math.max(1, parseInt((qtyEl || {}).value, 10) || 1));
+    var box  = document.getElementById('hm-drafts');
+    var rows = box ? [].slice.call(box.querySelectorAll('.hm-draft')) : [];
+    if (!rows.length) { showToast('אין שורות להוספה', 'warning'); return; }
 
-    /* יוצרים בזו אחר זו כדי שהשרת יקצה id לכל שורה בנפרד */
+    /* אימות כל השורות לפני שליחה, כדי לא ליצור חלק מהן ואז להיכשל */
+    var payload = [], bad = false;
+    rows.forEach(function (d) {
+        var inEl = d.querySelector('.d-in'), outEl = d.querySelector('.d-out');
+        var tin = hmTime(inEl), tout = hmTime(outEl);
+        if (tin === null || tout === null) { bad = true; return; }
+        payload.push({
+            user_id:   HM_CTX.user,
+            work_date: HM_CTX.date,
+            requires:  hmDeriveReqFor(d, tin, tout),
+            time_in:   tin,
+            time_out:  tout,
+            note:      (d.querySelector('.d-note') || {}).value || ''
+        });
+    });
+    if (bad) { showToast('שעה לא תקינה — פורמט HH:MM', 'error'); return; }
+
+    /* נשלחות בזו אחר זו כדי שהשרת יקצה id נפרד לכל שורה */
     var made = 0, failed = null;
     function step(i) {
-        if (i >= qty) {
+        if (i >= payload.length || failed) {
             if (failed) { showToast(failed, 'error'); return; }
-            showToast(made > 1 ? 'נוספו ' + made + ' שורות' : 'נוספה דרישה', 'success');
-            hmReqHint();
+            showToast(made > 1 ? 'נוצרו ' + made + ' שורות' : 'נוצרה דרישה', 'success');
             location.reload();
             return;
         }
-        hmPost('/hours/request/add', body).then(function (d) {
-            if (d.error) { failed = d.error; step(qty); return; }
+        hmPost('/hours/request/add', payload[i]).then(function (d) {
+            if (d.error) { failed = d.error; step(payload.length); return; }
             made++;
             step(i + 1);
-        }).catch(function () { failed = 'שגיאת רשת'; step(qty); });
+        }).catch(function () { failed = 'שגיאת רשת'; step(payload.length); });
     }
     step(0);
 }
@@ -825,7 +903,7 @@ document.addEventListener('mouseup', function () {
         var c0 = document.getElementById('hm-rows-count');
         if (c0) c0.textContent = '';
         document.getElementById('hm-modal').classList.add('open');
-        if (typeof hmReqHint === 'function') hmReqHint();
+        if (typeof hmResetDrafts === 'function') hmResetDrafts();
         return;
     }
 
@@ -893,10 +971,6 @@ td.hm-cell.hm-today-c{box-shadow:inset 0 0 0 2px var(--accent);
   font-size:11px;font-weight:800;color:var(--text3)}
 
 /* כמות שורות ליצירה */
-.hm-f-qty{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text3)}
-.hm-f-qty input{width:68px;background:var(--bg4);color:var(--text);
-  border:1px solid var(--border);border-radius:7px;padding:7px 9px;
-  font-family:var(--font);font-size:13px;font-weight:600;text-align:center}
 /* פינת "עובד" נדבקת בשני הצירים, ולכן גוברת על שאר הכותרת */
 .hm-grid thead th.hm-name{z-index:6;top:0;right:0}
 /* ══ כותרת הימים — עיצוב אחיד לכל סוגי הימים ══
@@ -1025,6 +1099,36 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hm-add>summary i{color:var(--accent);font-size:15px}
 .hm-add[open]>summary{border-bottom:1px solid var(--border,#2a2a3a)}
 .hm-add .hm-form{padding:13px}
+.hm-add-body{padding:13px}
+
+/* שורת טיוטה בטופס הדרישה */
+.hm-draft{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap;
+  background:var(--bg,#12121a);border:1px solid var(--border,#2a2a3a);
+  border-radius:9px;padding:9px 11px;margin-bottom:8px}
+.hm-draft-n{display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;flex-shrink:0;border-radius:50%;margin-bottom:4px;
+  background:var(--bg4);border:1px solid var(--border2,#3a3a4a);
+  font-size:11px;font-weight:800;color:var(--text3)}
+.hm-draft .d-note{flex:1;min-width:130px;background:var(--bg4);color:var(--text);
+  border:1px solid var(--border);border-radius:7px;padding:7px 9px;
+  font-family:var(--font);font-size:13px;margin-bottom:1px}
+.hm-draft-x{width:30px;height:30px;flex-shrink:0;margin-bottom:1px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid rgba(239,68,68,.30);background:rgba(239,68,68,.10);
+  border-radius:7px;cursor:pointer;color:#f87171;font-size:12px;
+  transition:all .13s}
+.hm-draft-x:hover{background:rgba(239,68,68,.22);border-color:rgba(239,68,68,.6)}
+
+.hm-more{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+  border:1px dashed var(--border2,#3a3a4a);border-radius:8px;
+  background:transparent;color:var(--text3);font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--font);transition:all .13s}
+.hm-more:hover{border-color:var(--accent);color:var(--accent);
+  background:var(--accent-dim)}
+
+.hm-add-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#2a2a3a)}
+.hm-add-foot .hm-req-hint{flex:1;margin-top:0}
 .hm-add-btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;
   padding:9px 18px}
 .hm-req-hint{flex-basis:100%;display:flex;align-items:center;gap:6px;
