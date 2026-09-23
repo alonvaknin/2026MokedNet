@@ -168,7 +168,8 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
       <tr class="hl-row hl-day-<?= View::e($dt) ?><?= $closed ? ' hl-closed' : '' ?>"
           data-flags="<?= View::e($flags) ?>"
           data-id="<?= (int)$r['id'] ?>"
-          data-user="<?= (int)$r['user_id'] ?>" data-date="<?= View::e($r['work_date']) ?>">
+          data-user="<?= (int)$r['user_id'] ?>" data-date="<?= View::e($r['work_date']) ?>"
+          data-name="<?= View::e((string)$r['full_name']) ?>">
         <td class="hl-chk-td">
           <label class="hl-chk-l" title="סימון לדיווח">
             <input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
@@ -333,7 +334,8 @@ function hlSetMarked(n) {
                 showToast('השורה נסגרה — יש לפתוח אותה מחדש כדי לערוך', 'warning');
                 return;
             }
-            hmOpenCell(parseInt(tr.dataset.user, 10), tr.dataset.date);
+            hmOpenCell(parseInt(tr.dataset.user, 10), tr.dataset.date,
+                       tr.dataset.name);
         });
     });
 })();
@@ -343,7 +345,10 @@ function hlSetMarked(n) {
 <div id="hm-modal" class="hm-overlay" onclick="if(event.target===this)hmClose()">
   <div class="hm-box">
     <div class="hm-head">
-      <h2 id="hm-title">—</h2>
+      <div class="hm-head-txt">
+        <h2 id="hm-title">—</h2>
+        <div id="hm-subtitle" class="hm-sub"></div>
+      </div>
       <button type="button" class="hm-x" onclick="hmClose()">✕</button>
     </div>
 
@@ -412,6 +417,11 @@ document.addEventListener('blur', function (e) {
 }
 
 var HM_CTX = { user: 0, date: '', sel: [], dragging: false, moved: false };
+
+/* נתונים לכותרת המודל: מפת חגים ושמות העובדים */
+var HM_HOL   = <?= json_encode(\Core\Holidays::all(), JSON_UNESCAPED_UNICODE) ?>;
+var HM_USERS = <?= json_encode(array_column($users, 'full_name', 'id'), JSON_UNESCAPED_UNICODE) ?>;
+var HM_DAYS  = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 var HM_TYPES = { regular:'רגיל', vacation:'חופש', reserve:'מילואים', sick:'מחלה',
                  duplicate_delete:'למחוק דיווחים כפולים',
                  duplicate_in:'כניסה כפולה', duplicate_out:'יציאה כפולה', other:'אחר' };
@@ -581,9 +591,39 @@ window.hoursTimePicker = (function () {
 })();
 }
 
-function hmOpenCell(uid, date) {
+/* "05/09/2026 · שבת · ערב ראש השנה" */
+function hmDateLabel(date) {
+    var p = String(date).split('-');
+    if (p.length !== 3) return date;
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var out = p[2] + '/' + p[1] + '/' + p[0] + ' · יום ' + HM_DAYS[d.getDay()];
+
+    var hol = HM_HOL[date];
+    var tags = [];
+    if (d.getDay() === 5) tags.push({ t: 'fri', n: 'שישי' });
+    if (d.getDay() === 6) tags.push({ t: 'sat', n: 'שבת' });
+    if (hol) tags.push({ t: hol.t, n: hol.n });
+    return { text: out, tags: tags };
+}
+
+function hmSetTitle(uid, date, name) {
+    var info = hmDateLabel(date);
+    /* name מגיע מטבלת הדרישות; HM_USERS מכיל רק את מי שמסומן לדיווח */
+    document.getElementById('hm-title').textContent =
+        name || HM_USERS[uid] || ('עובד #' + uid);
+
+    var sub = document.getElementById('hm-subtitle');
+    if (!sub) return;
+    var html = '<span class="hm-sub-d">' + (info.text || date) + '</span>';
+    (info.tags || []).forEach(function (t) {
+        html += '<span class="hm-sub-tag hm-sub-' + t.t + '">' + t.n + '</span>';
+    });
+    sub.innerHTML = html;
+}
+
+function hmOpenCell(uid, date, name) {
     HM_CTX.user = uid; HM_CTX.date = date;
-    document.getElementById('hm-title').textContent = date;
+    hmSetTitle(uid, date, name);
     document.getElementById('hm-modal').classList.add('open');
     if (typeof hmResetDrafts === 'function') hmResetDrafts();
     hmLoadRows();
@@ -902,7 +942,10 @@ document.addEventListener('mouseup', function () {
     HM_CTX.dragging = false;
 
     if (HM_CTX.sel.length > 1) {
-        document.getElementById('hm-title').textContent = 'נבחרו ' + HM_CTX.sel.length + ' תאים';
+        document.getElementById('hm-title').textContent =
+            'נבחרו ' + HM_CTX.sel.length + ' תאים';
+        var sb = document.getElementById('hm-subtitle');
+        if (sb) sb.innerHTML = '<span class="hm-sub-d">דרישה תיווצר לכל התאים שנבחרו</span>';
         document.getElementById('hm-rows').innerHTML =
             '<p class="hm-none">בחירה מרובה — ניתן להוסיף דרישה לכולם</p>';
         var c0 = document.getElementById('hm-rows-count');
@@ -1049,8 +1092,21 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hm-overlay.open{display:flex}
 .hm-box{background:var(--bg,#12121a);border:1px solid var(--border,#2a2a3a);border-radius:14px;
   width:min(920px,94vw);max-height:80vh;overflow:auto;padding:20px}
-.hm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.hm-head h2{margin:0;font-size:18px}
+.hm-head{display:flex;justify-content:space-between;align-items:flex-start;
+  margin-bottom:14px;gap:12px}
+.hm-head-txt{min-width:0}
+.hm-head h2{margin:0;font-size:22px;font-weight:800;color:var(--text);
+  line-height:1.25}
+.hm-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:5px}
+.hm-sub-d{font-size:13px;font-weight:600;color:#aab3c5;direction:rtl}
+.hm-sub-tag{font-size:10px;font-weight:800;border-radius:4px;padding:2px 8px;
+  white-space:nowrap}
+.hm-sub-h,.hm-sub-i{background:#4a3a08;color:#ffd97a}
+.hm-sub-e{background:#3d3110;color:#fde68a}
+.hm-sub-c{background:#402d0c;color:#f0b429}
+.hm-sub-r{background:#33285c;color:#c4b5fd}
+.hm-sub-fri{background:#4a3a08;color:#fcd34d}
+.hm-sub-sat{background:#4a1616;color:#fca5a5}
 .hm-x{background:none;border:0;color:var(--text3);font-size:20px;cursor:pointer}
 /* ── אזור השורות: העיקר במודל ── */
 .hm-rows-wrap{background:var(--bg2,#1a1a24);border:1px solid var(--border,#2a2a3a);
