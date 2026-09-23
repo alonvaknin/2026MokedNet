@@ -1237,8 +1237,11 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hl-table{width:100%;min-width:940px;border-collapse:separate;
   border-spacing:0;font-size:13px}
 .hl-table th{padding:8px 10px;text-align:right;font-size:11px;font-weight:700;
-  color:var(--text3);background:var(--bg3,#15151f);white-space:nowrap;
-  position:sticky;top:var(--header-h,58px);z-index:4;
+  color:#c3cadb;background:#232838;white-space:nowrap;
+  /* top:0 ולא --header-h: .hl-scroll הוא אב גלילה (overflow-x:auto
+     הופך גם את ציר ה-Y ל-auto), ולכן ההיצמדות נפתרת בתוכו —
+     ערך גדול מאפס הותיר פס ריק בראש הטבלה. */
+  position:sticky;top:0;z-index:4;
   border-bottom:1px solid var(--border,#2a2a3a)}
 .hl-table td{padding:8px 10px;text-align:right;
   border-bottom:1px solid var(--border,#2a2a3a);color:var(--text2)}
@@ -1308,11 +1311,14 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hm-cb input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent);margin:0}
 .hm-cb:has(input:checked){color:var(--accent)}
 .hl-th-chk{width:64px;text-align:center!important}
-.hl-th-chk span{font-size:9px;font-weight:700;color:var(--text3)}
+.hl-th-chk span{font-size:9px;font-weight:700;color:#c3cadb}
 .hl-row td:first-child{text-align:center}
 
 /* ייצוא — צמוד לטבלה, כדי שהקשר לצ'קבוקסים יהיה ברור */
 .hl-exp{display:flex;align-items:center;gap:9px;margin-inline-start:auto}
+/* display:flex על ההורה גובר על התכונה hidden, ולכן אלמנט מוסתר
+   עדיין תופס מקום כפריט flex */
+.hl-exp [hidden]{display:none!important}
 .hl-exp-n{font-size:12px;color:#aab3c5;white-space:nowrap}
 .hl-exp-n b{color:#fff;font-size:14px;font-weight:800;
   background:var(--accent);border-radius:5px;padding:1px 8px;
