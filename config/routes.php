@@ -187,6 +187,7 @@ $router->post('/api/invoice-change-name/{id}/edit',    'Controllers\\InvoiceChan
 $router->get ('/hours',                  'Controllers\\HoursController@index');
 $router->post('/hours/entry/add',        'Controllers\\HoursController@addOwnEntry');
 $router->post('/hours/entry/{id}/save',  'Controllers\\HoursController@saveEntry');
+$router->post('/hours/entry/{id}/remove', 'Controllers\\HoursController@deleteOwnEntry');
 
 // Hours Reporting — מנהל
 $router->get ('/hours/manage',            'Controllers\\HoursController@manage');

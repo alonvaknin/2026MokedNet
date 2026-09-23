@@ -85,9 +85,15 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
                    'in'   => 'דרושה שעת כניסה',
                    'out'  => 'דרושה שעת יציאה'][$r['requires']] ?? '';
         ?>
+        <?php // שורה שהנציג הוסיף בעצמו וטרם השלים — ניתנת להסרה
+              $ownDraft = (int)$r['created_by'] === (int)$r['user_id']; ?>
         <div class="ht-actions">
           <span class="ht-need"><i class="bi bi-exclamation-circle"></i> <?= View::e($need) ?></span>
           <button type="button" class="ht-save" onclick="hoursSaveRow(<?= (int)$r['id'] ?>)">שמור</button>
+          <?php if ($ownDraft): ?>
+            <button type="button" class="ht-del" title="הסרת השורה"
+                    onclick="hoursDelRow(<?= (int)$r['id'] ?>)"><i class="bi bi-trash3"></i></button>
+          <?php endif; ?>
         </div>
       </td>
     </tr>
@@ -201,6 +207,26 @@ window.hoursSaveRow = function (id) {
         }
     })
     .catch(function () { btn.disabled = false; showToast('שגיאת רשת', 'error'); });
+};
+
+/* הסרת שורה שהנציג הוסיף בעצמו (השרת מאמת בעלות ומצב) */
+window.hoursDelRow = function (id) {
+    if (!confirm('להסיר את השורה?')) return;
+    var tr = document.querySelector('.hours-table tr[data-id="' + id + '"]');
+
+    fetch(window.__V2_BASE + '/hours/entry/' + id + '/remove', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF, 'Content-Type': 'application/json' },
+        body: '{}'
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('השורה הוסרה', 'success');
+        if (tr) tr.remove();
+        if (typeof hoursRefreshBadge === 'function') hoursRefreshBadge();
+    })
+    .catch(function () { showToast('שגיאת רשת', 'error'); });
 };
 
 /* ── שדות שעה: הקלדה חופשית עם מסכה ── */

@@ -181,6 +181,43 @@ class HoursController extends Controller
         $this->json(['html' => $html]);
     }
 
+    /**
+     * מחיקת שורה שהנציג הוסיף בעצמו.
+     * מותרת רק כאשר: השורה שלו, הוא זה שיצר אותה, היא עדיין לא הושלמה,
+     * ולא נסגרה. שורה שהמנהל יצר אינה ניתנת למחיקה בידי הנציג — זו
+     * דרישה שהופנתה אליו.
+     */
+    public function deleteOwnEntry(string $id): void
+    {
+        $this->requireReporter();
+        $this->verifyCsrf();
+
+        $uid = (int)Auth::user()['id'];
+        $row = HoursModel::find((int)$id);
+
+        if (!$row || (int)$row['user_id'] !== $uid) {
+            $this->json(['error' => 'אין הרשאה לשורה זו'], 403);
+            return;
+        }
+        if ((int)$row['created_by'] !== $uid) {
+            $this->json(['error' => 'שורה שנוצרה על ידי המנהל אינה ניתנת למחיקה'], 403);
+            return;
+        }
+        if (!empty($row['exported_at'])) {
+            $this->json(['error' => 'השורה נסגרה ואינה ניתנת למחיקה'], 409);
+            return;
+        }
+        if ($row['status'] === 'filled') {
+            $this->json(['error' => 'שורה שהושלמה אינה ניתנת למחיקה'], 409);
+            return;
+        }
+
+        HoursModel::deleteEntry((int)$id);
+        \Core\ActivityLog::log('מחיקת שורת דיווח עצמית', 'hours_entry', (int)$id, null,
+                                'נציג מחק שורה שהוסיף');
+        $this->json(['ok' => true]);
+    }
+
     /* ── שכבת המנהל ── */
 
     public function manage(): void

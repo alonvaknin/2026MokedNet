@@ -151,6 +151,14 @@
   font-weight:700;color:#fcd34d;background:#4a3105;border-radius:4px;
   padding:3px 8px;white-space:nowrap}
 .ht-need i{font-size:11px}
+
+/* הסרת שורה שהנציג הוסיף */
+.ht-del{width:32px;height:32px;flex-shrink:0;display:inline-flex;
+  align-items:center;justify-content:center;border-radius:7px;cursor:pointer;
+  background:transparent;border:1px solid rgba(239,68,68,.28);color:#e07a7a;
+  font-size:13px;transition:background .13s,color .13s,border-color .13s}
+.ht-del:hover{background:rgba(239,68,68,.16);border-color:rgba(239,68,68,.55);
+  color:#fca5a5}
 </style>
 
 <script>
@@ -159,6 +167,26 @@
       לחלוטין למקור ב-views/components/hours-table.php, כל אחד בשמירה משלו
       כדי שלא תהיה הגדרה כפולה בעמוד /hours. ── */
 if (!window.hoursSaveRow) {
+/* הסרת שורה שהנציג הוסיף בעצמו (השרת מאמת בעלות ומצב) */
+window.hoursDelRow = function (id) {
+    if (!confirm('להסיר את השורה?')) return;
+    var tr = document.querySelector('.hours-table tr[data-id="' + id + '"]');
+
+    fetch(window.__V2_BASE + '/hours/entry/' + id + '/remove', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': window.__CSRF, 'Content-Type': 'application/json' },
+        body: '{}'
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('השורה הוסרה', 'success');
+        if (tr) tr.remove();
+        if (typeof hoursRefreshBadge === 'function') hoursRefreshBadge();
+    })
+    .catch(function () { showToast('שגיאת רשת', 'error'); });
+};
+
 window.hoursSaveRow = function (id) {
     var tr = document.querySelector('.hours-table tr[data-id="' + id + '"]');
     if (!tr) return;
