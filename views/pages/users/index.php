@@ -56,10 +56,12 @@ $groupMap = array_column($permGroups, 'permmisionsGroupHeb', 'id');
       $createdAt  = $u['created_at']  ? date('d/m/Y', strtotime($u['created_at']))       : '—';
       $mustChange = !empty($u['must_change_password']);
     ?>
+    <?php $isArchived = (int)($u['is_archived'] ?? 0) === 1; ?>
     <tr class="usr-row"
         data-name="<?= strtolower(View::e($u['first_name'].' '.$u['last_name'].' '.($u['email']??''))) ?>"
         data-group="<?= (int)$u['permission_group_id'] ?>"
         data-active="<?= (int)$u['is_active'] ?>"
+        data-archived="<?= (int)($u['is_archived'] ?? 0) ?>"
         data-last-login="<?= View::e($u['last_login'] ?? '') ?>"
         data-created="<?= View::e($u['created_at'] ?? '') ?>"
         style="border-bottom:1px solid var(--border);<?= $u['is_active'] ? '' : 'opacity:.5;' ?>">
@@ -79,20 +81,35 @@ $groupMap = array_column($permGroups, 'permmisionsGroupHeb', 'id');
       <td style="padding:9px 12px;color:var(--text2);font-size:12px;"><?= $lastLogin ?></td>
       <td style="padding:9px 12px;color:var(--text2);font-size:12px;"><?= $createdAt ?></td>
       <td style="padding:9px 12px;">
-        <span class="badge <?= $u['is_active'] ? 'badge-success' : 'badge-danger' ?>">
-          <?= $u['is_active'] ? 'פעיל' : 'לא פעיל' ?>
-        </span>
+        <?php if ($isArchived): ?>
+          <span class="badge badge-danger" title="המשתמש הועבר לארכיון ולא ניתן להפעילו מחדש">בארכיון</span>
+        <?php else: ?>
+          <span class="badge <?= $u['is_active'] ? 'badge-success' : 'badge-danger' ?>">
+            <?= $u['is_active'] ? 'פעיל' : 'לא פעיל' ?>
+          </span>
+        <?php endif; ?>
       </td>
       <td style="padding:9px 12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;"
                 onclick="openModal(<?= (int)$u['id'] ?>)">עריכה</button>
+        <?php
+          // Password actions only make sense for a user who can actually log
+          // in. Inactive and archived users get them greyed out.
+          $pwDisabled = !$u['is_active'] || $isArchived;
+          $pwTitle    = $isArchived
+              ? 'משתמש בארכיון'
+              : (!$u['is_active'] ? 'משתמש לא פעיל' : '');
+          $pwStyle    = $pwDisabled ? 'opacity:.4;cursor:not-allowed;' : '';
+        ?>
         <?php if (!empty($u['email'])): ?>
-        <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--accent);"
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--accent);<?= $pwStyle ?>"
+                <?= $pwDisabled ? 'disabled' : '' ?>
                 onclick="sendResetEmail(<?= (int)$u['id'] ?>, '<?= View::e($u['first_name']) ?>')"
-                title="שלח קישור איפוס סיסמא">🔑 איפוס</button>
-        <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--warning,#f59e0b);"
+                title="<?= View::e($pwTitle ?: 'שלח קישור איפוס סיסמא') ?>">🔑 איפוס</button>
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--warning,#f59e0b);<?= $pwStyle ?>"
+                <?= $pwDisabled ? 'disabled' : '' ?>
                 onclick="openTempPassModal(<?= (int)$u['id'] ?>, '<?= View::e($u['first_name'].' '.$u['last_name']) ?>')"
-                title="קבע סיסמא זמנית">🔐 זמנית</button>
+                title="<?= View::e($pwTitle ?: 'קבע סיסמא זמנית') ?>">🔐 זמנית</button>
         <?php endif; ?>
       </td>
     </tr>
@@ -170,6 +187,42 @@ $groupMap = array_column($permGroups, 'permmisionsGroupHeb', 'id');
         <button class="btn btn-primary" style="flex:1;" onclick="saveUser()">שמור</button>
         <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
         <button class="btn btn-danger" id="toggle-btn" style="display:none;" onclick="toggleUser()"></button>
+      </div>
+      <div id="archived-note" style="display:none;margin-top:12px;font-size:12px;color:var(--text3);
+                  border-right:3px solid var(--danger);padding:8px 10px;background:rgba(0,0,0,.15);">
+        משתמש זה הועבר לארכיון ואינו ניתן להפעלה מחדש. נפתח עבורו משתמש חדש במקומו.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal החלפת משתמש שהועבר לארכיון -->
+<div id="supersede-modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:400;
+            align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+              width:100%;max-width:460px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:16px 20px;border-bottom:1px solid var(--border);">
+      <div style="font-size:16px;font-weight:600;">♻️ משתמש קיים</div>
+      <button onclick="closeSupersedeModal()"
+              style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <p id="sup-intro" style="font-size:14px;color:var(--text);margin:0 0 14px;line-height:1.6;"></p>
+      <div style="font-size:13px;color:var(--text2);line-height:1.7;
+                  border-right:3px solid var(--warning,#f59e0b);padding:10px 12px;
+                  background:rgba(0,0,0,.15);border-radius:4px;margin-bottom:16px;">
+        באישור ייפתח <b>משתמש חדש לגמרי</b> עם הפרטים שהוזנו,
+        ויישלח אליו קישור לקביעת סיסמא.<br>
+        המשתמש הקודם יועבר <b>לארכיון לצמיתות</b> ללא אפשרות להפעילו מחדש,
+        וההיסטוריה שלו (לוגים, משימות ושעות) תישמר בנפרד.
+      </div>
+      <div id="supersede-error" style="color:var(--danger);font-size:13px;margin-bottom:10px;display:none;"></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" style="flex:1;" id="sup-confirm-btn"
+                onclick="confirmSupersede()">צור משתמש חדש</button>
+        <button class="btn btn-ghost" onclick="closeSupersedeModal()">ביטול</button>
       </div>
     </div>
   </div>
@@ -308,6 +361,8 @@ function openModal(id) {
   document.getElementById('modal-title').textContent = id ? 'עריכת משתמש' : 'משתמש חדש';
   document.getElementById('modal-error').style.display = 'none';
   document.getElementById('toggle-btn').style.display  = id ? 'block' : 'none';
+  document.getElementById('archived-note').style.display = 'none';
+  document.getElementById('f-active').disabled = false;
   switchTab('details');
 
   if (id) {
@@ -325,8 +380,14 @@ function openModal(id) {
       document.getElementById('f-active').checked = !!parseInt(u.is_active);
       document.getElementById('f-hours').checked  = !!parseInt(u.hours_reports || 0);
       const btn = document.getElementById('toggle-btn');
+      const archived = !!parseInt(u.is_archived || 0);
       btn.textContent = parseInt(u.is_active) ? 'השבת משתמש' : 'הפעל משתמש';
       btn.style.background = parseInt(u.is_active) ? 'var(--danger)' : 'var(--success)';
+      // An archived user is retired for good - never offer to switch them on.
+      if (archived) btn.style.display = 'none';
+      document.getElementById('archived-note').style.display = archived ? 'block' : 'none';
+      // Their password can no longer be managed either.
+      document.getElementById('f-active').disabled = archived;
     });
   } else {
     ['f-id','f-fname','f-lname','f-email','f-phone','f-mvoice','f-sip','f-note']
@@ -353,9 +414,27 @@ async function saveUser() {
     return;
   }
 
-  const body = new URLSearchParams({
+  const body = userFormBody();
+
+  const res  = await fetch(`${BASE_URL}/users/save`, { method:'POST', body });
+  const data = await res.json();
+  if (data.ok) {
+    closeModal();
+    if (data.warn) { showToast(data.warn, 'warning'); setTimeout(() => location.reload(), 1800); }
+    else location.reload();
+  } else if (data.error === 'exists' && data.existing) {
+    handleExistingEmail(data.existing, data.field);
+  } else {
+    showErr(data.error || 'שגיאה');
+  }
+}
+
+/* Collect the modal fields, shared by save + supersede. */
+function userFormBody() {
+  return new URLSearchParams({
     _csrf: CSRF, id: currentUserId || '',
-    fName, lName: document.getElementById('f-lname').value.trim(),
+    fName: document.getElementById('f-fname').value.trim(),
+    lName: document.getElementById('f-lname').value.trim(),
     email: document.getElementById('f-email').value.trim(),
     phoneNum: document.getElementById('f-phone').value.trim(),
     depart: document.getElementById('f-depart').value,
@@ -366,15 +445,57 @@ async function saveUser() {
     active: document.getElementById('f-active').checked ? '1' : '0',
     hoursReports: document.getElementById('f-hours').checked ? '1' : '0',
   });
+}
 
-  const res  = await fetch(`${BASE_URL}/users/save`, { method:'POST', body });
+/* The address (or phone) is already taken. A deactivated holder is almost
+   always the same person returning, so offer to retire them and open a fresh
+   user instead - a new id keeps the two employments apart in the logs,
+   tasks and hours. */
+let supersedeTarget = null;
+
+function handleExistingEmail(existing, field) {
+  const what = field === 'phone' ? 'מספר טלפון' : 'כתובת אימייל';
+  if (parseInt(existing.is_active)) {
+    showErr(`${what} זה כבר קיים במערכת (${existing.name}, משתמש פעיל).`);
+    return;
+  }
+  supersedeTarget = existing;
+  document.getElementById('sup-intro').innerHTML =
+    `קיים משתמש <b>לא פעיל</b> עם ${what} זה: <b>${escapeHtml(existing.name)}</b>.`;
+  document.getElementById('supersede-error').style.display = 'none';
+  document.getElementById('sup-confirm-btn').disabled = false;
+  document.getElementById('supersede-modal').style.display = 'flex';
+}
+
+function closeSupersedeModal() {
+  document.getElementById('supersede-modal').style.display = 'none';
+  supersedeTarget = null;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : str;
+  return d.innerHTML;
+}
+
+async function confirmSupersede() {
+  if (!supersedeTarget) return;
+  const btn = document.getElementById('sup-confirm-btn');
+  btn.disabled = true;
+  const body = userFormBody();
+  body.set('existingId', supersedeTarget.id);
+  const res  = await fetch(`${BASE_URL}/users/supersede`, { method:'POST', body });
   const data = await res.json();
   if (data.ok) {
-    if (data.warn) alert(data.warn);
+    closeSupersedeModal();
     closeModal();
-    location.reload();
+    if (data.warn) { showToast(data.warn, 'warning'); setTimeout(() => location.reload(), 1800); }
+    else location.reload();
   } else {
-    showErr(data.error || 'שגיאה');
+    btn.disabled = false;
+    const el = document.getElementById('supersede-error');
+    el.textContent = data.error || 'שגיאה';
+    el.style.display = 'block';
   }
 }
 
@@ -459,8 +580,8 @@ async function saveTempPass() {
   const data = await res.json();
   if (data.ok) {
     closeTempPassModal();
-    alert('הסיסמא הזמנית נקבעה בהצלחה. המשתמש יחויב לשנותה בכניסה הבאה.');
-    location.reload();
+    showToast('הסיסמא הזמנית נקבעה. המשתמש יחויב לשנותה בכניסה הבאה.', 'success');
+    setTimeout(() => location.reload(), 1800);
   } else {
     const el = document.getElementById('temp-pass-error');
     el.textContent = data.error || 'שגיאה בקביעת הסיסמא';

@@ -1213,7 +1213,7 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hm-head h2{margin:0;font-size:22px;font-weight:800;color:var(--text);
   line-height:1.25}
 .hm-sub{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:5px}
-.hm-sub-d{font-size:17px;font-weight:600;color:#aab3c5;direction:rtl}
+.hm-sub-d{font-size:17px;font-weight:600;color:black;direction:rtl}
 .hm-sub-tag{font-size:10px;font-weight:800;border-radius:4px;padding:2px 8px;
   white-space:nowrap}
 .hm-sub-h,.hm-sub-i{background:#4a3a08;color:#ffd97a}
@@ -1507,7 +1507,7 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 /* ══ כפתורי הסרגל: מסגרת בלבד, פרט לפעולה הראשית ══ */
 .hl-dl-b,.hl-close-b{display:inline-flex;align-items:center;gap:6px;
   padding:7px 14px;border:1px solid var(--border2,#39405a);border-radius:8px;
-  background:transparent;color:#aab3c5;font-size:12px;font-weight:600;
+  background:transparent;color:black;font-size:12px;font-weight:600;
   cursor:pointer;font-family:var(--font);white-space:nowrap;
   transition:background .13s,color .13s,border-color .13s}
 .hl-dl-b:hover,.hl-close-b:hover{background:rgba(255,255,255,.06);

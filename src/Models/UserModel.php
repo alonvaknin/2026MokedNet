@@ -103,8 +103,11 @@ class UserModel
     public static function all(): array
     {
         return DB::query(
-            'SELECT u.id, u.first_name, u.last_name, u.email,
-                    u.phone, u.department_id, u.is_active, u.hours_reports, u.last_login,
+            'SELECT u.id, u.first_name, u.last_name,
+                    COALESCE(u.email, u.email_archived) AS email,
+                    u.is_archived,
+                    COALESCE(u.phone, u.phone_archived) AS phone,
+                    u.department_id, u.is_active, u.hours_reports, u.last_login,
                     u.created_at, u.must_change_password,
                     u.permission_group_id,
                     d.name_heb  AS dept_name,
@@ -128,6 +131,30 @@ class UserModel
         );
     }
 
+    /** Lookup by email across ALL users (active, inactive and archived) —
+     *  used to detect duplicates before INSERT, since users.email is UNIQUE. */
+    public static function byEmail(string $email): ?array
+    {
+        return DB::row(
+            'SELECT id, first_name, last_name, email, is_active, is_archived
+             FROM users WHERE email = ? LIMIT 1',
+            [trim($email)]
+        );
+    }
+
+    /** Lookup by phone across ALL users — users.phone is UNIQUE (uq_phone)
+     *  too, so a returning employee's number collides just like their email. */
+    public static function byPhone(string $phone): ?array
+    {
+        $phone = trim($phone);
+        if ($phone === '') return null;
+        return DB::row(
+            'SELECT id, first_name, last_name, email, is_active, is_archived
+             FROM users WHERE phone = ? LIMIT 1',
+            [$phone]
+        );
+    }
+
     public static function search(string $q): array
     {
         $like = '%' . trim($q) . '%';
@@ -138,7 +165,7 @@ class UserModel
              FROM users u
              LEFT JOIN departments       d  ON d.id  = u.department_id
              LEFT JOIN permission_groups pg ON pg.id = u.permission_group_id
-             WHERE u.is_active=1
+             WHERE u.is_active=1 AND u.is_archived=0
                AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?
                     OR CONCAT(u.first_name,' ',u.last_name) LIKE ?)
              ORDER BY u.first_name ASC, u.last_name ASC
@@ -155,7 +182,50 @@ class UserModel
         );
     }
 
-    public static function save(array $d): void
+    /**
+     * Permanently retire a user so a returning employee can be created fresh.
+     *
+     * The old row keeps its id (and therefore its logs, tasks and hours), but
+     * is deactivated, flagged is_archived and has its email moved aside into
+     * email_archived — users.email is UNIQUE, so the address has to be freed
+     * before the replacement row can take it. An archived user can never be
+     * reactivated from the UI.
+     */
+    public static function archive(int $id, ?int $supersededBy = null): void
+    {
+        DB::execute(
+            'UPDATE users
+                SET is_active      = 0,
+                    is_archived    = 1,
+                    email_archived = COALESCE(email_archived, email),
+                    email          = NULL,
+                    phone_archived = COALESCE(phone_archived, phone),
+                    phone          = NULL,
+                    auth_token     = ?,
+                    superseded_by  = ?
+              WHERE id = ?',
+            ['', $supersededBy, $id]
+        );
+    }
+
+    /** Undo archive() when the replacement row could not be created. */
+    public static function restore(int $id): void
+    {
+        DB::execute(
+            'UPDATE users
+                SET is_archived    = 0,
+                    email          = COALESCE(email, email_archived),
+                    email_archived = NULL,
+                    phone          = COALESCE(phone, phone_archived),
+                    phone_archived = NULL,
+                    superseded_by  = NULL
+              WHERE id = ?',
+            [$id]
+        );
+    }
+
+    /** Returns the user id (existing on update, new on insert). */
+    public static function save(array $d): int
     {
         if ($d['id']) {
             DB::execute(
@@ -167,7 +237,7 @@ class UserModel
                  WHERE id=?',
                 [
                     $d['first_name'], $d['last_name'], $d['email'],
-                    $d['phone'], $d['department_id'] ?: null,
+                    $d['phone'] ?: null, $d['department_id'] ?: null,
                     $d['is_active'] ? 1 : 0,
                     $d['permission_group_id'] ?: null,
                     $d['note'],
@@ -177,9 +247,10 @@ class UserModel
                     $d['id'],
                 ]
             );
+            return (int)$d['id'];
         } else {
             $hash = password_hash($d['password'] ?? bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
-            DB::execute(
+            return DB::insert(
                 'INSERT INTO users
                     (first_name, last_name, email, phone, department_id,
                      is_active, permission_group_id, note, hours_reports,
@@ -187,7 +258,7 @@ class UserModel
                  VALUES (?,?,?,?,?,?,?,?,?,?,NOW())',
                 [
                     $d['first_name'], $d['last_name'], $d['email'],
-                    $d['phone'], $d['department_id'] ?: null,
+                    $d['phone'] ?: null, $d['department_id'] ?: null,
                     $d['is_active'] ? 1 : 0,
                     $d['permission_group_id'] ?: null,
                     $d['note'],
@@ -208,7 +279,13 @@ class UserModel
 
     public static function toggleActive(int $id): int
     {
-        DB::execute('UPDATE users SET is_active = 1 - is_active WHERE id = ?', [$id]);
+        // Archived users are retired for good — they can be switched off but
+        // never back on.
+        DB::execute(
+            'UPDATE users SET is_active = 1 - is_active
+              WHERE id = ? AND (is_archived = 0 OR is_active = 1)',
+            [$id]
+        );
         return (int)DB::value('SELECT is_active FROM users WHERE id = ?', [$id]);
     }
 

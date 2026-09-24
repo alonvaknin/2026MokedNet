@@ -53,6 +53,7 @@ $router->post('/support/issues',       'Controllers\SupportController@addIssue')
 $router->get ('/users',                  'Controllers\\UserController@index');
 $router->post('/users/save',             'Controllers\\UserController@save');
 $router->post('/users/toggle',           'Controllers\\UserController@toggle');
+$router->post('/users/supersede',           'Controllers\\UserController@supersede');
 $router->post('/users/send-reset-email',  'Controllers\\UserController@sendResetEmail');
 $router->post('/users/set-temp-password', 'Controllers\\UserController@setTempPassword');
 $router->get ('/users/perm-groups',      'Controllers\\UserController@permGroups');
