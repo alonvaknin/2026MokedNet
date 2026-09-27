@@ -15,6 +15,11 @@ deactivateMaxRunJobs($pdo, $runLog);
 processActiveJobs($pdo, $runLog);
 notifyOverdueTasks($pdo, $runLog);
 
+// רץ פעם ביום בלבד — בשעה 11:00, כדי לא להציף מייל בכל ריצת שעה
+if ((int) date('H') === 11) {
+    notifyStaleStoreAlerts($pdo, $runLog);
+}
+
 cronLog($pdo, 'run', 'ok', !empty($runLog) ? implode(' | ', $runLog) : 'אין פעולות');
 
 // ── סגירת משימות שעבר תאריך תפוגתן ─────────────────────────────────────────
@@ -404,4 +409,84 @@ function notifyOverdueTasks(PDO $pdo, array &$runLog): void
     }
 
     $runLog[] = "SLA: " . count($tasks);
+}
+
+// ── התראות חנויות שנשארו פתוחות מעל שבועיים ─────────────────────────────────
+
+function notifyStaleStoreAlerts(PDO $pdo, array &$runLog): void
+{
+    $stmt = $pdo->query("
+        SELECT id, store_num, name, alert_note, alert_updated_at
+        FROM stores
+        WHERE is_active = 1
+          AND alert_note IS NOT NULL AND alert_note != ''
+          AND alert_updated_at IS NOT NULL
+          AND alert_updated_at < DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY alert_updated_at ASC
+    ");
+    $stores = $stmt->fetchAll();
+
+    if (empty($stores)) return;
+
+    $ids = array_column($stores, 'id');
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $rows = $pdo->prepare(
+        "SELECT a1.entity_id, a1.user_name
+         FROM activity_log a1
+         INNER JOIN (
+             SELECT entity_id, MAX(id) AS max_id
+             FROM activity_log
+             WHERE entity_type='store' AND action='store.update'
+               AND diff_json LIKE '%\"alert_note\"%'
+               AND entity_id IN ($placeholders)
+             GROUP BY entity_id
+         ) latest ON latest.entity_id = a1.entity_id AND latest.max_id = a1.id"
+    );
+    $rows->execute($ids);
+    $byId = array_column($rows->fetchAll(), 'user_name', 'entity_id');
+
+    $appUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : 'https://alon.alexisdeveloping.com';
+
+    $rowsHtml = '';
+    foreach ($stores as $s) {
+        $days      = (int) floor((time() - strtotime($s['alert_updated_at'])) / 86400);
+        $storeName = $s['name'] . ($s['store_num'] ? ' #' . $s['store_num'] : '');
+        $storeLink = $appUrl . '/stores/id/' . (int) $s['id'];
+        $author    = $byId[$s['id']] ?? 'לא ידוע';
+        $note      = mb_substr((string) $s['alert_note'], 0, 120) . (mb_strlen((string) $s['alert_note']) > 120 ? '…' : '');
+
+        $rowsHtml .= '<tr>'
+            . '<td style="padding:10px 0;border-bottom:1px solid #eceef2;font-size:14px;font-weight:600;">'
+            . '<a href="' . htmlspecialchars($storeLink) . '" style="color:#4f7fff;text-decoration:none;">' . htmlspecialchars($storeName) . '</a></td>'
+            . '<td style="padding:10px 12px;border-bottom:1px solid #eceef2;font-size:13px;color:#5a5e78;">' . htmlspecialchars($note) . '</td>'
+            . '<td style="padding:10px 0;border-bottom:1px solid #eceef2;font-size:13px;color:#8a8fa3;white-space:nowrap;">' . htmlspecialchars($author) . '</td>'
+            . '<td style="padding:10px 0 10px 12px;border-bottom:1px solid #eceef2;font-size:13px;color:#e74c3c;font-weight:600;white-space:nowrap;">' . $days . ' ימים</td>'
+            . '<td style="padding:10px 0 10px 12px;border-bottom:1px solid #eceef2;font-size:13px;white-space:nowrap;">'
+            . '<a href="' . htmlspecialchars($storeLink) . '" style="color:#4f7fff;text-decoration:none;font-weight:600;">עריכה ←</a></td>'
+            . '</tr>';
+    }
+
+    $subject = '[התראה אוטומטית] ' . count($stores) . ' התראות חנויות פתוחות מעל שבועיים';
+
+    $mbody  = '<p style="font-size:16px;font-weight:700;color:#20232e;margin:0 0 8px;">התראות חנויות שממתינות לטיפול</p>';
+    $mbody .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 20px;">ל-' . count($stores) . ' חנויות יש התראה פעילה (שדה "התראה" בכרטיס החנות) שלא עודכנה כבר מעל שבועיים. ייתכן שהנושא כבר טופל ופשוט נשכח לסגור את ההתראה — מומלץ לבדוק ולשקול לסגור את מי שכבר לא רלוונטי.</p>';
+    $mbody .= '<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 24px;">';
+    $mbody .= '<tr>'
+        . '<td style="padding:0 0 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">חנות</td>'
+        . '<td style="padding:0 12px 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">התראה</td>'
+        . '<td style="padding:0 0 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">ע"י</td>'
+        . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">ותק</td>'
+        . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;"></td>'
+        . '</tr>';
+    $mbody .= $rowsHtml;
+    $mbody .= '</table>';
+    $mbody .= '<table cellpadding="0" cellspacing="0" style="margin:0 0 8px;">';
+    $mbody .= '<tr><td style="background:#4f7fff;border-radius:8px;padding:0;">';
+    $mbody .= '<a href="' . htmlspecialchars($appUrl) . '/dashboard" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">לדשבורד — צפייה בהתראות ←</a>';
+    $mbody .= '</td></tr></table>';
+
+    $to = 'eyal@bug.co.il,gild@bug.co.il';
+    mail($to, $subject, mailWrap($subject, $mbody), buildHeaders());
+
+    $runLog[] = "התראות ישנות: " . count($stores);
 }
