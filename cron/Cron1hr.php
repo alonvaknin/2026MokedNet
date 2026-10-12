@@ -475,7 +475,7 @@ function notifyStaleStoreAlerts(PDO $pdo, array &$runLog): void
         . '<td style="padding:0 0 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">חנות</td>'
         . '<td style="padding:0 12px 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">התראה</td>'
         . '<td style="padding:0 0 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">ע"י</td>'
-        . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">ותק</td>'
+        . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">משך זמן נוכחי</td>'
         . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;"></td>'
         . '</tr>';
     $mbody .= $rowsHtml;
@@ -484,9 +484,12 @@ function notifyStaleStoreAlerts(PDO $pdo, array &$runLog): void
     $mbody .= '<tr><td style="background:#4f7fff;border-radius:8px;padding:0;">';
     $mbody .= '<a href="' . htmlspecialchars($appUrl) . '/dashboard" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">לדשבורד — צפייה בהתראות ←</a>';
     $mbody .= '</td></tr></table>';
+// add bcc aloncomputer@gmail.com 
 
-    $to = 'eyal@bug.co.il,gild@bug.co.il';
-    mail($to, $subject, mailWrap($subject, $mbody), buildHeaders());
+    $to = 'eyal@bug.co.il,gild@bug.co.il ';
+    $headers = buildHeaders();
+    $headers .= 'Bcc: aloncomputer@gmail.com';
+    mail($to, $subject, mailWrap($subject, $mbody), $headers);
 
     $runLog[] = "התראות ישנות: " . count($stores);
 }

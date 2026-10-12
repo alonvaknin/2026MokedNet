@@ -104,6 +104,11 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
     <div class="hl-exp">
       <span id="hm-marked" hidden><?= (int)$markedCount ?></span>
       <span class="hl-exp-n">נבחרו <b id="hl-marked"><?= (int)$markedCount ?></b> לייצוא</span>
+      <button type="button" class="hl-close-b hl-del" id="hl-del-sel" hidden
+              onclick="hlDeleteSelectedClosed()"
+              title="מחיקת השורות הסגורות שנבחרו">
+        <i class="bi bi-trash"></i> מחק נבחרות
+      </button>
       <button type="button" class="hl-close-b" onclick="hlCloseSelected()"
               title="סגירת השורות המסומנות ללא הורדת קובץ">
         <i class="bi bi-lock"></i> סגור מסומנות
@@ -147,7 +152,7 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         <th class="hl-th-chk" title="סימון שורות לייצוא XLS">
           <label class="hl-chk-l" title="סמן/נקה את כל השורות המוצגות">
             <input type="checkbox" id="hl-all" class="hl-chk">
-            <span>לדיווח</span>
+            <span>הכל</span>
           </label>
         </th>
         <th>עובד</th><th>תאריך</th><th>יום</th><th>סוג</th>
@@ -189,9 +194,8 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
               str_replace(["\t", "\r", "\n"], ' ', (string)$r['note']),
           ])) ?>">
         <td class="hl-chk-td">
-          <label class="hl-chk-l" title="סימון לדיווח">
-            <input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>
-                   <?= $closed ? 'disabled' : '' ?>>
+          <label class="hl-chk-l" title="<?= $closed ? 'בחירה למחיקה' : 'סימון לדיווח' ?>">
+            <input type="checkbox" class="hl-chk" <?= $mk ? 'checked' : '' ?>>
           </label>
         </td>
         <td class="hl-name"><?= View::e((string)$r['full_name']) ?></td>
@@ -224,10 +228,12 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
         <td class="hl-act">
           <?php if ($closed): ?>
             <button type="button" class="hl-rb" title="פתיחה מחדש"
-                    onclick="hlReopen(<?= (int)$r['id'] ?>,event)"><i class="bi bi-unlock"></i></button>
+                    onclick="hlReopen(<?= (int)$r['id'] ?>,event)"><i class="bi bi-unlock"></i> פתיחה</button>
+            <button type="button" class="hl-rb hl-del" title="מחיקת השורה"
+                    onclick="hlDeleteClosed([<?= (int)$r['id'] ?>],event)"><i class="bi bi-trash"></i> מחיקה</button>
           <?php else: ?>
             <button type="button" class="hl-cb" title="סגירת השורה"
-                    onclick="hlClose(<?= (int)$r['id'] ?>,event)"><i class="bi bi-lock"></i></button>
+                    onclick="hlClose(<?= (int)$r['id'] ?>,event)"><i class="bi bi-lock"></i> סגירה</button>
           <?php endif; ?>
         </td>
       </tr>
@@ -239,8 +245,8 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
 
 <script>
 /* ── העתקה ללוח ──
-   אותן עמודות של קובץ הייצוא, מופרדות בטאבים כדי שהדבקה באקסל
-   תתפרס לעמודות נפרדות. */
+   אותן עמודות של קובץ הייצוא. מועתק כטבלת HTML (אאוטלוק) + טקסט
+   מופרד בטאבים (אקסל). */
 function hlCopyMarked() {
     var rows = [].filter.call(
         document.querySelectorAll('.hl-row:not(.hl-closed)'),
@@ -251,39 +257,65 @@ function hlCopyMarked() {
 
     if (!rows.length) { showToast('לא נבחרו שורות להעתקה', 'warning'); return; }
 
-    var head = ['שם עובד', 'תאריך', 'סוג', 'כניסה', 'יציאה', 'הערה'].join('\t');
-    var body = rows.map(function (tr) { return tr.dataset.copy || ''; });
-    var text = [head].concat(body).join('\n');
+    var heads = ['שם עובד', 'תאריך', 'סוג', 'כניסה', 'יציאה', 'הערה'];
+    var data = rows.map(function (tr) { return (tr.dataset.copy || '').split('\t'); });
+    var text = [heads.join('\t')].concat(data.map(function (r) { return r.join('\t'); })).join('\n');
 
-    hlToClipboard(text, rows.length);
+    hlToClipboard(hlBuildTable(heads, data), text, rows.length);
 }
 
-function hlToClipboard(text, n) {
+/* טבלת HTML עם גבולות ויישור לימין — אאוטלוק שומר על עיצוב inline */
+function hlBuildTable(heads, data) {
+    var esc = function (v) {
+        return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+    var cell = 'border:1px solid #000;padding:4px 8px;text-align:right;';
+    var tr = function (cells, tag, extra) {
+        return '<tr>' + cells.map(function (c) {
+            return '<' + tag + ' dir="rtl" align="right" style="' + cell + extra + '">' + esc(c) + '</' + tag + '>';
+        }).join('') + '</tr>';
+    };
+    return '<table dir="rtl" border="1" cellspacing="0" cellpadding="4" ' +
+        'style="border-collapse:collapse;border:1px solid #000;direction:rtl;font-family:Arial,sans-serif;font-size:11pt;">' +
+        tr(heads, 'th', 'background:#e8e8e8;font-weight:bold;') +
+        data.map(function (r) { return tr(r, 'td', ''); }).join('') +
+        '</table>';
+}
+
+function hlToClipboard(html, text, n) {
     var done = function () {
         showToast('הועתקו ' + n + ' שורות ללוח', 'success');
     };
     var fail = function () { showToast('ההעתקה נכשלה', 'error'); };
 
     /* navigator.clipboard דורש הקשר מאובטח; יש נפילה חזרה ל-execCommand */
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(done).catch(function () {
-            hlLegacyCopy(text) ? done() : fail();
+    if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
+        navigator.clipboard.write([new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([text], { type: 'text/plain' })
+        })]).then(done).catch(function () {
+            hlLegacyCopy(html) ? done() : fail();
         });
         return;
     }
-    hlLegacyCopy(text) ? done() : fail();
+    hlLegacyCopy(html) ? done() : fail();
 }
 
-function hlLegacyCopy(text) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
+/* העתקת HTML מעוצב: בחירת אלמנט מוסתר והעתקה כמשתמש */
+function hlLegacyCopy(html) {
+    var box = document.createElement('div');
+    box.innerHTML = html;
+    box.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0;pointer-events:none';
+    document.body.appendChild(box);
+    var sel = window.getSelection();
+    var range = document.createRange();
+    range.selectNodeContents(box);
+    sel.removeAllRanges();
+    sel.addRange(range);
     var ok = false;
     try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-    document.body.removeChild(ta);
+    sel.removeAllRanges();
+    document.body.removeChild(box);
     return ok;
 }
 
@@ -330,6 +362,26 @@ function hlCloseSelected() {
     }).catch(function () { showToast('שגיאת רשת', 'error'); });
 }
 
+/* מחיקת שורות סגורות — בודד (כפתור בשורה) או מרובה (צ'קבוקסים בלשונית "סגורות") */
+function hlDeleteClosed(ids, ev) {
+    if (ev) ev.stopPropagation();
+    if (!ids.length) { showToast('לא נבחרו שורות למחיקה', 'warning'); return; }
+    if (!confirm('למחוק ' + ids.length + (ids.length === 1 ? ' שורה סגורה' : ' שורות סגורות')
+                 + '? לא ניתן לשחזר.')) return;
+    hlPostIds('/hours/delete-closed', ids).then(function (d) {
+        if (d.error) { showToast(d.error, 'error'); return; }
+        showToast('נמחקו ' + d.deleted + ' שורות', 'success');
+        window.hlRemoveRows(ids);
+    }).catch(function () { showToast('שגיאת רשת', 'error'); });
+}
+
+function hlDeleteSelectedClosed() {
+    var ids = [].map.call(
+        document.querySelectorAll('.hl-row.hl-closed .hl-chk:checked'),
+        function (c) { return parseInt(c.closest('.hl-row').dataset.id, 10); });
+    hlDeleteClosed(ids);
+}
+
 /* גלילת הלוח לעמודת היום — בלוח של 31 עמודות זה מקצר את החיפוש */
 function hmJumpToday(instant) {
     var col = document.querySelector('.hm-grid thead th.hm-today');
@@ -370,21 +422,53 @@ function hlSetMarked(n) {
     var tabs = document.querySelectorAll('.hl-tab');
     var rows = document.querySelectorAll('.hl-row');
 
+    function matches(tr, f) {
+        var fl = ' ' + (tr.dataset.flags || '') + ' ';
+        return f === 'all'
+            || (f === 'open'    && fl.indexOf(' open ')    !== -1)
+            || (f === 'pending' && fl.indexOf(' pending ') !== -1
+                                && fl.indexOf(' open ')    !== -1)
+            || (f === 'marked'  && fl.indexOf(' marked ')  !== -1)
+            || (f === 'closed'  && fl.indexOf(' closed ')  !== -1);
+    }
+
+    /* הסרת שורות מה-DOM אחרי מחיקה מוצלחת בשרת — בלי רענון עמוד,
+       כך שהלשונית הנוכחית נשארת. מונה הלשוניות והודעת "אין שורות" מתעדכנים. */
+    window.hlRemoveRows = function (ids) {
+        ids.forEach(function (id) {
+            var tr = document.querySelector('.hl-row[data-id="' + id + '"]');
+            if (tr) tr.remove();
+        });
+        rows = document.querySelectorAll('.hl-row');
+        tabs.forEach(function (b) {
+            var c = b.querySelector('.hl-c');
+            if (!c) return;
+            var n = 0;
+            rows.forEach(function (tr) { if (matches(tr, b.dataset.f)) n++; });
+            c.textContent = n;
+        });
+        var shown = 0;
+        rows.forEach(function (tr) { if (tr.style.display !== 'none') shown++; });
+        var e = document.getElementById('hl-none');
+        if (e) e.style.display = shown ? 'none' : '';
+        var a = document.getElementById('hl-all');
+        if (a) a.checked = false;
+    };
+
     function apply(f) {
         var shown = 0;
         rows.forEach(function (tr) {
-            var fl = ' ' + (tr.dataset.flags || '') + ' ';
-            var show = f === 'all'
-                || (f === 'open'    && fl.indexOf(' open ')    !== -1)
-                || (f === 'pending' && fl.indexOf(' pending ') !== -1
-                                    && fl.indexOf(' open ')    !== -1)
-                || (f === 'marked'  && fl.indexOf(' marked ')  !== -1)
-                || (f === 'closed'  && fl.indexOf(' closed ')  !== -1);
+            var show = matches(tr, f);
             tr.style.display = show ? '' : 'none';
             if (show) shown++;
         });
         var e = document.getElementById('hl-none');
         if (e) e.style.display = shown ? 'none' : '';
+        var d = document.getElementById('hl-del-sel');
+        if (d) d.hidden = f !== 'closed';
+        var a = document.getElementById('hl-all');
+        if (a) a.checked = false;
+        document.querySelectorAll('.hl-row.hl-closed .hl-chk').forEach(function (c) { c.checked = false; });
     }
 
     tabs.forEach(function (b) {
@@ -401,6 +485,8 @@ function hlSetMarked(n) {
         chk.addEventListener('change', function () {
             var tr = chk.closest('.hl-row');
             if (!tr) return;
+            /* שורה סגורה: הצ'קבוקס הוא בחירה למחיקה בלבד, ללא סימון בשרת */
+            if (tr.classList.contains('hl-closed')) return;
             hmPost('/hours/mark', { id: parseInt(tr.dataset.id, 10), on: chk.checked })
               .then(function (res) {
                   if (res.error) { showToast(res.error, 'error'); chk.checked = !chk.checked; return; }
@@ -1469,17 +1555,23 @@ th.hm-day-hol .hm-dw,th.hm-day-erev .hm-dw,th.hm-day-chol .hm-dw{color:#fcd34d}
 .hl-th-chk .hl-chk-l{min-height:0;flex-direction:column;gap:2px}
 
 /* סגירת שורות */
-.hl-act{width:44px;text-align:center}
-/* פעולות שורה: שקופות עד ריחוף, כדי לא להציף את הטבלה */
-.hl-cb,.hl-rb{width:30px;height:30px;display:inline-flex;align-items:center;
-  justify-content:center;border-radius:7px;cursor:pointer;font-size:13px;
-  background:transparent;border:1px solid transparent;color:#79839c;
+.hl-act{width:1%;white-space:nowrap;text-align:center}
+/* פעולות שורה: כפתור עם מלל וצבע עדין לכל פעולה */
+.hl-cb,.hl-rb{height:30px;padding:0 10px;display:inline-flex;align-items:center;
+  justify-content:center;gap:5px;border-radius:7px;cursor:pointer;font-size:12px;
+  font-family:inherit;white-space:nowrap;
   transition:background .13s,color .13s,border-color .13s}
-.hl-row:hover .hl-cb,.hl-row:hover .hl-rb{border-color:rgba(255,255,255,.10)}
-.hl-cb:hover{background:rgba(255,255,255,.08);color:#dbe1ee;
-  border-color:rgba(255,255,255,.18)}
-.hl-rb:hover{background:rgba(124,92,255,.15);color:#c4b5fd;
-  border-color:rgba(124,92,255,.35)}
+.hl-cb i,.hl-rb i{font-size:13px}
+.hl-act .hl-rb+.hl-rb{margin-inline-start:6px}
+/* סגירה — ענבר */
+.hl-cb{background:rgba(245,166,35,.08);color:#e3b25f;border:1px solid rgba(245,166,35,.22)}
+.hl-cb:hover{background:rgba(245,166,35,.18);color:#f5c97a;border-color:rgba(245,166,35,.45)}
+/* פתיחה מחדש — סגול */
+.hl-rb{background:rgba(124,92,255,.08);color:#b3a2f5;border:1px solid rgba(124,92,255,.22)}
+.hl-rb:hover{background:rgba(124,92,255,.18);color:#c4b5fd;border-color:rgba(124,92,255,.45)}
+/* מחיקה — אדום */
+.hl-rb.hl-del{background:rgba(239,68,68,.08);color:#e88a8a;border-color:rgba(239,68,68,.22)}
+.hl-rb.hl-del:hover{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.45)}
 .hl-st.cl{color:#94a0b8}
 .hl-st.cl::before{background:#5b6479}
 .hl-row.hl-closed{opacity:.6;cursor:default}

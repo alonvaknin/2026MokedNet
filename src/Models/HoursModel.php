@@ -31,7 +31,8 @@ class HoursModel
     public static function pendingCount(int $userId): int
     {
         return (int)DB::value(
-            "SELECT COUNT(*) FROM hours_entries WHERE user_id = ? AND status = 'requested'",
+            "SELECT COUNT(*) FROM hours_entries
+              WHERE user_id = ? AND status = 'requested' AND exported_at IS NULL",
             [$userId]
         );
     }
@@ -39,7 +40,7 @@ class HoursModel
     public static function pendingForUser(int $userId): array
     {
         return DB::query(
-            self::SELECT . " WHERE user_id = ? AND status = 'requested'
+            self::SELECT . " WHERE user_id = ? AND status = 'requested' AND exported_at IS NULL
                              ORDER BY work_date ASC, id ASC",
             [$userId]
         );
@@ -162,7 +163,7 @@ class HoursModel
              FROM hours_entries h
              LEFT JOIN users u ON u.id = h.user_id
              WHERE DATE_FORMAT(h.work_date, '%Y-%m') = ?
-             ORDER BY (h.status = 'requested') DESC, h.work_date ASC, u.first_name ASC, h.id ASC",
+             ORDER BY h.work_date ASC, u.first_name ASC, h.id ASC",
             [$month]
         );
     }
@@ -254,6 +255,18 @@ class HoursModel
             "UPDATE hours_entries
                 SET exported_at = NOW(), marked_for_export = 0
               WHERE id IN ($ph) AND exported_at IS NULL",
+            array_map('intval', array_values($ids))
+        );
+    }
+
+    /** מחיקת שורות סגורות בלבד — שורה פתוחה לא נמחקת גם אם נשלח המזהה שלה */
+    public static function deleteClosedRows(array $ids): int
+    {
+        if (!$ids) return 0;
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        return DB::execute(
+            "DELETE FROM hours_entries
+              WHERE id IN ($ph) AND exported_at IS NOT NULL",
             array_map('intval', array_values($ids))
         );
     }

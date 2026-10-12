@@ -6,29 +6,40 @@ $csrf    = $_SESSION['csrf_token'] ?? '';
 $canEdit = Auth::can('canManageDuty');
 ?>
 
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-  <div class="page-title" style="margin-bottom:0;"><i class="bi bi-person-lines-fill" style="margin-left:8px;"></i>ניהול תורנות שבועית</div>
-</div>
+<div class="page-title duty-page-title"><i class="bi bi-person-lines-fill"></i>ניהול תורנות שבועית</div>
 
 <!-- Tabs -->
-<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;">
-  <button class="duty-tab active" data-tab="schedule" onclick="dutySetTab('schedule')"><i class="bi bi-calendar-week"></i> תורנות ניקיון</button>
-  <button class="duty-tab" data-tab="reps" onclick="dutySetTab('reps')"><i class="bi bi-people-fill"></i> נציגים</button>
-  <button class="duty-tab" data-tab="guidance" onclick="dutySetTab('guidance')"><i class="bi bi-journal-text"></i> הנחיות יומיות לניקיון</button>
-  <button class="duty-tab" data-tab="roles" onclick="dutySetTab('roles')"><i class="bi bi-grid-3x3-gap-fill"></i> תורנות גלאס ושיחות</button>
+<div class="duty-tabbar">
+  <button class="duty-tab active" data-tab="schedule" onclick="dutySetTab('schedule')"><i class="bi bi-calendar-week"></i><span>תורנות וניקיון</span></button>
+  <button class="duty-tab" data-tab="reps" onclick="dutySetTab('reps')"><i class="bi bi-people-fill"></i><span>נציגים</span></button>
+  <button class="duty-tab" data-tab="roles" onclick="dutySetTab('roles')"><i class="bi bi-grid-3x3-gap-fill"></i><span>תורנות גלאס ושיחות</span></button>
 </div>
 
-<!-- ── Tab: תורנויות ── -->
+<!-- ── Tab: תורנות וניקיון (שיבוץ שבועי + הנחיות יומיות) ── -->
 <div id="duty-tab-schedule" class="duty-tab-panel">
-  <?php if ($canEdit): ?>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-    <button class="btn btn-primary btn-sm" onclick="dutyAutoAssign()"><i class="bi bi-magic"></i> שבוע הבא</button>
-    <button class="btn btn-ghost btn-sm" onclick="dutyOpenMultiAutoModal()"><i class="bi bi-magic"></i> שיבוץ אוטומטי מרובה</button>
-    <button class="btn btn-ghost btn-sm" onclick="dutyOpenManualModal()"><i class="bi bi-pencil-fill"></i> שיבוץ ידני</button>
+  <div class="duty-section">
+    <div class="duty-section-head">
+      <span class="duty-section-title"><i class="bi bi-calendar-week"></i> שיבוץ שבועי</span>
+      <?php if ($canEdit): ?>
+      <div class="duty-section-actions">
+        <button class="btn btn-primary btn-sm" onclick="dutyAutoAssign()"><i class="bi bi-magic"></i> שבוע הבא</button>
+        <button class="btn btn-ghost btn-sm" onclick="dutyOpenMultiAutoModal()"><i class="bi bi-magic"></i> שיבוץ אוטומטי מרובה</button>
+        <button class="btn btn-ghost btn-sm" onclick="dutyOpenManualModal()"><i class="bi bi-pencil-fill"></i> שיבוץ ידני</button>
+      </div>
+      <?php endif; ?>
+    </div>
+    <div id="duty-schedule-content">
+      <div style="text-align:center;padding:40px;color:var(--text3);"><i class="bi bi-hourglass-split" style="font-size:24px;display:block;margin-bottom:8px;"></i>טוען...</div>
+    </div>
   </div>
-  <?php endif; ?>
-  <div id="duty-schedule-content">
-    <div style="text-align:center;padding:40px;color:var(--text3);"><i class="bi bi-hourglass-split" style="font-size:24px;display:block;margin-bottom:8px;"></i>טוען...</div>
+
+  <div class="duty-section">
+    <div class="duty-section-head">
+      <span class="duty-section-title"><i class="bi bi-journal-text"></i> הנחיות יומיות לניקיון</span>
+    </div>
+    <div id="duty-guidance-content">
+      <div style="text-align:center;padding:40px;color:var(--text3);"><i class="bi bi-hourglass-split" style="font-size:24px;display:block;margin-bottom:8px;"></i>טוען...</div>
+    </div>
   </div>
 </div>
 
@@ -90,13 +101,6 @@ $canEdit = Auth::can('canManageDuty');
 </div>
 <?php endif; ?>
 
-<!-- ── Tab: הנחיות יומיות ── -->
-<div id="duty-tab-guidance" class="duty-tab-panel" style="display:none;">
-  <div id="duty-guidance-content">
-    <div style="text-align:center;padding:40px;color:var(--text3);"><i class="bi bi-hourglass-split" style="font-size:24px;display:block;margin-bottom:8px;"></i>טוען...</div>
-  </div>
-</div>
-
 <!-- ── Modal: שיבוץ אוטומטי מרובה ── -->
 <div id="duty-multi-auto-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:380px;">
@@ -129,7 +133,14 @@ $canEdit = Auth::can('canManageDuty');
     <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
       <div>
         <label class="duty-label">תאריך תחילת שבוע (יום א׳)</label>
-        <input type="date" id="duty-manual-date" class="duty-input">
+        <div class="hd-wrap" id="duty-manual-hd-wrap">
+          <button type="button" class="hd-inpw" id="duty-manual-hd-open">
+            <i class="bi bi-calendar3"></i>
+            <span id="duty-manual-hd-label">בחר תאריך</span>
+          </button>
+          <input type="hidden" id="duty-manual-date">
+          <div class="hd-panel" id="duty-manual-hd-panel"></div>
+        </div>
       </div>
       <div>
         <label class="duty-label">נציג תורן</label>
@@ -237,9 +248,45 @@ $canEdit = Auth::can('canManageDuty');
 </div>
 
 <style>
-.duty-tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 18px;font-size:14px;font-weight:600;font-family:var(--font);color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:color .13s,border-color .13s;}
-.duty-tab:hover{color:var(--text);}
-.duty-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.duty-page-title{margin-bottom:20px;}
+
+/* ── לשוניות ── */
+.duty-tabbar{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-bottom:22px;padding:5px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+}
+.duty-tab{
+  background:none;border:1px solid transparent;border-radius:9px;
+  padding:9px 16px;font-size:13.5px;font-weight:700;font-family:var(--font);
+  color:var(--text2);cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:color .13s,background .13s,border-color .13s;
+}
+.duty-tab i{font-size:14px;opacity:.75;transition:opacity .13s;}
+.duty-tab:hover{color:var(--text);background:rgba(255,255,255,.04);}
+.duty-tab.active{color:var(--accent);background:var(--accent-dim);border-color:rgba(91,141,238,.35);}
+.duty-tab.active i{opacity:1;}
+@media (max-width:640px){
+  .duty-tab span{display:none;}
+  .duty-tab{padding:9px 13px;}
+  .duty-tab i{font-size:16px;}
+}
+
+/* ── כרטיסי מקטע (בלשונית המאוחדת תורנות + הנחיות) ── */
+.duty-section{margin-bottom:22px;}
+.duty-section:last-child{margin-bottom:0;}
+.duty-section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;margin-bottom:12px;
+}
+.duty-section-title{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:14px;font-weight:700;color:var(--text);
+}
+.duty-section-title i{color:var(--accent);font-size:13px;}
+.duty-section-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
 .duty-label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500;}
 .duty-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color .15s;box-sizing:border-box;}
 .duty-input:focus{border-color:var(--accent);}
@@ -434,10 +481,75 @@ $canEdit = Auth::can('canManageDuty');
 .roles-table th.role-today{box-shadow:inset 0 -2px 0 var(--accent);}
 .roles-table .day-num{font-weight:500;opacity:.6;font-size:10px;}
 
-.dept-chip{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;}
-.dept-service{background:rgba(239,68,68,.12);color:#ef4444;}
-.dept-support{background:rgba(91,141,238,.12);color:var(--accent);}
-.dept-internet{background:rgba(34,197,94,.12);color:#22c55e;}
+.dept-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 12px;border-radius:999px;
+  font-size:12px;font-weight:700;
+  border:1px solid transparent;
+}
+.dept-service{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(239,68,68,.4);}
+.dept-support{background:rgba(91,141,238,.18);color:#bcd1ff;border-color:rgba(91,141,238,.45);}
+.dept-internet{background:rgba(34,197,94,.16);color:#86efac;border-color:rgba(34,197,94,.4);}
+
+/* ── לשונית נציגים: טבלה קריאה יותר ── */
+.reps-table{width:100%;border-collapse:collapse;font-size:14px;}
+.reps-table thead tr{color:var(--text3);font-size:11.5px;font-weight:700;border-bottom:1px solid var(--border);}
+.reps-table th{padding:10px 12px;text-align:center;}
+.reps-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+.reps-table tbody tr:last-child{border-bottom:none;}
+.reps-table tbody tr:hover{background:rgba(255,255,255,.03);}
+.reps-table td{padding:13px 12px;text-align:center;}
+.reps-table td.reps-name{font-weight:700;font-size:14.5px;}
+.reps-table td.reps-idx{color:var(--text3);font-size:12px;}
+.reps-table td.reps-count{font-weight:800;font-size:17px;}
+.reps-actions{display:flex;gap:6px;justify-content:center;}
+.reps-actions .btn{padding:5px 10px;font-size:13px;}
+
+.reps-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:12px;font-weight:700;border-radius:999px;
+  padding:3px 11px;border:1px solid transparent;
+}
+.reps-badge-user{background:rgba(91,141,238,.18);color:#bcd1ff;border-color:rgba(91,141,238,.45);}
+.reps-badge-ext{background:var(--bg4);color:var(--text3);border-color:var(--border);}
+
+/* ── בורר תאריך (שיבוץ ידני) — זהה ל-hd בדיווח שעות, ללא חסימת עתיד ── */
+.hd-wrap{position:relative;}
+.hd-inpw{display:flex;align-items:center;gap:6px;background:var(--bg4);
+  border:1px solid var(--border);border-radius:8px;padding:8px 12px;
+  color:var(--text);font-size:14px;font-family:var(--font);cursor:pointer;width:100%;transition:border-color .13s,background .13s;}
+.hd-inpw:hover{background:var(--accent-dim);border-color:rgba(91,141,238,.4);}
+.hd-inpw i{color:var(--text3);font-size:12px;transition:color .13s;}
+.hd-inpw:hover i,.hd-wrap.open .hd-inpw i{color:var(--accent);}
+.hd-wrap.open .hd-inpw{border-color:var(--accent);background:var(--accent-dim);}
+.hd-panel{position:absolute;top:calc(100% + 8px);right:0;z-index:520;display:none;
+  background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;
+  box-shadow:0 14px 40px rgba(0,0,0,.5);}
+.hd-wrap.open .hd-panel{display:block;}
+.hd-tb{display:flex;align-items:center;gap:6px;margin-bottom:11px;}
+.hd-nb{width:34px;height:34px;border:1px solid var(--border);border-radius:9px;
+  background:none;color:var(--text2);cursor:pointer;font-size:16px;transition:background .12s,color .12s;}
+.hd-nb:hover{background:var(--accent-dim);color:var(--accent);}
+.hd-nb:active{transform:scale(.9);}
+.hd-nb:disabled{opacity:.3;cursor:default;pointer-events:none;}
+.hd-tit{font-size:14px;font-weight:700;color:var(--text);flex:1;text-align:center;}
+.hd-dhrow,.hd-grid{display:grid;grid-template-columns:repeat(7,42px);gap:3px;}
+.hd-dh{font-size:11px;font-weight:700;color:var(--text3);text-align:center;padding:4px 0;}
+.hd-dh.f{color:#f59e0b;opacity:.85;}.hd-dh.s{color:#ef4444;opacity:.85;}
+.hd-d{width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+  border:1px solid transparent;border-radius:9px;background:none;color:var(--text);
+  font-size:13px;font-family:var(--font);cursor:pointer;transition:background .12s,color .12s,border-color .12s;}
+.hd-d:hover{background:var(--accent-dim);color:var(--accent);border-color:rgba(91,141,238,.2);}
+.hd-d.emp{visibility:hidden;pointer-events:none;}
+.hd-d.fri{color:#f59e0b;}
+.hd-d.sat{color:#ef4444;opacity:.6;}
+.hd-d.sat:hover{opacity:1;}
+.hd-d.hol{color:#f59e0b;font-weight:600;border-color:rgba(245,158,11,.35);}
+.hd-d.erev{color:#fbbf24;border-style:dashed;border-color:rgba(251,191,36,.4);}
+.hd-d.chol{color:#d97706;}
+.hd-d.today{box-shadow:inset 0 0 0 1px var(--accent);}
+.hd-d.sel{background:var(--accent)!important;color:#fff!important;font-weight:700;}
+.hd-d.duty-sunday:not(.sel){border-color:rgba(91,141,238,.3);}
 </style>
 
 <script>
@@ -478,9 +590,8 @@ function dutySetTab(tab) {
   document.querySelectorAll('.duty-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.duty-tab-panel').forEach(p => p.style.display = 'none');
   document.getElementById('duty-tab-' + tab).style.display = '';
-  if (tab === 'schedule') dutyLoadSchedule();
+  if (tab === 'schedule') { dutyLoadSchedule(); dutyLoadGuidance(); }
   if (tab === 'reps')     dutyLoadReps();
-  if (tab === 'guidance') dutyLoadGuidance();
   if (tab === 'roles')    dutyLoadRoles();
 }
 
@@ -1007,6 +1118,79 @@ async function dutyRunMultiAuto() {
   if (success > 0) v2Toast(`שובצו ${success} שבועות ✓`);
 }
 
+// ── בורר תאריך לשיבוץ ידני (כמו בדיווח שעות, אך ללא חסימת עתיד) ──
+const DUTY_HD_HOL = <?= json_encode(\Core\Holidays::all(), JSON_UNESCAPED_UNICODE) ?>;
+const DUTY_HD_M = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const DUTY_HD_D = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+let _dutyManualHdView = null;   // חודש מוצג כרגע בפיקר (אם שונה מהנבחר)
+
+function dutyManualHdRender() {
+  const sel  = document.getElementById('duty-manual-date').value;
+  const base = new Date((_dutyManualHdView || sel || dutyLocalIso(new Date())) + 'T00:00:00');
+  const y = base.getFullYear(), m = base.getMonth();
+  const todayKey = dutyLocalIso(new Date());
+
+  let h = `<div class="hd-tb">
+    <button type="button" class="hd-nb" id="duty-manual-hd-prev">›</button>
+    <span class="hd-tit">${DUTY_HD_M[m]} ${y}</span>
+    <button type="button" class="hd-nb" id="duty-manual-hd-next">‹</button>
+  </div><div class="hd-dhrow">`;
+  for (let i = 0; i < 7; i++) h += `<div class="hd-dh${i===5?' f':i===6?' s':''}">${DUTY_HD_D[i]}</div>`;
+  h += '</div><div class="hd-grid">';
+
+  const first = new Date(y, m, 1).getDay(), dim = new Date(y, m + 1, 0).getDate();
+  for (let e = 0; e < first; e++) h += '<div class="hd-d emp"></div>';
+
+  for (let day = 1; day <= dim; day++) {
+    const d = new Date(y, m, day), k = dutyLocalIso(d), dw = d.getDay();
+    let cls = 'hd-d';
+    const hol = DUTY_HD_HOL[k];
+    if (dw === 6) cls += ' sat'; else if (dw === 5) cls += ' fri';
+    if (dw === 0) cls += ' duty-sunday';
+    if (hol) cls += (hol.t === 'h' || hol.t === 'i') ? ' hol' : hol.t === 'e' ? ' erev' : hol.t === 'c' ? ' chol' : '';
+    if (k === todayKey) cls += ' today';
+    if (k === sel) cls += ' sel';
+    h += `<button type="button" class="${cls}" data-d="${k}"${hol ? ` title="${dutyEsc(hol.n)}"` : ''}>${day}</button>`;
+  }
+  h += '</div>';
+
+  const panel = document.getElementById('duty-manual-hd-panel');
+  panel.innerHTML = h;
+
+  document.getElementById('duty-manual-hd-prev').onclick = ev => { ev.stopPropagation(); dutyManualHdShift(y, m - 1); };
+  document.getElementById('duty-manual-hd-next').onclick = ev => { ev.stopPropagation(); dutyManualHdShift(y, m + 1); };
+  panel.querySelectorAll('.hd-d[data-d]').forEach(b => {
+    b.onclick = ev => { ev.stopPropagation(); dutyManualHdSet(b.dataset.d); document.getElementById('duty-manual-hd-wrap').classList.remove('open'); };
+  });
+}
+
+function dutyManualHdShift(y, m) {
+  const d = new Date(y, m, 1);
+  _dutyManualHdView = dutyLocalIso(d);
+  dutyManualHdRender();
+}
+
+function dutyManualHdSet(k) {
+  _dutyManualHdView = null;
+  document.getElementById('duty-manual-date').value = k;
+  const [y, m, d] = k.split('-');
+  document.getElementById('duty-manual-hd-label').textContent = `${d}/${m}/${y}`;
+  dutyManualHdRender();
+}
+
+document.getElementById('duty-manual-hd-open').addEventListener('click', e => {
+  e.stopPropagation();
+  const w = document.getElementById('duty-manual-hd-wrap');
+  w.classList.toggle('open');
+  if (w.classList.contains('open')) { _dutyManualHdView = null; dutyManualHdRender(); }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#duty-manual-hd-wrap')) document.getElementById('duty-manual-hd-wrap').classList.remove('open');
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('duty-manual-hd-wrap').classList.remove('open');
+});
+
 // ── Manual modal ──────────────────────────────────────────────────
 async function dutyOpenManualModal() {
   const reps = await dutyGetReps();
@@ -1017,7 +1201,7 @@ async function dutyOpenManualModal() {
   const day = new Date().getDay();
   const daysUntil = day === 0 ? 7 : 7 - day;
   const nextSun = new Date(); nextSun.setDate(nextSun.getDate() + daysUntil);
-  document.getElementById('duty-manual-date').value = nextSun.toISOString().split('T')[0];
+  dutyManualHdSet(dutyLocalIso(nextSun));
   document.getElementById('duty-manual-err').style.display = 'none';
   document.getElementById('duty-manual-modal').style.display = 'flex';
 }
@@ -1111,27 +1295,29 @@ async function dutyLoadReps() {
 
   el.innerHTML = Object.entries(byDept).map(([dept, list]) => {
     const dc = DEPT_INFO[dept] || { cls:'', icon:'' };
-    return `<div class="card" style="margin-bottom:16px;">
-      <div class="card-header"><span class="dept-chip ${dc.cls}"><i class="bi ${dc.icon}"></i> ${dutyEsc(dept)}</span></div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="color:var(--text3);font-size:11px;font-weight:700;border-bottom:1px solid var(--border);">
-          <th style="padding:6px 10px;text-align:center;">#</th><th style="padding:6px 10px;text-align:center;">שם</th>
-          <th style="padding:6px 10px;text-align:center;">סוג</th><th style="padding:6px 10px;text-align:center;">תורנויות</th>
-          ${DUTY_CAN_EDIT ? '<th style="padding:6px 10px;"></th>' : ''}
+    return `<div class="card" style="margin-bottom:16px;padding:0;overflow:hidden;">
+      <div class="card-header" style="padding:14px 16px;"><span class="dept-chip ${dc.cls}"><i class="bi ${dc.icon}"></i> ${dutyEsc(dept)}</span></div>
+      <div style="overflow-x:auto;">
+      <table class="reps-table">
+        <thead><tr>
+          <th style="width:40px;">#</th><th>שם</th>
+          <th style="width:140px;">סוג</th><th style="width:110px;">תורנויות</th>
+          ${DUTY_CAN_EDIT ? '<th style="width:90px;"></th>' : ''}
         </tr></thead>
-        <tbody>${list.map((r,i) => `<tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:8px 10px;text-align:center;color:var(--text3);">${i+1}</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:600;">${dutyEsc(r.name)}</td>
-          <td style="padding:8px 10px;text-align:center;">${r.system_username && r.system_username.trim()
-            ? `<span style="font-size:11px;background:var(--accent-dim);color:var(--accent);border-radius:8px;padding:1px 7px;">${dutyEsc(r.system_username)}</span>`
-            : '<span style="font-size:11px;color:var(--text3);">חיצוני</span>'}</td>
-          <td style="padding:8px 10px;text-align:center;font-weight:700;font-size:15px;">${r.total_duties}</td>
-          ${DUTY_CAN_EDIT ? `<td style="padding:8px 10px;display:flex;gap:4px;justify-content:center;">
-            <button type="button" class="btn btn-ghost" style="padding:3px 8px;font-size:12px;" onclick='dutyOpenRepModal(${JSON.stringify(r)})'><i class="bi bi-pencil-fill"></i></button>
-            <button type="button" class="btn btn-ghost" style="padding:3px 8px;font-size:12px;color:var(--danger);" onclick="dutyDeleteRep(${r.id})"><i class="bi bi-trash3-fill"></i></button>
-          </td>` : ''}
+        <tbody>${list.map((r,i) => `<tr>
+          <td class="reps-idx">${i+1}</td>
+          <td class="reps-name">${dutyEsc(r.name)}</td>
+          <td>${r.system_username && r.system_username.trim()
+            ? `<span class="reps-badge reps-badge-user"><i class="bi bi-person-check-fill"></i>${dutyEsc(r.system_username)}</span>`
+            : '<span class="reps-badge reps-badge-ext"><i class="bi bi-person"></i>חיצוני</span>'}</td>
+          <td class="reps-count">${r.total_duties}</td>
+          ${DUTY_CAN_EDIT ? `<td><div class="reps-actions">
+            <button type="button" class="btn btn-ghost" onclick='dutyOpenRepModal(${JSON.stringify(r)})'><i class="bi bi-pencil-fill"></i></button>
+            <button type="button" class="btn btn-ghost" style="color:var(--danger);" onclick="dutyDeleteRep(${r.id})"><i class="bi bi-trash3-fill"></i></button>
+          </div></td>` : ''}
         </tr>`).join('')}</tbody>
       </table>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1253,4 +1439,5 @@ document.addEventListener('keydown', e => {
 });
 
 dutyLoadSchedule();
+dutyLoadGuidance();
 </script>

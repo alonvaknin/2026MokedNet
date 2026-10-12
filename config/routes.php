@@ -200,6 +200,7 @@ $router->post('/hours/entry/{id}/delete', 'Controllers\\HoursController@deleteEn
 $router->post('/hours/mark',              'Controllers\\HoursController@toggleMark');
 $router->post('/hours/close',             'Controllers\\HoursController@closeRows');
 $router->post('/hours/reopen',            'Controllers\\HoursController@reopenRows');
+$router->post('/hours/delete-closed',     'Controllers\\HoursController@deleteClosedRows');
 $router->get ('/hours/export',            'Controllers\\HoursController@exportXls');
 
 // Hours Reporting — התראת הדאשבורד

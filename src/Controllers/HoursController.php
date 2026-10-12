@@ -426,6 +426,22 @@ class HoursController extends Controller
         $this->json(['ok' => true, 'closed' => $n, 'marked' => HoursModel::markedCount()]);
     }
 
+    /** מחיקת שורות סגורות (בודד או מרובה) */
+    public function deleteClosedRows(): void
+    {
+        $this->requirePermission('canManageHours');
+        $this->verifyCsrf();
+
+        $ids = $this->jsonBody()['ids'] ?? [];
+        $ids = is_array($ids) ? array_values(array_filter(array_map('intval', $ids))) : [];
+        if (!$ids) { $this->json(['error' => 'לא נבחרו שורות'], 400); return; }
+
+        $n = HoursModel::deleteClosedRows($ids);
+        \Core\ActivityLog::log('מחיקת שורות דיווח שעות סגורות', 'hours_entry', null, null,
+                                "נמחקו $n שורות סגורות");
+        $this->json(['ok' => true, 'deleted' => $n]);
+    }
+
     /** פתיחה מחדש של שורה שנסגרה */
     public function reopenRows(): void
     {

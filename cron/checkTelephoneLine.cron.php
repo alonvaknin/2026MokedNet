@@ -42,6 +42,9 @@ foreach ($phones as $phone) {
 
         if ($sMail === '') {
             $unresolved[] = ['line' => $line, 'desc' => $desc, 'store_num' => $sNum];
+            if (!$debug) {
+                continue;
+            }
         }
 
         $recipients = array_filter([$sMail]);
