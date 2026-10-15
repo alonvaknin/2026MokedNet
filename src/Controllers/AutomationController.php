@@ -126,10 +126,13 @@ class AutomationController extends Controller
                     if ($this->fetchWizeStatus($caseNum) === null) {
                         $this->json(['ok'=>false,'msg'=>'קריאה לא קיימת ב-Wizenet'], 404);
                     }
+                    // baseline: תשובת טכנאי שכבר קיימת לא תפעיל את האוטומציה
+                    $existingAnswer = AutomationModel::latestTechAnswer($caseNum);
                     $newId = AutomationModel::create($base + [
-                        'typeOfJob'   => $type,
-                        'valueOfType' => $caseNum,
-                        'UptoDate'    => AutomationModel::expiryDate('month', 1),
+                        'typeOfJob'        => $type,
+                        'valueOfType'      => $caseNum,
+                        'UptoDate'         => AutomationModel::expiryDate('month', 1),
+                        'currentSaveValue' => $existingAnswer === false ? '' : $existingAnswer,
                     ]);
                     break;
 

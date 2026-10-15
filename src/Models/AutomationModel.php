@@ -150,6 +150,49 @@ class AutomationModel
         return (string) $stmt->fetchColumn();
     }
 
+    /**
+     * תשובת הטכנאי האחרונה ("תשובה:") מתוך resolution של קריאה ב-Wizenet.
+     * false כשאין קריאה / אין תשובה / שגיאת API.
+     */
+    public static function latestTechAnswer(string $callId): string|false
+    {
+        $url = 'https://bug.wizenet.co.il/wizeapi/?' . http_build_query([
+            'func'   => 'wizeApp_getBICalls',
+            'token'  => 'ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb',
+            'callid' => $callId,
+        ]);
+        $ctx  = stream_context_create(['http' => ['timeout' => 10, 'method' => 'GET']]);
+        $raw  = @file_get_contents($url, false, $ctx);
+        $data = $raw ? json_decode($raw, true) : null;
+        if (empty($data)) {
+            return false;
+        }
+
+        $resolution = $data[0]['resolution'] ?? '';
+        if (empty($resolution)) {
+            return false;
+        }
+
+        // Split by ## markers (same logic as WizenetController::normalizeCall)
+        $parts = preg_split('/##+/', $resolution);
+        $parts = array_values(array_filter(
+            array_map(fn($p) => trim(preg_replace('/\s+/', ' ', $p)), $parts),
+            fn($p) => strlen(preg_replace('/[\s:;,#]/', '', $p)) > 4
+        ));
+
+        // Walk entries newest-first, return first non-empty תשובה:
+        foreach (array_reverse($parts) as $entry) {
+            if (preg_match('/תשובה:\s*([^,;]+)/', $entry, $m)) {
+                $answer = trim($m[1]);
+                if ($answer !== '') {
+                    return $answer;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /** חישוב תאריך תפוגה */
     public static function expiryDate(string $unit, int $qty): string
     {

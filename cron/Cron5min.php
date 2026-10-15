@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
+use Core\MailTemplate as Mail;
 
 $pdo = DB::get(); // alon_db2
 
@@ -35,61 +36,31 @@ $changeCount = count($result);
 if ($changeCount > 0) {
     $temp = '';
     foreach ($result as $row) {
-        $storeNum   = get_store_num($row['entity_id']);
-        $storeName  = $row['entity_label'];
-        $user       = $row['user_name'] ?? 'לא ידוע';
+        $storeNum   = get_store_num((int) $row['entity_id']);
+        $storeName  = Mail::e($row['entity_label']);
+        $user       = Mail::e($row['user_name'] ?? 'לא ידוע');
         $action     = ($row['new_value'] === '1')
-            ? "<span style='color:#2e9e5b;'>פעילה</span>"
-            : "<span style='color:#d13c3c;'>לא פעילה</span>";
-        $temp      .= "חנות: {$storeName}" . ($storeNum ? " - {$storeNum}" : '') . " עברה ל: <strong>{$action}</strong> ע''י {$user}<br>";
+            ? '<span style="color:#2e9e5b;font-weight:700;">פעילה</span>'
+            : '<span style="color:#d13c3c;font-weight:700;">לא פעילה</span>';
+        $temp .= '<tr><td align="right" dir="rtl" style="font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.7;color:#20232e;padding:10px 0;border-bottom:1px solid #eef0f4;text-align:right;">'
+            . "חנות: <b>{$storeName}</b>" . ($storeNum ? ' - ' . Mail::e($storeNum) : '') . " עברה ל: {$action} ע\"י {$user}"
+            . '</td></tr>';
     }
 
     $to      = 'gild@bug.co.il,eyal@bug.co.il,web8@bug.co.il,web4@bug.co.il,amir@bug.co.il,sharone@bug.co.il,sagih@bug.co.il,roei@bug.co.il,nissimh@bug.co.il,haim@bug.co.il,oritc@bug.co.il,modan@modan.co.il,mebah@bug.co.il,talb@bug.co.il,alex@bug.co.il,yehonatan@bug.co.il,gal@bug.co.il,ayman@bug.co.il,avitala@bug.co.il';
-    $subject = 'בוצע עדכון זמינות לחנות\יות באג ' . date('d/m/yy H:i');
+    $subject = 'בוצע עדכון זמינות לחנות\יות באג ' . date('d/m/y H:i');
 
-    $mbody  = '<p style="font-size:16px;font-weight:700;color:#20232e;margin:0 0 8px;">עדכוני זמינות חנויות</p>';
-    $mbody .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 20px;">ב-5 דקות האחרונות בוצעו ' . $changeCount . ' שינויים:</p>';
-    $mbody .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:16px;margin:0 0 20px;line-height:2;">';
-    $mbody .= $temp;
-    $mbody .= '</div>';
-    $mbody .= '<table cellpadding="0" cellspacing="0" style="margin:0 0 8px;">';
-    $mbody .= '<tr><td style="background:#4f7fff;border-radius:8px;padding:0;">';
-    $mbody .= '<a href="https://alon.alexisdeveloping.com/stores" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">רשימת זמינות חנויות עדכנית ←</a>';
-    $mbody .= '</td></tr></table>';
+    $mbody  = Mail::heading('עדכוני זמינות חנויות', 'ב-5 הדקות האחרונות בוצעו ' . $changeCount . ' שינויים:');
+    $mbody .= '<table role="presentation" dir="rtl" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 24px;">' . $temp . '</table>';
+    $mbody .= Mail::button('https://alon.alexisdeveloping.com/stores', 'רשימת זמינות חנויות עדכנית ←');
 
-    $message = mailWrap($subject, $mbody);
-    $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
-    $headers .= "Reply-To: gild@bug.co.il\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=utf-8\r\n";
-
-    $sent = mail($to, $subject, $message, $headers);
+    $sent = Mail::send($to, $subject, Mail::wrap($subject, 'עדכון אוטומטי', $mbody), ['replyTo' => 'gild@bug.co.il']);
     $summary = "שינויי חנות: {$changeCount}" . ($sent ? '' : ' | שליחת מייל נכשלה');
     cron_log('run', $sent ? 'ok' : 'error', $summary);
     // activity_log_run($new_check_time, $summary);
 } else {
     cron_log('run', 'ok', 'אין שינויים');
     // activity_log_run($new_check_time, 'אין שינויים');
-}
-
-function mailWrap(string $title, string $body): string
-{
-    return '<!DOCTYPE html>'
-        . '<html lang="he" dir="rtl">'
-        . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
-        . '<tr><td align="center">'
-        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
-        . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
-        . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">עדכון אוטומטי</span>'
-        . '</td></tr>'
-        . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
-        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
-        . '</td></tr>'
-        . '</table></td></tr></table></body></html>';
 }
 
 function cron_log(string $action, string $status = 'ok', string $details = ''): void

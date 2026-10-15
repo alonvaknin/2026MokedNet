@@ -5,6 +5,10 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
+use Core\MailTemplate as Mail;
+
+// חייב להיות למעלה: const מתבצע בזמן ריצה לפי הסדר, והקוד הראשי רץ לפני סוף הקובץ
+const MAIL_BADGE = 'התראה אוטומטית';
 
 $pdo = DB::get(); // alon_db2
 
@@ -20,7 +24,9 @@ if ((int) date('H') === 11) {
     notifyStaleStoreAlerts($pdo, $runLog);
 }
 
-cronLog($pdo, 'run', 'ok', !empty($runLog) ? implode(' | ', $runLog) : 'אין פעולות');
+// כל רשומה שמכילה "נכשל"/"שגיאה" מסמנת את הריצה כ-error ב-cron_log
+$hasError = !empty(preg_grep('/נכשל|שגיאה|שגיאות/u', $runLog));
+cronLog($pdo, 'run', $hasError ? 'error' : 'ok', !empty($runLog) ? implode(' | ', $runLog) : 'אין פעולות');
 
 // ── סגירת משימות שעבר תאריך תפוגתן ─────────────────────────────────────────
 
@@ -79,6 +85,9 @@ function processActiveJobs(PDO $pdo, array &$runLog): void
     $sent = 0; $errors = 0;
 
     foreach ($jobs as $job) {
+        error_clear_last(); // כדי ש-error_get_last() ב-jobFailMsg יתייחס רק לאוטומציה הנוכחית
+        // שגיאה באוטומציה אחת (API תקוע, מייל וכו') לא עוצרת את שאר האוטומציות
+        try {
         switch ($job['type_of_job']) {
 
             case 'notifyOnChangeTo':
@@ -92,7 +101,7 @@ function processActiveJobs(PDO $pdo, array &$runLog): void
                             incrementRunCount($pdo, $job['id']);
                             updateSavedValue($pdo, $job['id'], $currentStatus);
                             $sent++;
-                        } else { $errors++; }
+                        } else { $errors++; $runLog[] = jobFailMsg($job, 'שליחת מייל נכשלה'); }
                     }
                 } else {
                     if ($job['condition_of_type'] === $currentStatus) {
@@ -100,7 +109,7 @@ function processActiveJobs(PDO $pdo, array &$runLog): void
                             incrementRunCount($pdo, $job['id']);
                             setJobDone($pdo, $job['id']);
                             $sent++;
-                        } else { $errors++; }
+                        } else { $errors++; $runLog[] = jobFailMsg($job, 'שליחת מייל נכשלה'); }
                     }
                 }
                 break;
@@ -111,22 +120,28 @@ function processActiveJobs(PDO $pdo, array &$runLog): void
                     if (sendMailOpenByPhone($job, implode(', ', array_keys($calls)))) {
                         incrementRunCount($pdo, $job['id']);
                         $sent++;
-                    } else { $errors++; }
+                    } else { $errors++; $runLog[] = jobFailMsg($job, 'שליחת מייל נכשלה'); }
                 }
                 break;
 
             case 'techCare':
                 $techAnswer = getTechCare($job['value_of_type']);
-                if ($techAnswer !== false) {
+                // תשובה זהה ל-baseline שנשמר ביצירה = לא התעדכן כלום מאז
+                if ($techAnswer !== false && $techAnswer !== (string) ($job['current_save_value'] ?? '')) {
                     if (sendMailTechCare($job, $techAnswer)) {
                         incrementRunCount($pdo, $job['id']);
                         setJobDone($pdo, $job['id']);
                         $sent++;
-                    } else { $errors++; }
+                    } else { $errors++; $runLog[] = jobFailMsg($job, 'שליחת מייל נכשלה'); }
                 }
                 break;
 
             // chechOrderNote — לא פעיל, API לא תקין
+        }
+        } catch (\Throwable $e) {
+            $errors++;
+            $runLog[] = jobFailMsg($job, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
+            error_log("[Cron1Hr] automation {$job['id']}: " . $e->getMessage());
         }
     }
 
@@ -134,54 +149,47 @@ function processActiveJobs(PDO $pdo, array &$runLog): void
     if ($errors > 0) $runLog[] = "שגיאות שליחה: {$errors}";
 }
 
+/** שורת לוג לכשל באוטומציה: מזהה, סוג, ערך, סיבה (+ שגיאת PHP האחרונה אם יש) */
+function jobFailMsg(array $job, string $reason): string
+{
+    $err = error_get_last();
+    $msg = "אוטומציה #{$job['id']} ({$job['type_of_job']}, {$job['value_of_type']}): {$reason}";
+    if ($err && !empty($err['message'])) {
+        $msg .= ' | PHP: ' . $err['message'];
+    }
+    return mb_substr($msg, 0, 400);
+}
+
 // ── Wizenet API ──────────────────────────────────────────────────────────────
+
+/** GET ל-Wizenet עם timeout. מחזיר מערך, או null בכשל רשת / תשובה לא תקינה */
+function wizeGet(string $url): ?array
+{
+    $ctx = stream_context_create(['http' => ['timeout' => 15, 'method' => 'GET']]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false || $raw === '') {
+        return null;
+    }
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : null;
+}
 
 function getCallStatus(string $callId): string|false
 {
-    $url  = "https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&token=ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb&callid={$callId}";
-    $data = json_decode(file_get_contents($url), true);
-    return !empty($data) ? (string) $data[0]['statusID'] : false;
+    $data = wizeGet("https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&token=ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb&callid={$callId}");
+    return !empty($data) && isset($data[0]['statusID']) ? (string) $data[0]['statusID'] : false;
 }
 
 function getTechCare(string $callId): string|false
 {
-    $url  = "https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&token=ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb&callid={$callId}";
-    $data = json_decode(file_get_contents($url), true);
-    if (empty($data)) {
-        return false;
-    }
-
-    $raw = $data[0]['resolution'] ?? '';
-    if (empty($raw)) {
-        return false;
-    }
-
-    // Split by ## markers (same logic as WizenetController::normalizeCall)
-    $parts = preg_split('/##+/', $raw);
-    $parts = array_values(array_filter(
-        array_map(fn($p) => trim(preg_replace('/\s+/', ' ', $p)), $parts),
-        fn($p) => strlen(preg_replace('/[\s:;,#]/', '', $p)) > 4
-    ));
-
-    // Walk entries newest-first, return first non-empty תשובה:
-    foreach (array_reverse($parts) as $entry) {
-        if (preg_match('/תשובה:\s*([^,;]+)/', $entry, $m)) {
-            $answer = trim($m[1]);
-            if ($answer !== '') {
-                return $answer;
-            }
-        }
-    }
-
-    return false;
+    return \Models\AutomationModel::latestTechAnswer($callId);
 }
 
 function getCallsByPhone(string $phone, string $since): array|false
 {
     $dateFrom = (new DateTime($since))->format('d/m/Y');
     $dateTo   = date('d/m/Y');
-    $url      = "https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&token=ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb&ccell={$phone}&dateFrom={$dateFrom}&dateTo={$dateTo}";
-    $data     = json_decode(file_get_contents($url), true);
+    $data     = wizeGet("https://bug.wizenet.co.il/wizeapi/?func=wizeApp_getBICalls&token=ABUltIBvgMHYUg6NPaZ4cWA2p5467Jb&ccell={$phone}&dateFrom={$dateFrom}&dateTo={$dateTo}");
     if (empty($data)) {
         return false;
     }
@@ -225,132 +233,74 @@ function translateStatus(string $statusId): string
     return (string) (DB::v1Value('SELECT statusDesc FROM callStatus WHERE statuscallid = ? LIMIT 1', [$statusId]) ?: $statusId);
 }
 
-// ── שליחת מיילים ─────────────────────────────────────────────────────────────
+// ── שליחת מיילים (תבנית + שליחה משותפות: Core\MailTemplate) ───────────────────
 
-function buildHeaders(?string $cc = ''): string
+/** תיבת "הודעה" מהמשתמש — רק אם הוזנה */
+function userMsgBox(array $job): string
 {
-    $h  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
-    $h .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
-    $h .= "MIME-Version: 1.0\r\n";
-    $h .= "Content-Type: text/html; charset=utf-8\r\n";
-    if (!empty($cc)) {
-        $h .= "Cc: {$cc}\r\n";
-    }
-    return $h;
-}
-
-function mailWrap(string $title, string $body): string
-{
-    return '<!DOCTYPE html>'
-        . '<html lang="he" dir="rtl">'
-        . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
-        . '<tr><td align="center">'
-        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
-        . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
-        . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">התראה אוטומטית</span>'
-        . '</td></tr>'
-        . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
-        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
-        . '</td></tr>'
-        . '</table></td></tr></table></body></html>';
-}
-
-function row(string $label, string $value): string
-{
-    return '<tr>'
-        . '<td style="font-size:13px;color:#8a8fa3;padding:6px 0;width:120px;">' . $label . '</td>'
-        . '<td style="font-size:14px;color:#20232e;padding:6px 0;font-weight:600;">' . $value . '</td>'
-        . '</tr>';
+    return !empty($job['msg_from_user']) ? Mail::messageBox('הודעה', (string) $job['msg_from_user']) : '';
 }
 
 function sendMailNotifyOnChange(array $job, string $savedLabel, string $currentLabel): bool
 {
-    $to      = $job['user_mail'] . ';' . $job['mailto'];
     $subject = '[התראה אוטומטית] השתנה סטטוס עבור: ' . $job['value_of_type'];
 
-    $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציית התראה על שינוי סטטוס הופעלה.</p>';
-    $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
-    $body .= row('מספר קריאה', htmlspecialchars($job['value_of_type']));
-    if ($savedLabel) $body .= row('סטטוס קודם', htmlspecialchars($savedLabel));
-    $body .= row('סטטוס נוכחי', '<span style="color:#4f7fff;">' . htmlspecialchars($currentLabel) . '</span>');
-    $body .= '</table>';
-    if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
-        $body .= '</div>';
-    }
+    $body  = Mail::greeting($job['user_name'], 'אוטומציית התראה על שינוי סטטוס הופעלה.');
+    $body .= Mail::details(
+        Mail::row('מספר קריאה', Mail::e($job['value_of_type'])),
+        $savedLabel ? Mail::row('סטטוס קודם', Mail::e($savedLabel)) : '',
+        Mail::row('סטטוס נוכחי', '<span style="color:#4f7fff;">' . Mail::e($currentLabel) . '</span>')
+    );
+    $body .= userMsgBox($job);
 
-    return mail($to, $subject, mailWrap($subject, $body), buildHeaders($job['cc_mail']));
+    return Mail::send(
+        [$job['user_mail'], $job['mailto']], $subject,
+        Mail::wrap($subject, MAIL_BADGE, $body),
+        ['cc' => $job['cc_mail']]
+    );
 }
 
 function sendMailOpenByPhone(array $job, string $callsList): bool
 {
-    $to      = $job['user_mail'];
     $subject = '[התראה אוטומטית] נפתחה קריאה עפ"י טלפון: ' . $job['value_of_type'];
 
-    $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציית התראה על פתיחת קריאה לפי טלפון הופעלה.</p>';
-    $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
-    $body .= row('טלפון', htmlspecialchars($job['value_of_type']));
-    $body .= row('קריאות שנפתחו', '<span style="color:#4f7fff;">' . htmlspecialchars($callsList) . '</span>');
-    $body .= '</table>';
-    if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
-        $body .= '</div>';
-    }
+    $body  = Mail::greeting($job['user_name'], 'אוטומציית התראה על פתיחת קריאה לפי טלפון הופעלה.');
+    $body .= Mail::details(
+        Mail::row('טלפון', Mail::e($job['value_of_type'])),
+        Mail::row('קריאות שנפתחו', '<span style="color:#4f7fff;">' . Mail::e($callsList) . '</span>')
+    );
+    $body .= userMsgBox($job);
 
-    return mail($to, $subject, mailWrap($subject, $body), buildHeaders($job['cc_mail']));
+    return Mail::send($job['user_mail'], $subject, Mail::wrap($subject, MAIL_BADGE, $body), ['cc' => $job['cc_mail']]);
 }
 
 function sendMailTechCare(array $job, string $techAnswer): bool
 {
-    $to      = $job['user_mail'];
-    $link    = "https://bug.wizenet.co.il/serviceControl.aspx?control=modulesCustom%2fbug%2fCallDetailsTech&CallID=" . urlencode($job['value_of_type']);
+    $link    = 'https://bug.wizenet.co.il/serviceControl.aspx?control=modulesCustom%2fbug%2fCallDetailsTech&CallID=' . urlencode($job['value_of_type']);
     $subject = '[התראה אוטומטית] טכנאי עדכן טיפול עבור: ' . $job['value_of_type'];
 
-    $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציית התראה על עדכון טכנאי הופעלה.</p>';
-    $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
-    $body .= row('מספר קריאה', '<a href="' . htmlspecialchars($link) . '" style="color:#4f7fff;text-decoration:none;">' . htmlspecialchars($job['value_of_type']) . '</a>');
-    $body .= row('עדכון הטכנאי', htmlspecialchars($techAnswer));
-    $body .= '</table>';
-    if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
-        $body .= '</div>';
-    }
+    $body  = Mail::greeting($job['user_name'], 'אוטומציית התראה על עדכון טכנאי הופעלה.');
+    $body .= Mail::details(
+        Mail::row('מספר קריאה', '<a href="' . Mail::e($link) . '" style="color:#4f7fff;text-decoration:none;">' . Mail::e($job['value_of_type']) . '</a>'),
+        Mail::row('עדכון הטכנאי', Mail::e($techAnswer))
+    );
+    $body .= userMsgBox($job);
 
-    return mail($to, $subject, mailWrap($subject, $body), buildHeaders($job['cc_mail']));
+    return Mail::send($job['user_mail'], $subject, Mail::wrap($subject, MAIL_BADGE, $body), ['cc' => $job['cc_mail']]);
 }
 
 function sendMailExpired(array $job): bool
 {
-    $to      = $job['mailto'];
     $subject = '[התראה אוטומטית] ' . $job['value_of_type'] . ' — משימה נסגרה ללא ביצוע';
 
-    $body  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($job['user_name']) . '</b></p>';
-    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">אוטומציה עבורך הסתיימה ללא ביצוע.</p>';
-    $body .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
-    $body .= row('אוטומציה', htmlspecialchars($job['value_of_type']));
-    $body .= row('סיבה', '<span style="color:#e74c3c;">עבר תאריך התפוגה</span>');
-    $body .= '</table>';
-    if (!empty($job['msg_from_user'])) {
-        $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
-        $body .= '<p style="font-size:12px;color:#8a8fa3;margin:0 0 6px;">הודעה</p>';
-        $body .= '<p style="font-size:15px;color:#20232e;margin:0;">' . htmlspecialchars($job['msg_from_user']) . '</p>';
-        $body .= '</div>';
-    }
+    $body  = Mail::greeting($job['user_name'], 'אוטומציה עבורך הסתיימה ללא ביצוע.');
+    $body .= Mail::details(
+        Mail::row('אוטומציה', Mail::e($job['value_of_type'])),
+        Mail::row('סיבה', '<span style="color:#e74c3c;">עבר תאריך התפוגה</span>')
+    );
+    $body .= userMsgBox($job);
 
-    return mail($to, $subject, mailWrap($subject, $body), buildHeaders($job['cc_mail']));
+    return Mail::send($job['mailto'], $subject, Mail::wrap($subject, MAIL_BADGE, $body), ['cc' => $job['cc_mail']]);
 }
 
 // ── SLA Notifications ────────────────────────────────────────────────────────
@@ -390,20 +340,20 @@ function notifyOverdueTasks(PDO $pdo, array &$runLog): void
         $watcherEmails = $watchers->fetchAll(PDO::FETCH_COLUMN);
 
         $subject = "[SLA] משימה #{$taskId} עברה את מועד הטיפול";
-        $mbody  = '<p style="font-size:16px;margin:0 0 4px;">שלום, <b>' . htmlspecialchars($task['assignee_name']) . '</b></p>';
-        $mbody .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 24px;">המשימה הבאה עברה את יעד ה-SLA ומחכה לטיפול.</p>';
-        $mbody .= '<table cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 24px;">';
-        $mbody .= row('משימה', '#' . $taskId . ' — ' . htmlspecialchars($title));
-        $mbody .= row('יעד SLA', $slaDays . ' ימים');
-        $mbody .= row('נפתחה ב', $created);
-        $mbody .= '</table>';
-        $mbody .= '<table cellpadding="0" cellspacing="0" style="margin:0 0 8px;">';
-        $mbody .= '<tr><td style="background:#4f7fff;border-radius:8px;padding:0;">';
-        $mbody .= '<a href="' . htmlspecialchars($appUrl) . '/tasks?filter=overdue" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">לצפייה במשימות שעברו SLA ←</a>';
-        $mbody .= '</td></tr></table>';
 
-        $ccList = implode(',', array_unique(array_filter($watcherEmails)));
-        mail($task['assignee_email'], $subject, mailWrap($subject, $mbody), buildHeaders($ccList));
+        $mbody  = Mail::greeting($task['assignee_name'], 'המשימה הבאה עברה את יעד ה-SLA ומחכה לטיפול.');
+        $mbody .= Mail::details(
+            Mail::row('משימה', '#' . $taskId . ' — ' . Mail::e($title)),
+            Mail::row('יעד SLA', $slaDays . ' ימים'),
+            Mail::row('נפתחה ב', $created)
+        );
+        $mbody .= Mail::button($appUrl . '/tasks?filter=overdue', 'לצפייה במשימות שעברו SLA ←');
+
+        Mail::send(
+            $task['assignee_email'], $subject,
+            Mail::wrap($subject, MAIL_BADGE, $mbody),
+            ['cc' => array_unique(array_filter($watcherEmails))]
+        );
 
         $pdo->prepare("UPDATE tasks SET sla_notified_at=NOW() WHERE id=?")->execute([$taskId]);
     }
@@ -447,6 +397,10 @@ function notifyStaleStoreAlerts(PDO $pdo, array &$runLog): void
 
     $appUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : 'https://alon.alexisdeveloping.com';
 
+    $f  = 'font-family:Tahoma,Arial,sans-serif;text-align:right;';
+    $td = $f . 'padding:10px 8px;border-bottom:1px solid #eceef2;font-size:13px;vertical-align:top;';
+    $th = $f . 'padding:0 8px 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;font-weight:600;';
+
     $rowsHtml = '';
     foreach ($stores as $s) {
         $days      = (int) floor((time() - strtotime($s['alert_updated_at'])) / 86400);
@@ -456,40 +410,37 @@ function notifyStaleStoreAlerts(PDO $pdo, array &$runLog): void
         $note      = mb_substr((string) $s['alert_note'], 0, 120) . (mb_strlen((string) $s['alert_note']) > 120 ? '…' : '');
 
         $rowsHtml .= '<tr>'
-            . '<td style="padding:10px 0;border-bottom:1px solid #eceef2;font-size:14px;font-weight:600;">'
-            . '<a href="' . htmlspecialchars($storeLink) . '" style="color:#4f7fff;text-decoration:none;">' . htmlspecialchars($storeName) . '</a></td>'
-            . '<td style="padding:10px 12px;border-bottom:1px solid #eceef2;font-size:13px;color:#5a5e78;">' . htmlspecialchars($note) . '</td>'
-            . '<td style="padding:10px 0;border-bottom:1px solid #eceef2;font-size:13px;color:#8a8fa3;white-space:nowrap;">' . htmlspecialchars($author) . '</td>'
-            . '<td style="padding:10px 0 10px 12px;border-bottom:1px solid #eceef2;font-size:13px;color:#e74c3c;font-weight:600;white-space:nowrap;">' . $days . ' ימים</td>'
-            . '<td style="padding:10px 0 10px 12px;border-bottom:1px solid #eceef2;font-size:13px;white-space:nowrap;">'
-            . '<a href="' . htmlspecialchars($storeLink) . '" style="color:#4f7fff;text-decoration:none;font-weight:600;">עריכה ←</a></td>'
+            . '<td align="right" dir="rtl" style="' . $td . 'font-weight:600;"><a href="' . Mail::e($storeLink) . '" style="color:#4f7fff;text-decoration:none;">' . Mail::e($storeName) . '</a></td>'
+            . '<td align="right" dir="rtl" style="' . $td . 'color:#5a5e78;">' . Mail::e($note) . '</td>'
+            . '<td align="right" dir="rtl" style="' . $td . 'color:#8a8fa3;white-space:nowrap;">' . Mail::e($author) . '</td>'
+            . '<td align="right" dir="rtl" style="' . $td . 'color:#e74c3c;font-weight:600;white-space:nowrap;">' . $days . ' ימים</td>'
+            . '<td align="right" dir="rtl" style="' . $td . 'white-space:nowrap;"><a href="' . Mail::e($storeLink) . '" style="color:#4f7fff;text-decoration:none;font-weight:600;">עריכה ←</a></td>'
             . '</tr>';
     }
 
     $subject = '[התראה אוטומטית] ' . count($stores) . ' התראות חנויות פתוחות מעל שבועיים';
 
-    $mbody  = '<p style="font-size:16px;font-weight:700;color:#20232e;margin:0 0 8px;">התראות חנויות שממתינות לטיפול</p>';
-    $mbody .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 20px;">ל-' . count($stores) . ' חנויות יש התראה פעילה (שדה "התראה" בכרטיס החנות) שלא עודכנה כבר מעל שבועיים. ייתכן שהנושא כבר טופל ופשוט נשכח לסגור את ההתראה — מומלץ לבדוק ולשקול לסגור את מי שכבר לא רלוונטי.</p>';
-    $mbody .= '<table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 24px;">';
-    $mbody .= '<tr>'
-        . '<td style="padding:0 0 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">חנות</td>'
-        . '<td style="padding:0 12px 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">התראה</td>'
-        . '<td style="padding:0 0 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">ע"י</td>'
-        . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;">משך זמן נוכחי</td>'
-        . '<td style="padding:0 0 8px 12px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;"></td>'
-        . '</tr>';
-    $mbody .= $rowsHtml;
-    $mbody .= '</table>';
-    $mbody .= '<table cellpadding="0" cellspacing="0" style="margin:0 0 8px;">';
-    $mbody .= '<tr><td style="background:#4f7fff;border-radius:8px;padding:0;">';
-    $mbody .= '<a href="' . htmlspecialchars($appUrl) . '/dashboard" style="display:block;padding:12px 28px;color:#fff;font-size:15px;font-weight:600;text-decoration:none;">לדשבורד — צפייה בהתראות ←</a>';
-    $mbody .= '</td></tr></table>';
-// add bcc aloncomputer@gmail.com 
+    $mbody  = Mail::heading(
+        'התראות חנויות שממתינות לטיפול',
+        'ל-' . count($stores) . ' חנויות יש התראה פעילה (שדה "התראה" בכרטיס החנות) שלא עודכנה כבר מעל שבועיים. ייתכן שהנושא כבר טופל ופשוט נשכח לסגור את ההתראה — מומלץ לבדוק ולשקול לסגור את מי שכבר לא רלוונטי.'
+    );
+    $mbody .= '<table role="presentation" dir="rtl" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 24px;">'
+        . '<tr>'
+        . '<td align="right" dir="rtl" style="' . $th . '">חנות</td>'
+        . '<td align="right" dir="rtl" style="' . $th . '">התראה</td>'
+        . '<td align="right" dir="rtl" style="' . $th . '">ע"י</td>'
+        . '<td align="right" dir="rtl" style="' . $th . '">משך זמן נוכחי</td>'
+        . '<td align="right" dir="rtl" style="' . $th . '"></td>'
+        . '</tr>'
+        . $rowsHtml
+        . '</table>';
+    $mbody .= Mail::button($appUrl . '/dashboard', 'לדשבורד — צפייה בהתראות ←');
 
-    $to = 'eyal@bug.co.il,gild@bug.co.il ';
-    $headers = buildHeaders();
-    $headers .= 'Bcc: aloncomputer@gmail.com';
-    mail($to, $subject, mailWrap($subject, $mbody), $headers);
+    Mail::send(
+        'eyal@bug.co.il,gild@bug.co.il', $subject,
+        Mail::wrap($subject, MAIL_BADGE, $mbody, 680),
+        ['bcc' => 'aloncomputer@gmail.com']
+    );
 
     $runLog[] = "התראות ישנות: " . count($stores);
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 
 use Core\DB;
+use Core\MailTemplate as Mail;
 
 $debug = isset($_GET['debug']);
 
@@ -148,26 +149,6 @@ function cronLog(string $action, string $status = 'ok', string $details = ''): v
 
 // ── מייל ─────────────────────────────────────────────────────────────────────
 
-function mailWrap(string $title, string $body): string
-{
-    return '<!DOCTYPE html>'
-        . '<html lang="he" dir="rtl">'
-        . '<head><meta charset="utf-8"><title>' . htmlspecialchars($title) . '</title></head>'
-        . '<body style="font-family:Tahoma,Arial,sans-serif;background:#f4f5f7;color:#2b2e3b;direction:rtl;text-align:right;margin:0;padding:0;">'
-        . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">'
-        . '<tr><td align="center">'
-        . '<table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e3e5ea;border-radius:12px;overflow:hidden;">'
-        . '<tr><td style="background:#4f7fff;padding:24px 32px;text-align:right;">'
-        . '<span style="font-size:24px;font-weight:700;color:#fff;">מוקד-נט</span>'
-        . '<span style="font-size:14px;color:rgba(255,255,255,.85);margin-right:12px;">מערכת ניהול פנים-ארגונית</span>'
-        . '</td></tr>'
-        . '<tr><td style="padding:32px;">' . $body . '</td></tr>'
-        . '<tr><td style="background:#f7f8fa;padding:16px 32px;text-align:right;border-top:1px solid #eceef2;">'
-        . '<span style="font-size:12px;color:#8a8fa3;">מופעל באמצעות מערכת מוקד-נט</span>'
-        . '</td></tr>'
-        . '</table></td></tr></table></body></html>';
-}
-
 function buildUnresolvedSummary(array $unresolved): string
 {
     $lines = [];
@@ -182,61 +163,56 @@ function sendFallbackMail(array $unresolved): bool
     $subject = '[מוקד-נט] שלוחות טלפון ללא חנות/מייל מקושרים';
     $subject = preg_replace('/[\r\n\0]/', '', $subject);
 
+    $f  = 'font-family:Tahoma,Arial,sans-serif;text-align:right;';
+    $td = $f . 'padding:10px 8px;border-bottom:1px solid #eceef2;font-size:13px;color:#20232e;';
+    $th = $f . 'padding:0 8px 8px;font-size:12px;color:#8a8fa3;border-bottom:2px solid #dcdfe6;font-weight:600;';
+
     $rows = '';
     foreach ($unresolved as $u) {
         $rows .= '<tr>'
-            . '<td style="padding:8px 12px;border-bottom:1px solid #eceef2;">' . htmlspecialchars($u['line'], ENT_QUOTES, 'UTF-8') . '</td>'
-            . '<td style="padding:8px 12px;border-bottom:1px solid #eceef2;">' . htmlspecialchars($u['desc'], ENT_QUOTES, 'UTF-8') . '</td>'
-            . '<td style="padding:8px 12px;border-bottom:1px solid #eceef2;">' . htmlspecialchars((string)($u['store_num'] ?: 'לא נמצא'), ENT_QUOTES, 'UTF-8') . '</td>'
+            . '<td align="right" dir="rtl" style="' . $td . '">' . Mail::e($u['line']) . '</td>'
+            . '<td align="right" dir="rtl" style="' . $td . '">' . Mail::e($u['desc']) . '</td>'
+            . '<td align="right" dir="rtl" style="' . $td . '">' . Mail::e((string) ($u['store_num'] ?: 'לא נמצא')) . '</td>'
             . '</tr>';
     }
 
-    $body  = '<p style="font-size:18px;font-weight:700;color:#20232e;margin:0 0 16px;">שלוחות טלפון לא מחוברות ללא חנות/מייל מזוהים</p>';
-    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 16px;">לא נמצאה חנות פעילה עם מייל עבור השלוחות הבאות, ולכן לא נשלחה אליהן התראה ישירה:</p>';
-    $body .= '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#2b2e3b;">';
-    $body .= '<tr style="background:#f7f8fa;"><th style="padding:8px 12px;text-align:right;">שלוחה</th><th style="padding:8px 12px;text-align:right;">תיאור</th><th style="padding:8px 12px;text-align:right;">חנות</th></tr>';
-    $body .= $rows;
-    $body .= '</table>';
+    $body  = Mail::heading(
+        'שלוחות טלפון לא מחוברות ללא חנות/מייל מזוהים',
+        'לא נמצאה חנות פעילה עם מייל עבור השלוחות הבאות, ולכן לא נשלחה אליהן התראה ישירה:'
+    );
+    $body .= '<table role="presentation" dir="rtl" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">'
+        . '<tr>'
+        . '<td align="right" dir="rtl" style="' . $th . '">שלוחה</td>'
+        . '<td align="right" dir="rtl" style="' . $th . '">תיאור</td>'
+        . '<td align="right" dir="rtl" style="' . $th . '">חנות</td>'
+        . '</tr>' . $rows . '</table>';
 
-    $message = mailWrap($subject, $body);
-    $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
-    $headers .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=utf-8\r\n";
-
-    return mail('gild@bug.co.il', $subject, $message, $headers);
+    return Mail::send('gild@bug.co.il', $subject, Mail::wrap($subject, 'מערכת ניהול פנים-ארגונית', $body));
 }
 
 function sendAlertMail(string $to, string $subject): bool
 {
-    $body  = '<p style="font-size:18px;font-weight:700;color:#20232e;margin:0 0 16px;">שלוחת הטלפון בחנות לא מצליחה להתחבר למרכזייה</p>';
-    $body .= '<p style="font-size:14px;color:#5a5e78;margin:0 0 16px;">לוודא אם שלושת הנוריות פועלות באופן קבוע על גבי ה-GATEWAY כמתואר בתמונה.</p>';
+    $f = 'font-family:Tahoma,Arial,sans-serif;text-align:right;';
+
+    $body = Mail::heading(
+        'שלוחת הטלפון בחנות לא מצליחה להתחבר למרכזייה',
+        'לוודא אם שלושת הנוריות פועלות באופן קבוע על גבי ה-GATEWAY כמתואר בתמונה.'
+    );
 
     // כרטיסית אזהרה — נוריות דלוקות
-    $body .= '<div style="background:#fdf3e3;border-right:4px solid #e67e22;border-radius:8px;padding:14px 16px;margin:0 0 12px;">';
-    $body .= '<p style="font-size:14px;color:#b5680f;font-weight:700;margin:0 0 6px;">אם הנוריות דלוקות קבוע</p>';
-    $body .= '<p style="font-size:13px;color:#5a5e78;margin:0;">התקלה ככל הנראה בציוד/תשתית האינטרנט — נא לדבר עם ולדימיר.</p>';
-    $body .= '</div>';
+    $body .= Mail::card('warn', 'אם הנוריות דלוקות קבוע', 'התקלה ככל הנראה בציוד/תשתית האינטרנט — נא לדבר עם ולדימיר.');
 
     // כרטיסית שגיאה — נורית כבויה
-    $body .= '<div style="background:#fdeeee;border-right:4px solid #e74c3c;border-radius:8px;padding:14px 16px;margin:0 0 20px;">';
-    $body .= '<p style="font-size:14px;color:#c0392b;font-weight:700;margin:0 0 6px;">אם אחת הנוריות אינה דלוקה באופן קבוע</p>';
-    $body .= '<p style="font-size:13px;color:#5a5e78;margin:0;">יש לנתק את ה-GATEWAY מהחשמל ולהחזיר לאחר 15 שניות. להמתין 2 דקות ולנסות להוציא/לקבל. אם עדיין אין קו — התקשר אל גיל דגון.</p>';
-    $body .= '</div>';
+    $body .= Mail::card('error', 'אם אחת הנוריות אינה דלוקה באופן קבוע', 'יש לנתק את ה-GATEWAY מהחשמל ולהחזיר לאחר 15 שניות. להמתין 2 דקות ולנסות להוציא/לקבל. אם עדיין אין קו — התקשר אל גיל דגון.');
 
-    $body .= '<p style="margin:0 0 20px;"><img src="https://i.imgur.com/co1fjRx.png" height="150" alt="gateway" style="border-radius:8px;"></p>';
+    $body .= '<p style="' . $f . 'margin:8px 0 20px;"><img src="https://i.imgur.com/co1fjRx.png" height="150" alt="gateway" style="border-radius:8px;"></p>';
 
     // CTA — גיל דגון
-    $body .= '<div style="background:#eef0f5;border:1px solid #dcdfe6;border-radius:8px;padding:14px 16px;">';
-    $body .= '<p style="font-size:15px;font-weight:700;color:#b5680f;margin:0;">אם הנ"ל לא עובד — נא להתקשר אל גיל דגון</p>';
-    $body .= '<p style="font-size:20px;font-weight:700;color:#3a63d8;margin:6px 0 0;letter-spacing:1px;">054-4744758</p>';
-    $body .= '</div>';
+    $body .= Mail::card(
+        'info',
+        'אם הנ"ל לא עובד — נא להתקשר אל גיל דגון',
+        '<span dir="ltr" style="' . $f . 'font-size:20px;font-weight:700;color:#3a63d8;letter-spacing:1px;">054-4744758</span>'
+    );
 
-    $message = mailWrap($subject, $body);
-    $headers  = "From: מוקד-נט <moked-net-noreply@alexisdeveloping.com>\r\n";
-    $headers .= "Reply-To: moked-net-noreply@alexisdeveloping.com\r\n";
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=utf-8\r\n";
-
-    return mail($to, $subject, $message, $headers);
+    return Mail::send($to, $subject, Mail::wrap($subject, 'מערכת ניהול פנים-ארגונית', $body));
 }

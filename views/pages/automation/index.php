@@ -237,6 +237,8 @@ $agents     = $agents ?? [];
 
     // Always load closed count (for badge), but not rows unless open
     await _autLoadClosedCount();
+    // סעיף הסגורות פתוח — לרענן גם את השורות, לא רק את המונה
+    if($('aut-closed-hdr').classList.contains('open')) await _autLoadClosed(true);
 
     $('aut-loading').style.display='none';
   };
