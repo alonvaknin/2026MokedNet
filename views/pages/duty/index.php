@@ -487,9 +487,10 @@ $canEdit = Auth::can('canManageDuty');
   font-size:12px;font-weight:700;
   border:1px solid transparent;
 }
-.dept-service{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(239,68,68,.4);}
-.dept-support{background:rgba(91,141,238,.18);color:#bcd1ff;border-color:rgba(91,141,238,.45);}
-.dept-internet{background:rgba(34,197,94,.16);color:#86efac;border-color:rgba(34,197,94,.4);}
+/* רקע מלא + טקסט כהה/לבן — ניגודיות גבוהה (AA) */
+.dept-service{background:#dc2626;color:#fff;border-color:#f87171;}
+.dept-support{background:#3b6fd4;color:#fff;border-color:#6b94e8;}
+.dept-internet{background:#22c55e;color:#052e16;border-color:#4ade80;}
 
 /* ── לשונית נציגים: טבלה קריאה יותר ── */
 .reps-table{width:100%;border-collapse:collapse;font-size:14px;}
@@ -507,11 +508,10 @@ $canEdit = Auth::can('canManageDuty');
 
 .reps-badge{
   display:inline-flex;align-items:center;gap:5px;
-  font-size:12px;font-weight:700;border-radius:999px;
-  padding:3px 11px;border:1px solid transparent;
+  font-size:13px;font-weight:700;white-space:nowrap;
 }
-.reps-badge-user{background:rgba(91,141,238,.18);color:#bcd1ff;border-color:rgba(91,141,238,.45);}
-.reps-badge-ext{background:var(--bg4);color:var(--text3);border-color:var(--border);}
+.reps-badge-user{color:#8fb3ff;}
+.reps-badge-ext{color:var(--text3);}
 
 /* ── בורר תאריך (שיבוץ ידני) — זהה ל-hd בדיווח שעות, ללא חסימת עתיד ── */
 .hd-wrap{position:relative;}
@@ -1301,7 +1301,7 @@ async function dutyLoadReps() {
       <table class="reps-table">
         <thead><tr>
           <th style="width:40px;">#</th><th>שם</th>
-          <th style="width:140px;">סוג</th><th style="width:110px;">תורנויות</th>
+          <th style="width:240px;min-width:240px;">סוג</th><th style="width:110px;">תורנויות</th>
           ${DUTY_CAN_EDIT ? '<th style="width:90px;"></th>' : ''}
         </tr></thead>
         <tbody>${list.map((r,i) => `<tr>
