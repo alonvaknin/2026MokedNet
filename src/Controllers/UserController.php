@@ -28,6 +28,12 @@ class UserController extends Controller
         $wantsJson = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
             || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
         if ($wantsJson) {
+            // The account history is for user managers only.
+            if (Auth::can('canAddUsers')) {
+                $user['last_logs'] = ActivityLog::fetch(
+                    ['entity_type' => 'user', 'entity_id' => (int)$id, 'action' => 'user.'], 5
+                );
+            }
             $this->json($user);
             return;
         }
@@ -84,6 +90,7 @@ class UserController extends Controller
 
         // An archived user is retired for good: they may still be edited, but
         // never switched back on, and their address stays released.
+        $current = null;
         if ($id) {
             $current = UserModel::byId($id);
             if ($current && (int)($current['is_archived'] ?? 0) === 1) {
@@ -103,9 +110,14 @@ class UserController extends Controller
         $label = trim($data['first_name'] . ' ' . $data['last_name']);
 
         if ($id) {
-            ActivityLog::log('user.update', 'user', $id, $label);
+            if ($current) {
+                // Field-level diff (old → new); writes nothing if nothing changed.
+                ActivityLog::update('user', $id, $label, $this->logSnapshot($current), $this->logSnapshot($data));
+            } else {
+                ActivityLog::log('user.update', 'user', $id, $label);
+            }
         } else {
-            ActivityLog::log('user.create', 'user', $savedId, $label);
+            ActivityLog::create('user', $savedId, $label, $this->logSnapshot($data));
             $sent = $this->dispatchResetEmail($savedId, $data['email'], $data['first_name'], isNew: true);
             if (!$sent) {
                 $this->json(['ok' => true, 'warn' => 'המשתמש נוצר אך שליחת המייל נכשלה. שלח/י קישור ידנית.']);
@@ -113,6 +125,35 @@ class UserController extends Controller
         }
 
         $this->json(['ok' => true]);
+    }
+
+    /**
+     * The audited fields of a user, from either a DB row or a form payload,
+     * in one shape so ActivityLog can diff them. Department and permission
+     * group are stored by name so the log reads without a lookup.
+     */
+    private function logSnapshot(array $u): array
+    {
+        static $depts = null, $groups = null;
+        $depts  ??= array_column(UserModel::departments(), 'desc', 'id');
+        $groups ??= array_column(UserModel::permGroups(), 'permmisionsGroupHeb', 'id');
+
+        $dept  = (int)($u['department_id'] ?? 0);
+        $group = (int)($u['permission_group_id'] ?? 0);
+
+        return [
+            'first_name'      => (string)($u['first_name'] ?? ''),
+            'last_name'       => (string)($u['last_name'] ?? ''),
+            'email'           => (string)($u['email'] ?? ''),
+            'phone'           => (string)($u['phone'] ?? ''),
+            'department'      => $dept  ? ($depts[$dept]   ?? "#$dept")  : '',
+            'permission_group'=> $group ? ($groups[$group] ?? "#$group") : '',
+            'is_active'       => !empty($u['is_active']) ? '1' : '0',
+            'hours_reports'   => !empty($u['hours_reports']) ? '1' : '0',
+            'mvoice_id'       => (string)($u['mvoice_id'] ?? ''),
+            'sip_voice'       => (string)($u['sip_voice'] ?? ''),
+            'note'            => (string)($u['note'] ?? ''),
+        ];
     }
 
     /** Read the user modal's fields into a UserModel::save() payload. */
@@ -201,9 +242,8 @@ class UserController extends Controller
 
         $oldLabel = trim(($old['first_name'] ?? '') . ' ' . ($old['last_name'] ?? ''));
         $label    = trim($data['first_name'] . ' ' . $data['last_name']);
-        ActivityLog::log('user.archive', 'user', $oldId, $oldLabel);
-        ActivityLog::log('user.create', 'user', $newId, $label);
-
+        ActivityLog::log('user.archive', 'user', $oldId, $oldLabel, "הוחלף במשתמש חדש #{$newId} ({$label})");
+        ActivityLog::create('user', $newId, $label, $this->logSnapshot($data));
         $sent = $this->dispatchResetEmail($newId, $data['email'], $data['first_name'], isNew: true);
         if (!$sent) {
             $this->json(['ok' => true, 'warn' => 'המשתמש נוצר אך שליחת המייל נכשלה. שלח/י קישור ידנית.']);
@@ -334,9 +374,29 @@ class UserController extends Controller
             $this->json(['error' => 'נתונים לא תקינים'], 400);
         }
 
-        UserModel::savePermGroup((int)$body['permmisionsGroupID'], $body['perms']);
+        $groupId = (int)$body['permmisionsGroupID'];
+        $before  = $this->grantsOf($groupId);
+
+        UserModel::savePermGroup($groupId, $body['perms']);
         Auth::clearPermCache();
+
+        // Log only the permissions that actually flipped.
+        $after     = $this->grantsOf($groupId);
+        $groupName = (string)\Core\DB::value('SELECT name_heb FROM permission_groups WHERE id = ?', [$groupId]);
+        ActivityLog::update('permission_group', $groupId, $groupName ?: "קבוצה #{$groupId}", $before, $after);
         $this->json(['ok' => true]);
+    }
+
+    /** @return array<string,string> permission_key => '1'|'0' for one group */
+    private function grantsOf(int $groupId): array
+    {
+        $out = [];
+        foreach (\Core\DB::query(
+            'SELECT permission_key, granted FROM permission_group_grants WHERE group_id = ?', [$groupId]
+        ) as $r) {
+            $out[$r['permission_key']] = (int)$r['granted'] ? '1' : '0';
+        }
+        return $out;
     }
 
     public function apiSearch(): void

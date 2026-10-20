@@ -188,6 +188,10 @@ $groupMap = array_column($permGroups, 'permmisionsGroupHeb', 'id');
         <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
         <button class="btn btn-danger" id="toggle-btn" style="display:none;" onclick="toggleUser()"></button>
       </div>
+      <div id="user-history" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:12px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">פעילות אחרונה בחשבון</div>
+        <div id="user-history-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
       <div id="archived-note" style="display:none;margin-top:12px;font-size:12px;color:var(--text3);
                   border-right:3px solid var(--danger);padding:8px 10px;background:rgba(0,0,0,.15);">
         משתמש זה הועבר לארכיון ואינו ניתן להפעלה מחדש. נפתח עבורו משתמש חדש במקומו.
@@ -388,8 +392,10 @@ function openModal(id) {
       document.getElementById('archived-note').style.display = archived ? 'block' : 'none';
       // Their password can no longer be managed either.
       document.getElementById('f-active').disabled = archived;
+      renderUserHistory(u.last_logs);
     });
   } else {
+    renderUserHistory(null);
     ['f-id','f-fname','f-lname','f-email','f-phone','f-mvoice','f-sip','f-note']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
     document.getElementById('f-active').checked = true;
@@ -399,6 +405,64 @@ function openModal(id) {
 }
 
 function closeModal() { document.getElementById('usr-modal').style.display = 'none'; }
+
+/* Last account-level log entries (create / update / archive / password...) */
+const LOG_ACTIONS = {
+  'user.create': 'נוצר', 'user.update': 'עודכן', 'user.archive': 'הועבר לארכיון',
+  'user.toggle': 'הפעלה/השבתה', 'user.password_reset_email_sent': 'נשלח מייל איפוס סיסמא',
+  'user.temp_password_set': 'נקבעה סיסמא זמנית', 'user.password_changed_forced': 'סיסמא הוחלפה (חובה)',
+  'user.password_set_via_link': 'סיסמא נקבעה דרך קישור'
+};
+const LOG_FIELDS = {
+  first_name: 'שם פרטי', last_name: 'שם משפחה', email: 'אימייל', phone: 'טלפון',
+  department: 'מחלקה', permission_group: 'קבוצת הרשאה', is_active: 'פעיל',
+  hours_reports: 'מדווח שעות', mvoice_id: 'Mvoice', sip_voice: 'SIP', note: 'הערה'
+};
+function logChangeText(l) {
+  const val = (k, v) => (['is_active','hours_reports'].includes(k) ? (v === '1' ? 'כן' : 'לא') : (v || '—'));
+  if (l.diff_json) {
+    try {
+      return Object.entries(JSON.parse(l.diff_json))
+        .map(([k, c]) => `${LOG_FIELDS[k] || k}: ${val(k, c.old)} ← ${val(k, c.new)}`).join(' | ');
+    } catch (e) {}
+  }
+  if (l.field_name) return `${LOG_FIELDS[l.field_name] || l.field_name}: ${val(l.field_name, l.old_value)} ← ${val(l.field_name, l.new_value)}`;
+  return l.detail || '';
+}
+/* 'YYYY-MM-DD HH:MM:SS' -> 'DD/MM/YYYY HH:MM' */
+function fmtLogDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(s || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : (s || '');
+}
+function renderUserHistory(logs) {
+  const box = document.getElementById('user-history'), list = document.getElementById('user-history-list');
+  list.replaceChildren();
+  if (!Array.isArray(logs)) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  if (!logs.length) {
+    list.textContent = 'אין רישומים עבור חשבון זה';
+    list.style.fontSize = '12px'; list.style.color = 'var(--text3)';
+    return;
+  }
+  // Newest first (id breaks same-second ties).
+  logs = [...logs].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
+  logs.forEach(l => {
+    const row = document.createElement('div');
+    row.style.cssText = 'font-size:12px;border-right:3px solid var(--accent);padding:4px 8px;background:rgba(0,0,0,.15);';
+    const head = document.createElement('div');
+    head.style.color = 'var(--text2)';
+    head.textContent = `${LOG_ACTIONS[l.action] || l.action} · ${l.user_name || 'מערכת'} · ${fmtLogDate(l.created_at)}`;
+    row.appendChild(head);
+    const txt = logChangeText(l);
+    if (txt) {
+      const d = document.createElement('div');
+      d.style.cssText = 'color:var(--text3);margin-top:2px;word-break:break-word;';
+      d.textContent = txt;
+      row.appendChild(d);
+    }
+    list.appendChild(row);
+  });
+}
 
 function switchTab(tab) {
   document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
