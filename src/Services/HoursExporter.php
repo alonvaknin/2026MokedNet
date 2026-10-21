@@ -27,6 +27,7 @@ class HoursExporter
     /** @param array<int,array<string,mixed>> $rows */
     public static function build(array $rows): string
     {
+        $rows = self::sorted($rows);
         $x  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $x .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"'
             . ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
@@ -55,6 +56,20 @@ class HoursExporter
         return $x . '</Table></Worksheet>' . "\n" . '</Workbook>';
     }
 
+    /**
+     * מקבץ לפי עובד (שם), ובתוך כל עובד לפי תאריך מהישן לחדש.
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private static function sorted(array $rows): array
+    {
+        usort($rows, fn($a, $b) =>
+            strcmp((string)($a['full_name'] ?? ''), (string)($b['full_name'] ?? ''))
+            ?: strcmp((string)($a['work_date'] ?? ''), (string)($b['work_date'] ?? ''))
+            ?: ((int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0)));
+        return $rows;
+    }
+
     /** בריחת XML מלאה — אקסל מסרב לפתוח SpreadsheetML לא תקין */
     private static function esc(string $s): string
     {
@@ -73,7 +88,7 @@ class HoursExporter
      */
     public static function buildXlsx(array $rows): string
     {
-        $sheet = self::sheetXml($rows);
+        $sheet = self::sheetXml(self::sorted($rows));
         $n     = count($rows) + 1;   // כולל שורת הכותרת
 
         $files = [

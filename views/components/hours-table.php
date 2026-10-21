@@ -15,6 +15,13 @@ $TYPES = [
 ];
 $DAYS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 ?>
+<datalist id="ht-note-options">
+  <option value="עשו מספר פעמים כניסה למחוק את המיותר">
+  <option value="עשו מספר פעמים יציאה למחוק את המיותר">
+  <option value="מחלה">
+  <option value="חופש">
+  <option value="מילואים">
+</datalist>
 <?php
 // שורות פתוחות ושורות שהושלמו מוצגות בנפרד: ההושלמו נעולות
 // לעריכה ויושבות בתוך אזור מקופל, כדי שהנציג יראה קודם מה נותר לו.
@@ -81,7 +88,7 @@ $renderOpen = function (array $r) use ($TYPES, $DAYS) {
           <?php endif; ?>
         </span>
       </td>
-      <td><input type="text" class="ht-note" maxlength="500"
+      <td><input type="text" class="ht-note" maxlength="500" list="ht-note-options"
                  value="<?= View::e((string)$r['note']) ?>"></td>
       <td>
         <?php

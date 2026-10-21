@@ -243,6 +243,14 @@ $REQ     = ['both' => 'כניסה ויציאה', 'in' => 'כניסה', 'out' => 
   </div>
 </div>
 
+<datalist id="hm-note-options">
+  <option value="עשו מספר פעמים כניסה למחוק את המיותר">
+  <option value="עשו מספר פעמים יציאה למחוק את המיותר">
+  <option value="מחלה">
+  <option value="חופש">
+  <option value="מילואים">
+</datalist>
+
 <script>
 /* ── העתקה ללוח ──
    אותן עמודות של קובץ הייצוא. מועתק כטבלת HTML (אאוטלוק) + טקסט
@@ -256,6 +264,15 @@ function hlCopyMarked() {
         });
 
     if (!rows.length) { showToast('לא נבחרו שורות להעתקה', 'warning'); return; }
+
+    // קיבוץ לפי עובד, ובתוך כל עובד לפי תאריך מהישן לחדש
+    rows.sort(function (a, b) {
+        var an = a.dataset.name || '', bn = b.dataset.name || '';
+        if (an !== bn) return an < bn ? -1 : 1;
+        var ad = a.dataset.date || '', bd = b.dataset.date || '';
+        if (ad !== bd) return ad < bd ? -1 : 1;
+        return (+a.dataset.id || 0) - (+b.dataset.id || 0);
+    });
 
     var heads = ['שם עובד', 'תאריך', 'סוג', 'כניסה', 'יציאה', 'הערה'];
     var data = rows.map(function (tr) { return (tr.dataset.copy || '').split('\t'); });
@@ -851,7 +868,7 @@ function hmLoadRows() {
                           return '<option value="' + k + '"' +
                                  (r.requires === k ? ' selected' : '') + '>' +
                                  lbl + '</option>'; }).join('') + '</select>') +
-                '<input type="text" class="r-note" maxlength="500" value="' + hmEsc(r.note || '') +
+                '<input type="text" class="r-note" maxlength="500" list="hm-note-options" value="' + hmEsc(r.note || '') +
                   '" placeholder="הערה">' +
                 '<label class="r-mark" title="כלול בקובץ הייצוא"><input type="checkbox" class="r-chk"' +
                    (String(r.marked_for_export) === '1' ? ' checked' : '') + '><span>לדיווח</span></label>' +
@@ -937,7 +954,7 @@ function hmDraftHtml(n) {
           '<button type="button" class="ht-tbtn" tabindex="-1" title="בחירת שעה">' +
           '<i class="bi bi-clock"></i></button></span>' +
       '</div>' +
-      '<input type="text" class="d-note" maxlength="500" placeholder="הערה">' +
+      '<input type="text" class="d-note" maxlength="500" list="hm-note-options" placeholder="הערה">' +
       '<button type="button" class="hm-draft-x" title="הסרת השורה" ' +
         'onclick="hmDelDraft(this)"><i class="bi bi-x-lg"></i></button>' +
     '</div>';
