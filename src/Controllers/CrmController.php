@@ -77,21 +77,33 @@ class CrmController extends Controller
         // שיחות יוצאות (called_number = היעד שחייגו אליו)
         $outUrl = self::MVOICE_BASE.'?'.$auth.'start='.$start.';end='.$now.';called_number='.$phoneSearch;
 
-        $fetch = function(string $url): array {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>15, CURLOPT_SSL_VERIFYPEER=>false]);
-            $raw = curl_exec($ch);
-            $err = curl_errno($ch);
-            curl_close($ch);
-            if ($err || $raw === false) return ['ok'=>false,'err'=>$err];
-            $j = json_decode($raw, true);
-            return ['ok'=>true,'data'=>$j['data']??[]];
+        // mvoice איטי בטווחים ארוכים (חצי שנה ≈ דקה) ודוחה שאילתות במקביל
+        // ("error_get_cdrs_in_progress"), לכן timeout ארוך + ניסיון חוזר, ושגיאה לא נבלעת כ"אין שיחות"
+        set_time_limit(300);
+        $longRange = in_array($range, ['halfYearOld', '1YearOld'], true);
+        $timeout   = $longRange ? 150 : 30;
+        $fetch = function(string $url) use ($timeout): array {
+            for ($try = 0; $try < 3; $try++) {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>$timeout, CURLOPT_SSL_VERIFYPEER=>false]);
+                $raw = curl_exec($ch);
+                $err = curl_errno($ch);
+                curl_close($ch);
+                if ($err || $raw === false) return ['ok'=>false,'err'=>$err];
+                $j = json_decode($raw, true);
+                if (!is_array($j)) return ['ok'=>false,'err'=>'bad json'];
+                if (isset($j['data'])) return ['ok'=>true,'data'=>$j['data']];
+                $key = $j['responses'][0]['key'] ?? '';
+                if ($key === 'error_get_cdrs_in_progress' && $try < 2) { sleep(5); continue; }
+                return ['ok'=>false,'err'=>$key ?: 'mvoice error'];
+            }
+            return ['ok'=>false,'err'=>'retry exhausted'];
         };
 
         $inRes  = $fetch($inUrl);
         $outRes = $fetch($outUrl);
 
-        if (!$inRes['ok'] && !$outRes['ok']) {
+        if (!$inRes['ok'] || !$outRes['ok']) {
             echo json_encode(['ok'=>false,'error'=>'curl error','data'=>[],'caller_name'=>$callerName,'critical_note'=>$criticalNote]);
             return;
         }

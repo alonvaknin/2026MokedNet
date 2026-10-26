@@ -697,7 +697,7 @@ async function fmtIcnSubmit() {
 
   const errors = [];
   if (!/^\d{9}$/.test(invoiceNum))    errors.push('מספר חשבונית חייב להיות 9 ספרות');
-  if (!newName || newName.length > 50) errors.push('שם חדש: 1-50 תווים');
+  if (!newName || newName.length > 100) errors.push('שם חדש: 1-100 תווים');
   if (!/^\d+$/.test(phone))           errors.push('טלפון לא תקין');
   if (!mail)                           errors.push('נא להזין מייל לקוח');
   if (errors.length) { alert(errors.join('\n')); return; }

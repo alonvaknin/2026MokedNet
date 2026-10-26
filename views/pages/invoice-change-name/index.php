@@ -13,6 +13,9 @@ $csrf = $_SESSION['csrf_token'] ?? '';
     <div style="font-size:13px;color:var(--text3);" id="icn-summary">טוען...</div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button type="button" class="btn btn-ghost" onclick="icnOpenMail()">
+      <i class="bi bi-envelope-paper"></i> מייל לאילן
+    </button>
     <button class="btn btn-ghost" onclick="icnLoad()">
       <i class="bi bi-arrow-clockwise"></i> רענן
     </button>
@@ -27,32 +30,83 @@ $csrf = $_SESSION['csrf_token'] ?? '';
 <style>
 .icn-section { margin-bottom: 24px; }
 .icn-section-hdr {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border-radius: var(--radius) var(--radius) 0 0;
-  font-weight: 700; font-size: 14px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; font-weight: 800; font-size: 15px;
+  border-bottom: 1px solid var(--border);
+  border-right: 4px solid var(--sec, var(--accent));
+  background: linear-gradient(270deg, color-mix(in srgb, var(--sec, var(--accent)) 14%, transparent), transparent 70%);
 }
-.icn-table { width: 100%; border-collapse: collapse; font-size: 18px; }
-.icn-th { padding: 9px 12px; text-align: right; font-weight: 600; font-size: 11px;
-          color: var(--text3); border-bottom: 1px solid var(--border);
-          background: var(--bg3); white-space: nowrap; }
-.icn-td { padding: 9px 12px; vertical-align: middle; border-bottom: 1px solid var(--border); }
-.icn-tr:hover td { background: rgba(255,255,255,.025); }
-.icn-editable { cursor: pointer; border-bottom: 1px dashed var(--accent); }
+.icn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sec); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sec) 22%, transparent); }
+.icn-count {
+  min-width: 26px; padding: 1px 9px; border-radius: 999px; text-align: center;
+  font-size: 13px; font-weight: 800; color: var(--sec);
+  background: color-mix(in srgb, var(--sec) 16%, transparent);
+}
+.icn-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; }
+.icn-th {
+  padding: 11px 14px; text-align: right; font-weight: 700; font-size: 12px;
+  letter-spacing: .3px; color: var(--text3); background: var(--bg3);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.icn-td { padding: 13px 14px; vertical-align: middle; border-bottom: 1px solid var(--border); transition: background .12s; }
+.icn-tr:last-child .icn-td { border-bottom: 0; }
+.icn-tr:hover .icn-td { background: rgba(255,255,255,.035); }
+.icn-tr.is-sel .icn-td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.icn-tr.is-sel .icn-td:first-child { box-shadow: inset -3px 0 0 var(--accent); }
+.icn-chk { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.icn-chk-td { width: 44px; text-align: center; }
+.icn-inv {
+  font-family: ui-monospace, Consolas, monospace; font-weight: 800; font-size: 16px;
+  letter-spacing: .5px; padding: 3px 10px; border-radius: 8px; background: var(--bg3);
+  border: 1px solid var(--border); display: inline-block;
+}
+.icn-newname { font-weight: 700; font-size: 16px; }
+.icn-note { color: var(--text2); max-width: 260px; }
+.icn-editable { cursor: pointer; }
+.icn-editable::after { content: '\F4CB'; font-family: 'bootstrap-icons'; font-size: 11px; margin-right: 6px; opacity: 0; color: var(--accent); transition: opacity .12s; }
+.icn-editable:hover::after { opacity: 1; }
 .icn-editable:hover { color: var(--accent); }
-.icn-status-sel {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
-  padding: 4px 8px; color: var(--text); font-size: 12px; font-family: var(--font);
-  cursor: pointer; outline: none;
+.icn-who { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.icn-av {
+  width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  font-size: 12px; font-weight: 800; color: #fff; background: var(--accent);
 }
-.icn-handler-sel {
-  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
-  padding: 4px 8px; color: var(--text); font-size: 12px; font-family: var(--font);
-  min-width: 120px; outline: none;
+.icn-time { font-size: 13px; color: var(--text3); white-space: nowrap; line-height: 1.4; }
+.icn-time b { display: block; font-size: 14px; color: var(--text2); font-weight: 600; }
+.icn-status-sel, .icn-handler-sel {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 10px; color: var(--text); font-size: 13px; font-family: var(--font);
+  outline: none; cursor: pointer; transition: border-color .12s, box-shadow .12s;
 }
+.icn-handler-sel { min-width: 140px; }
+.icn-status-sel:focus, .icn-handler-sel:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.icn-status-sel { font-weight: 700; }
 .icn-badge {
-  display: inline-block; padding: 2px 9px; border-radius: 12px;
-  font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; white-space: nowrap;
+  color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
 }
+.icn-badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.icn-empty { padding: 36px 20px; text-align: center; color: var(--text3); font-size: 14px; }
+.icn-empty i { display: block; font-size: 28px; margin-bottom: 6px; opacity: .5; }
+
+/* סרגל עדכון גורף */
+.icn-bulk {
+  position: sticky; top: 10px; z-index: 30; display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 18px; padding: 12px 16px; border-radius: 14px;
+  background: var(--bg2, var(--bg3)); border: 1px solid var(--accent);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.icn-bulk.show { display: flex; animation: icnPop .18s ease-out; }
+@keyframes icnPop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.icn-bulk-count { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.icn-bulk-count span { background: var(--accent); color: #fff; border-radius: 999px; padding: 1px 11px; }
+.icn-bulk-fields { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-right: auto; }
+.icn-bulk-hint { flex-basis: 100%; font-size: 12px; color: var(--text3); }
+.icn-bulk-hint:empty { display: none; }
+.icn-link-btn { background: none; border: 0; color: var(--text3); cursor: pointer; font-family: var(--font); font-size: 13px; }
+.icn-link-btn:hover { color: var(--text); }
 </style>
 
 <script>
@@ -62,12 +116,22 @@ let _icnData = { rows: [], users: [] };
 
 const STATUS_OPTIONS = ['פתוחה','בהמתנה','תקלה בפרטים','טופלה + מייל','סגורה'];
 const STATUS_COLOR   = {
-  'פתוחה':         { bg: '#fffde7', text: '#795548', border: '#f9a825' },
-  'בהמתנה':        { bg: '#fff3e0', text: '#e65100', border: '#fb8c00' },
-  'תקלה בפרטים':   { bg: '#fce4ec', text: '#ad1457', border: '#e91e63' },
-  'טופלה + מייל':  { bg: '#e8f5e9', text: '#2e7d32', border: '#43a047' },
-  'סגורה':         { bg: '#e8f5e9', text: '#1b5e20', border: '#388e3c' },
+  'פתוחה':         '#f5b301',
+  'בהמתנה':        '#fb8c00',
+  'תקלה בפרטים':   '#ef4478',
+  'טופלה + מייל':  '#34c38f',
+  'סגורה':         '#4caf50',
 };
+const _icnSel = new Set();
+
+// כפתור ולא <a href="mailto:"> — ה-layout מעתיק ללוח כל קישור mailto (פתיחה רק עם Alt)
+function icnOpenMail() {
+  const n = new Date();
+  const d = String(n.getDate()).padStart(2,'0');
+  const m = String(n.getMonth()+1).padStart(2,'0');
+  const subject = `שינוי שם בחשבונית - ${d}/${m}/${n.getFullYear()}`;
+  window.location.href = 'mailto:ilan@bug.co.il?subject=' + encodeURIComponent(subject);
+}
 
 async function icnLoad() {
   document.getElementById('icn-root').innerHTML =
@@ -75,6 +139,7 @@ async function icnLoad() {
   try {
     const r = await fetch(_ICN_BASE + '/api/invoice-change-name');
     _icnData = await r.json();
+    _icnSel.clear();
     icnRender();
   } catch(e) {
     document.getElementById('icn-root').innerHTML =
@@ -93,69 +158,105 @@ function icnRender() {
   const showExcel = _icnData.rows.length > 0;
   document.getElementById('icn-excel-btn').style.display = showExcel ? 'inline-flex' : 'none';
 
-  let html = '';
-  html += icnSection('פניות פתוחות', open,    '#fffde7', '#f9a825', true);
-  html += icnSection('בהמתנה',        waiting, '#fff3e0', '#fb8c00', true);
-  html += icnSectionCollapsible('טופלו / סגורות', done, '#e8f5e9', '#43a047');
+  let html = icnBulkBar();
+  html += icnSection('פניות פתוחות', open,    '#f5b301', true);
+  html += icnSection('בהמתנה / תקלה', waiting, '#fb8c00', true);
+  html += icnSectionCollapsible('טופלו / סגורות', done, '#34c38f');
 
   document.getElementById('icn-root').innerHTML = html;
+  icnSyncSelection();
 }
 
-function icnSection(title, rows, bg, border, editable) {
+function icnBulkBar() {
+  const statuses = STATUS_OPTIONS.map(s => `<option value="${_ife(s)}">${_ife(s)}</option>`).join('');
+  const users = (_icnData.users||[]).map(u => `<option value="${_ife(u.name)}">${_ife(u.name)}</option>`).join('');
   return `
-    <div class="icn-section card" style="padding:0;overflow:hidden;margin-bottom:20px;">
-      <div class="icn-section-hdr" style="background:${bg};border-bottom:2px solid ${border};">
-        <span style="color:${border};font-size:16px;">●</span>
-        ${_ife(title)} <span style="font-size:18px;font-weight:400;color:var(--text3);">(${rows.length})</span>
+    <div class="icn-bulk" id="icn-bulk">
+      <div class="icn-bulk-count"><i class="bi bi-check2-square"></i> נבחרו <span id="icn-bulk-n">0</span></div>
+      <div class="icn-bulk-fields">
+        <select class="icn-status-sel" id="icn-bulk-status" onchange="icnBulkChanged()">
+          <option value="">עדכון סטטוס ל...</option>${statuses}
+        </select>
+        <select class="icn-handler-sel" id="icn-bulk-handler">
+          <option value="">— לטיפול ע"י (ללא שינוי) —</option>${users}
+        </select>
+        <button class="btn btn-primary" id="icn-bulk-apply" onclick="icnBulkApply()">
+          <i class="bi bi-lightning-charge-fill"></i> החל על הנבחרות
+        </button>
+        <button class="icn-link-btn" onclick="icnClearSelection()">נקה בחירה</button>
+      </div>
+      <div class="icn-bulk-hint" id="icn-bulk-hint"></div>
+    </div>`;
+}
+
+function icnBulkChanged() {
+  const st = document.getElementById('icn-bulk-status').value;
+  document.getElementById('icn-bulk-hint').textContent =
+    st === 'טופלה + מייל' ? 'יישלח מייל לפותח כל בקשה, עם "לטיפול ע"י" שנבחר' : '';
+}
+
+function icnSection(title, rows, color, editable) {
+  return `
+    <div class="icn-section card" style="padding:0;overflow:hidden;--sec:${color};">
+      <div class="icn-section-hdr">
+        <span class="icn-dot"></span>
+        ${_ife(title)} <span class="icn-count">${rows.length}</span>
       </div>
       ${rows.length === 0
-        ? `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">אין רשומות</div>`
+        ? `<div class="icn-empty"><i class="bi bi-inbox"></i>אין רשומות</div>`
         : `<div style="overflow-x:auto;">${icnTable(rows, editable)}</div>`}
     </div>`;
 }
 
-function icnSectionCollapsible(title, rows, bg, border) {
+function icnSectionCollapsible(title, rows, color) {
   return `
-    <div class="icn-section card" style="padding:0;overflow:hidden;">
-      <div class="icn-section-hdr" style="background:${bg};border-bottom:2px solid ${border};cursor:pointer;"
-           onclick="document.getElementById('icn-done-body').style.display=
-             document.getElementById('icn-done-body').style.display==='none'?'block':'none';">
-        <span style="color:${border};font-size:16px;">●</span>
-        ${_ife(title)} <span style="font-size:18px;font-weight:400;color:var(--text3);">(${rows.length})</span>
-        <i class="bi bi-chevron-down" style="margin-right:auto;font-size:12px;color:var(--text3);"></i>
+    <div class="icn-section card" style="padding:0;overflow:hidden;--sec:${color};">
+      <div class="icn-section-hdr" style="cursor:pointer;"
+           onclick="const b=document.getElementById('icn-done-body');b.style.display=b.style.display==='none'?'block':'none';">
+        <span class="icn-dot"></span>
+        ${_ife(title)} <span class="icn-count">${rows.length}</span>
+        <i class="bi bi-chevron-down" style="margin-right:auto;font-size:13px;color:var(--text3);"></i>
       </div>
       <div id="icn-done-body" style="display:none;">
         ${rows.length === 0
-          ? `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">אין רשומות</div>`
+          ? `<div class="icn-empty"><i class="bi bi-inbox"></i>אין רשומות</div>`
           : `<div style="overflow-x:auto;">${icnTable(rows, false)}</div>`}
       </div>
     </div>`;
 }
 
+function icnFmtTime(v) {
+  if (!v) return '';
+  const d = new Date(String(v).replace(' ', 'T'));
+  if (isNaN(d)) return _ife(v);
+  return `<b>${d.toLocaleDateString('he-IL')}</b>${d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}`;
+}
+
 function icnTable(rows, editable) {
   let h = `<table class="icn-table">
     <thead><tr>
-      <th class="icn-th">זמן פתיחה</th>
+      ${editable ? `<th class="icn-th icn-chk-td"><input type="checkbox" class="icn-chk" title="בחר הכל" onchange="icnToggleAll(this)"></th>` : ''}
+      <th class="icn-th">נפתח</th>
       <th class="icn-th">נפתח ע"י</th>
       <th class="icn-th">חשבונית סאפ</th>
       <th class="icn-th">שם חדש</th>
       <th class="icn-th">הערה</th>
       <th class="icn-th">סטטוס</th>
-      <th class="icn-th">זמן עדכון</th>
+      <th class="icn-th">עודכן</th>
       <th class="icn-th">לטיפול ע"י</th>
     </tr></thead><tbody>`;
 
   rows.forEach(row => {
-    const sc = STATUS_COLOR[row.status] || {};
-    const badge = `<span class="icn-badge" style="background:${sc.bg||'var(--bg3)'};color:${sc.text||'var(--text2)'};border:1px solid ${sc.border||'var(--border)'};">${_ife(row.status)}</span>`;
+    const c = STATUS_COLOR[row.status] || 'var(--text3)';
+    const badge = `<span class="icn-badge" style="--c:${c};">${_ife(row.status)}</span>`;
 
     const nameTd = editable
-      ? `<td class="icn-td icn-editable" onclick="icnEditField(${row.id},'new_name',this)">${_ife(row.new_name)}</td>`
-      : `<td class="icn-td">${_ife(row.new_name)}</td>`;
+      ? `<td class="icn-td icn-editable icn-newname" onclick="icnEditField(${row.id},'new_name',this)">${_ife(row.new_name)}</td>`
+      : `<td class="icn-td icn-newname">${_ife(row.new_name)}</td>`;
 
     const noteTd = editable
-      ? `<td class="icn-td icn-editable" onclick="icnEditField(${row.id},'invoice_note',this)">${_ife(row.invoice_note||'—')}</td>`
-      : `<td class="icn-td">${_ife(row.invoice_note||'—')}</td>`;
+      ? `<td class="icn-td icn-editable icn-note" onclick="icnEditField(${row.id},'invoice_note',this)">${_ife(row.invoice_note||'—')}</td>`
+      : `<td class="icn-td icn-note">${_ife(row.invoice_note||'—')}</td>`;
 
     const statusTd = editable
       ? `<td class="icn-td">${icnStatusSelect(row)}</td>`
@@ -164,15 +265,17 @@ function icnTable(rows, editable) {
     const handlerTd = editable
       ? `<td class="icn-td">${icnHandlerSelect(row)}</td>`
       : `<td class="icn-td">${_ife(row.care_by||'—')}</td>`;
-      row.time_added = row.time_added ? new Date(row.time_added).toLocaleString('he-IL') : '';
+
+    const opener = row.open_by_name || '';
     h += `<tr class="icn-tr" data-id="${row.id}">
-      <td class="icn-td" style="white-space:nowrap;font-size:17px;">${_ife(row.time_added)}</td>
-      <td class="icn-td">${_ife(row.open_by_name)}</td>
-      <td class="icn-td" style="font-family:monospace;">${_ife(row.invoice_sap_number)}</td>
+      ${editable ? `<td class="icn-td icn-chk-td"><input type="checkbox" class="icn-chk icn-row-chk" value="${row.id}" onchange="icnToggleRow(this)"></td>` : ''}
+      <td class="icn-td icn-time">${icnFmtTime(row.time_added)}</td>
+      <td class="icn-td"><div class="icn-who"><span class="icn-av">${_ife(opener.trim().charAt(0))}</span>${_ife(opener)}</div></td>
+      <td class="icn-td"><span class="icn-inv">${_ife(row.invoice_sap_number)}</span></td>
       ${nameTd}
       ${noteTd}
       ${statusTd}
-      <td class="icn-td" style="white-space:nowrap;font-size:16px;color:var(--text3);">${_ife(row.time_change_status)}</td>
+      <td class="icn-td icn-time">${icnFmtTime(row.time_change_status)}</td>
       ${handlerTd}
     </tr>`;
   });
@@ -181,8 +284,72 @@ function icnTable(rows, editable) {
   return h;
 }
 
+// ── בחירה מרובה ─────────────────────────────────────────────
+function icnToggleRow(cb) {
+  cb.checked ? _icnSel.add(cb.value) : _icnSel.delete(cb.value);
+  icnSyncSelection();
+}
+
+function icnToggleAll(master) {
+  master.closest('table').querySelectorAll('.icn-row-chk').forEach(cb => {
+    master.checked ? _icnSel.add(cb.value) : _icnSel.delete(cb.value);
+  });
+  icnSyncSelection();
+}
+
+function icnClearSelection() {
+  _icnSel.clear();
+  icnSyncSelection();
+}
+
+function icnSyncSelection() {
+  document.querySelectorAll('.icn-row-chk').forEach(cb => {
+    cb.checked = _icnSel.has(cb.value);
+    cb.closest('tr').classList.toggle('is-sel', cb.checked);
+  });
+  document.querySelectorAll('.icn-table').forEach(t => {
+    const boxes  = [...t.querySelectorAll('.icn-row-chk')];
+    const master = t.querySelector('thead .icn-chk');
+    if (!master || !boxes.length) return;
+    const n = boxes.filter(b => b.checked).length;
+    master.checked = n === boxes.length;
+    master.indeterminate = n > 0 && n < boxes.length;
+  });
+  document.getElementById('icn-bulk-n').textContent = _icnSel.size;
+  document.getElementById('icn-bulk').classList.toggle('show', _icnSel.size > 0);
+}
+
+async function icnBulkApply() {
+  const status = document.getElementById('icn-bulk-status').value;
+  const careBy = document.getElementById('icn-bulk-handler').value;
+  if (!status) { v2Toast('בחר סטטוס לעדכון'); return; }
+  if (!_icnSel.size) return;
+
+  const mailNote = status === 'טופלה + מייל' ? '\nיישלח מייל לפותח כל בקשה.' : '';
+  if (!confirm(`לעדכן ${_icnSel.size} רשומות לסטטוס "${status}"?${mailNote}`)) return;
+
+  const fd = new FormData();
+  fd.append('_csrf', _ICN_CSRF);
+  fd.append('status', status);
+  fd.append('care_by', careBy);
+  _icnSel.forEach(id => fd.append('ids[]', id));
+
+  const btn = document.getElementById('icn-bulk-apply');
+  btn.disabled = true;
+  try {
+    const r   = await fetch(_ICN_BASE + '/api/invoice-change-name/bulk-status', { method:'POST', body:fd });
+    const res = await r.json();
+    v2Toast(res.msg || (res.error ? 'שגיאה' : 'עודכן'));
+    if (!res.error) icnLoad(); else btn.disabled = false;
+  } catch(e) {
+    v2Toast('שגיאת רשת');
+    btn.disabled = false;
+  }
+}
+
 function icnStatusSelect(row) {
-  let h = `<select class="icn-status-sel" onchange="icnUpdateStatus(${row.id},this)"
+  const c = STATUS_COLOR[row.status] || 'var(--border)';
+  let h = `<select class="icn-status-sel" style="border-color:${c};color:${c};" onchange="icnUpdateStatus(${row.id},this)"
               data-row-id="${row.id}">`;
   STATUS_OPTIONS.forEach(s => {
     h += `<option value="${_ife(s)}" ${row.status===s?'selected':''}>${_ife(s)}</option>`;

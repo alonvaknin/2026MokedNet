@@ -275,6 +275,11 @@ function pbxSearch(){
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(function(data){
     pbxSetLoading(false);
+    if(!data.ok && data.error && data.error !== 'invalid phone'){
+      pbxSetEmpty('המרכזיה לא ענתה בזמן (טווחים ארוכים איטיים) — נסה שוב בעוד רגע');
+      document.getElementById('pbx-cnt').textContent='שגיאה';
+      return;
+    }
     if(!data.ok || !data.data || !data.data.length){
       pbxSetEmpty('לא נמצאו שיחות עבור '+phone);
       document.getElementById('pbx-cnt').textContent='אין תוצאות';

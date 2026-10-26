@@ -181,6 +181,7 @@ $router->get ('/api/glassix/agent-stats',    'Controllers\\GlassixStatsControlle
 $router->get ('/invoice-change-name',                 'Controllers\\InvoiceChangeNameController@index');
 $router->get ('/api/invoice-change-name',              'Controllers\\InvoiceChangeNameController@apiList');
 $router->post('/api/invoice-change-name/create',       'Controllers\\InvoiceChangeNameController@create');
+$router->post('/api/invoice-change-name/bulk-status',  'Controllers\\InvoiceChangeNameController@bulkStatus');
 $router->post('/api/invoice-change-name/{id}/status',  'Controllers\\InvoiceChangeNameController@updateStatus');
 $router->post('/api/invoice-change-name/{id}/edit',    'Controllers\\InvoiceChangeNameController@editField');
 

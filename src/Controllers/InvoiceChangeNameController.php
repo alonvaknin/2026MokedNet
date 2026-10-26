@@ -47,8 +47,8 @@ class InvoiceChangeNameController extends Controller
             $this->json(['error' => true, 'msg' => 'מספר חשבונית לא תקין — חייב להיות 9 ספרות'], 422);
             return;
         }
-        if (mb_strlen($newName) > 50 || $newName === '') {
-            $this->json(['error' => true, 'msg' => 'שם חדש חייב להיות בין 1-50 תווים'], 422);
+        if (mb_strlen($newName) > 100 || $newName === '') {
+            $this->json(['error' => true, 'msg' => 'שם חדש חייב להיות בין 1-100 תווים'], 422);
             return;
         }
         if (!ctype_digit($phone)) {
@@ -130,6 +130,62 @@ class InvoiceChangeNameController extends Controller
         );
 
         $this->json(['error' => false, 'msg' => 'סטטוס עודכן: ' . $status]);
+    }
+
+    public function bulkStatus(): void
+    {
+        $this->requirePermission('canUseInvoiceChangeName');
+        $this->verifyCsrf();
+
+        $status = trim($this->post('status', ''));
+        $careBy = trim($this->post('care_by', ''));
+        $ids    = array_values(array_unique(array_filter(
+            array_map('intval', (array)($_POST['ids'] ?? [])),
+            static fn(int $i): bool => $i > 0
+        )));
+
+        $allowed = ['פתוחה', 'בהמתנה', 'טופלה + מייל', 'סגורה', 'תקלה בפרטים'];
+        if (!in_array($status, $allowed, true)) {
+            $this->json(['error' => true, 'msg' => 'סטטוס לא תקין'], 422);
+            return;
+        }
+        if (!$ids) {
+            $this->json(['error' => true, 'msg' => 'לא נבחרו רשומות'], 422);
+            return;
+        }
+
+        $done = 0;
+        $mails = 0;
+        foreach ($ids as $id) {
+            $row = InvoiceChangeNameModel::byId($id);
+            if (!$row) {
+                continue;
+            }
+            // לטיפול ע"י: הערך שנבחר בעדכון הגורף; אם לא נבחר — נשמר המטפל הקיים של השורה
+            $rowCareBy = $careBy !== '' ? $careBy : (string)($row['care_by'] ?? '');
+            InvoiceChangeNameModel::updateStatus($id, $status, $rowCareBy);
+            $done++;
+
+            // מייל נשלח רק במעבר לסטטוס "טופלה + מייל" (לא שולחים שוב לשורה שכבר בסטטוס זה)
+            if ($status === 'טופלה + מייל' && ($row['status'] ?? '') !== 'טופלה + מייל') {
+                $this->sendStatusMail($row, $rowCareBy);
+                $mails++;
+            }
+
+            ActivityLog::log(
+                'invoice_change_name.status',
+                'invoice_change_name',
+                $id,
+                "חשבונית #{$id}",
+                "סטטוס (גורף) → {$status}" . ($rowCareBy !== '' ? " | מטפל: {$rowCareBy}" : '')
+            );
+        }
+
+        $msg = "עודכנו {$done} רשומות לסטטוס: {$status}";
+        if ($mails > 0) {
+            $msg .= " (נשלחו {$mails} מיילים)";
+        }
+        $this->json(['error' => false, 'msg' => $msg, 'updated' => $done]);
     }
 
     public function editField(string $id): void
