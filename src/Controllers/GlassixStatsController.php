@@ -12,7 +12,7 @@ class GlassixStatsController extends Controller
 {
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewCallsStats');
         ActivityLog::log('glassix_stats.view', 'glassix_stats', null, 'טיקטים פתוחים לפי נציג');
         $this->view('pages/glassix-stats/index', []);
     }
@@ -20,7 +20,7 @@ class GlassixStatsController extends Controller
     // ── GET /api/glassix/agent-stats ─────────────────────────────────
     public function apiAgentStats(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewCallsStats');
         header('Content-Type: application/json; charset=utf-8');
 
         $user  = Auth::user();

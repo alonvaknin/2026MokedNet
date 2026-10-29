@@ -8,7 +8,7 @@ use Core\Auth;
 $crmUser     = Auth::user();
 $crmDept     = $crmUser['dept_name']  ?? '';
 $crmFullName = $_SESSION['full_name'] ?? '';
-$crmCanRec   = Auth::can('pbxRecording'); // permission gate for recordings
+$crmCanRec   = Auth::can('pbxRecordings'); // permission gate for recordings
 $crmBase     = rtrim(CFG['app']['url'], '/');
 
 // Numbers to ignore (internal extensions)

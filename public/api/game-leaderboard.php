@@ -14,6 +14,12 @@ if (!Auth::user()) {
     exit;
 }
 
+if (!Auth::can('canViewDashboard')) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'אין הרשאה']);
+    exit;
+}
+
 $userId = (int)($_SESSION['user_id'] ?? 0);
 
 try {

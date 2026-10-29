@@ -12,7 +12,7 @@ class TaskController extends Controller
 {
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $userId     = $_SESSION['user_id'];
         $canViewAll = \Core\Auth::can('tasks.viewAll');
 
@@ -55,7 +55,7 @@ class TaskController extends Controller
 
     public function apiSearch(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $q = trim($this->get('q', ''));
         if (mb_strlen($q) < 2) {
             $this->json([]);
@@ -79,7 +79,7 @@ class TaskController extends Controller
 
     public function create(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $this->verifyCsrf();
 
         $assignedUserId = (int)$this->post('for_user', $_SESSION['user_id']);
@@ -125,7 +125,7 @@ class TaskController extends Controller
 
     public function close(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $this->verifyCsrf();
         TaskModel::close((int)$id, $_SESSION['user_id']);
         ActivityLog::log('task.close', 'task', (int)$id, "משימה #{$id}");
@@ -134,7 +134,7 @@ class TaskController extends Controller
 
     public function updateStatus(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $this->verifyCsrf();
 
         $statusId = (int)$this->post('status_id', 0);
@@ -155,7 +155,7 @@ class TaskController extends Controller
 
     public function bulkUpdateStatus(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $this->verifyCsrf();
 
         $statusId = (int)$this->post('status_id', 0);
@@ -180,7 +180,7 @@ class TaskController extends Controller
 
     public function updateTitle(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $this->verifyCsrf();
 
         $title = trim($this->post('title', ''));
@@ -200,7 +200,7 @@ class TaskController extends Controller
 
     public function show(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $taskId = (int)$id;
         $userId = $_SESSION['user_id'];
         $canAll = \Core\Auth::can('tasks.viewAll');
@@ -251,7 +251,7 @@ class TaskController extends Controller
 
     public function getComments(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $taskId  = (int)$id;
         $userId  = $_SESSION['user_id'];
         $canAll  = \Core\Auth::can('tasks.viewAll');
@@ -266,7 +266,7 @@ class TaskController extends Controller
 
     public function addComment(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewTasks');
         $this->verifyCsrf();
 
         $taskId = (int)$id;

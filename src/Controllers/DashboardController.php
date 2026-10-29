@@ -15,6 +15,11 @@ class DashboardController extends Controller
     {
         $this->requireAuth();
         $user        = Auth::user();
+        // בלי גישה לדף הבית — עמוד נחיתה ריק, בלי שליפת חנויות/משימות
+        if (!Auth::can('canViewDashboard')) {
+            $this->view('pages/home-lite', compact('user'));
+            return;
+        }
         $stores      = StoreModel::allBugStores();
         $modanStores = StoreModel::allModanStores();
 

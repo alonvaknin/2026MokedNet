@@ -23,8 +23,14 @@ class UserController extends Controller
     public function show(string $id): void
     {
         $this->requireAuth();
+        // פרופיל: המשתמש עצמו או מנהל משתמשים בלבד
+        if ((int)$_SESSION['user_id'] !== (int)$id && !Auth::can('canAddUsers')) {
+            $this->requirePermission('canAddUsers');
+        }
         $user = UserModel::byId((int)$id);
         if (!$user) { http_response_code(404); echo '404'; return; }
+        // u.* כולל סודות — לעולם לא נחשפים ללקוח
+        unset($user['password_hash'], $user['auth_token']);
         $wantsJson = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
             || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
         if ($wantsJson) {
@@ -401,7 +407,7 @@ class UserController extends Controller
 
     public function apiSearch(): void
     {
-        $this->requireAuth();
+        $this->requireAnyPermission('canViewTasks', 'canAddUsers');
         $q = trim($this->get('q', ''));
         if (mb_strlen($q) < 2) $this->json([]);
         $this->json(UserModel::search($q));

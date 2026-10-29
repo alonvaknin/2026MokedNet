@@ -91,6 +91,7 @@ foreach ($groups as $g) { $groupMap[$g['id']] = $g; }
     <div id="pg-cats" style="display:none;flex-direction:column;gap:14px;">
       <?php
       $catIcons = [
+        'גישה למודולים'   => 'bi-key-fill',
         'מרכזיה וטלפוניה' => 'bi-telephone-fill',
         'מעבדה'            => 'bi-eyedropper',
         'חנויות ולקוחות'   => 'bi-shop',

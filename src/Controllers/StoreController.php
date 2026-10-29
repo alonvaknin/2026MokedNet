@@ -13,7 +13,7 @@ class StoreController extends Controller
 {
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $types  = StoreModel::types();
         $cities = StoreModel::allCities();
         $type   = $this->get('type', '');
@@ -24,7 +24,7 @@ class StoreController extends Controller
 
     public function search(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $q      = trim($this->get('q',''));
         $type   = $this->get('type','');
         $city   = $this->get('city','');
@@ -36,7 +36,7 @@ class StoreController extends Controller
 
     public function show(string $sNum): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $store   = StoreModel::byNum($sNum);
         $canEdit = Auth::can('canEditStore');
         if (!$store) { http_response_code(404); echo '404'; return; }
@@ -46,7 +46,7 @@ class StoreController extends Controller
 
     public function showById(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $store   = StoreModel::byId((int)$id);
         $canEdit = Auth::can('canEditStore');
         if (!$store) { http_response_code(404); echo '404'; return; }
@@ -56,7 +56,7 @@ class StoreController extends Controller
 
     public function apiSearch(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $q = trim($this->get('q',''));
         if (!$q || mb_strlen($q) < 2) $this->json([]);
         $this->json(StoreModel::search($q));
@@ -64,7 +64,7 @@ class StoreController extends Controller
 
     public function apiGet(string $sNum): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $store = is_numeric($sNum)
             ? StoreModel::byId((int)$sNum)
             : StoreModel::byNum($sNum);

@@ -12,7 +12,7 @@ class ContactController extends Controller
 {
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewContacts');
         $q        = trim($this->get('q', ''));
         $dept     = $this->get('dept', '');
         $type     = $this->get('type', '');
@@ -80,7 +80,7 @@ class ContactController extends Controller
 
     public function apiSearch(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewContacts');
         $q    = trim($this->get('q', ''));
         $type = $this->get('type', '');
         if (mb_strlen($q) < 1) $this->json([]);
@@ -90,7 +90,7 @@ class ContactController extends Controller
     /** GET /api/contacts/list — אנשי קשר מסומנים לתכתובות אוטומטיות */
     public function apiList(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewContacts');
         $this->json(ContactModel::contactsList());
     }
 }

@@ -17,14 +17,14 @@ class CrmController extends Controller
 
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewCrm');
         $this->redirect('/dashboard');
     }
 
     // ── GET /api/crm/calls?phone=05XXXXXXXX ─────────────────────────────────
     public function apiCalls(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('pbxSearch');
         header('Content-Type: application/json; charset=utf-8');
 
         $phone = preg_replace('/\D/', '', $_GET['phone'] ?? '');
@@ -199,7 +199,7 @@ class CrmController extends Controller
     // ── GET /api/crm/calls/recording?uniqueid=XXX ───────────────────────────
     public function apiCallRecording(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('pbxRecordings');
         header('Content-Type: application/json; charset=utf-8');
 
         $uniqueid = trim($_GET['uniqueid'] ?? '');
@@ -227,7 +227,7 @@ class CrmController extends Controller
     // קריאות שירות מ-Wizenet API לפי טלפון, טווח 6 חודשים
     public function apiService(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewServiceCalls');
         header('Content-Type: application/json; charset=utf-8');
 
         $phone = preg_replace('/\D/', '', $_GET['phone'] ?? '');
@@ -263,7 +263,7 @@ class CrmController extends Controller
     // ── POST /api/crm/note ───────────────────────────────────────────────────
     public function apiSaveNote(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('allowToAddCallerNoteFromMain');
         header('Content-Type: application/json; charset=utf-8');
 
         $input    = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -315,7 +315,7 @@ class CrmController extends Controller
     // ── POST /api/crm/wa ─────────────────────────────────────────────────────
     public function apiSendWa(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('allowSmsFromCrm');
         header('Content-Type: application/json; charset=utf-8');
 
         $input    = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -381,7 +381,7 @@ class CrmController extends Controller
     // ── GET /api/crm/notes?phone=05XXXXXXXX ─────────────────────────────────
     public function apiNotes(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewCrm');
         header('Content-Type: application/json; charset=utf-8');
 
         $phone = preg_replace('/\D/', '', $_GET['phone'] ?? '');

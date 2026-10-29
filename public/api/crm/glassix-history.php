@@ -22,6 +22,12 @@ if (!$user) {
     exit;
 }
 
+if (!Auth::can('canViewCrm')) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'אין הרשאה']);
+    exit;
+}
+
 $userId    = (int)($user['id'] ?? 0);
 $userEmail = $user['email'] ?? '';
 

@@ -50,14 +50,31 @@ abstract class Controller
     {
         $this->requireAuth();
         if (!Auth::can($key)) {
-            // POST/AJAX → JSON; GET → HTML 403 page
-            if ($_SERVER['REQUEST_METHOD'] === 'POST' || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-                $this->json(['error' => 'אין הרשאה לפעולה זו'], 403);
-            }
-            http_response_code(403);
-            $this->view('pages/403', [], 'layouts/main');
-            exit;
+            $this->deny();
         }
+    }
+
+    /** מספיקה אחת מההרשאות */
+    protected function requireAnyPermission(string ...$keys): void
+    {
+        $this->requireAuth();
+        foreach ($keys as $key) {
+            if (Auth::can($key)) return;
+        }
+        $this->deny();
+    }
+
+    private function deny(): void
+    {
+        // POST/AJAX/API → JSON; GET → HTML 403 page
+        $uri   = (string)strtok($_SERVER['REQUEST_URI'] ?? '', '?');
+        $isApi = str_contains($uri, '/api/');
+        if ($isApi || $_SERVER['REQUEST_METHOD'] === 'POST' || !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+            $this->json(['error' => 'אין הרשאה לפעולה זו'], 403);
+        }
+        http_response_code(403);
+        $this->view('pages/403', [], 'layouts/main');
+        exit;
     }
 
     protected function post(string $key, mixed $default = null): mixed

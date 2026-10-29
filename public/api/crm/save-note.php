@@ -15,6 +15,12 @@ if (!Auth::user()) {
     exit;
 }
 
+if (!Auth::can('allowToAddCallerNoteFromMain')) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'אין הרשאה']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['ok' => false, 'error' => 'method not allowed']);

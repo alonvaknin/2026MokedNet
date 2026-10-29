@@ -11,8 +11,23 @@ $initials  = mb_substr($parts[0] ?? 'U', 0, 1) . (isset($parts[1]) ? mb_substr($
 $deptName  = $user['dept_name']  ?? '';
 $groupName = $user['group_name'] ?? '';
 $canPbxSearch = \Core\Auth::can('pbxSearch');
+$gsPerms = [
+    'stores'   => \Core\Auth::can('canViewStores'),
+    'contacts' => \Core\Auth::can('canViewContacts'),
+    'tasks'    => \Core\Auth::can('canViewTasks'),
+    'users'    => \Core\Auth::can('canViewTasks') || \Core\Auth::can('canAddUsers'),
+    'calls'    => \Core\Auth::can('canViewServiceCalls'),
+    'products' => \Core\Auth::can('canFormatter'),
+    'pbx'      => $canPbxSearch,
+];
+// סקופים זמינים בחיפוש הכללי לפי הרשאות (הסדר קובע גם את ברירת המחדל)
+$gsScopeList = [];
+if ($gsPerms['stores'] || $gsPerms['contacts']) $gsScopeList[] = 'stores';
+if ($gsPerms['calls'])    $gsScopeList[] = 'calls';
+if ($gsPerms['products']) $gsScopeList[] = 'products';
+if ($gsPerms['pbx'])      $gsScopeList[] = 'pbx';
 $overdueCount = 0;
-if (!empty($_SESSION['user_id'])) {
+if (!empty($_SESSION['user_id']) && $gsPerms['tasks']) {
     $overdueCount = (int)\Core\DB::value(
         'SELECT COUNT(*) FROM tasks
          WHERE assigned_user_id=? AND is_active=1
@@ -33,6 +48,7 @@ if (!empty($_SESSION['user_id'])) {
 window.__V2_BASE="<?= $base ?>";
 window.__CSRF="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>";
 window.__OVERDUE_COUNT=<?= (int)$overdueCount ?>;
+window.__PERMS=<?= json_encode($gsPerms) ?>;
 window.__LOGIN_TOKEN="<?= !empty($_SESSION['auth_token']) ? substr(sha1((string)$_SESSION['auth_token']), 0, 16) : '' ?>";
 <?php
 $_layoutPrefsRow = \Core\DB::row(
@@ -489,10 +505,16 @@ a[href^="tel:"][data-copy-hint]::after,a[href^="mailto:"][data-copy-hint]::after
     </div>
     <!-- Scope pills -->
     <div style="display:flex;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--bg3);">
-      <button class="gs-scope gs-scope-active" data-scope="stores"   onclick="gsSetScope('stores')"><i class="bi bi-shop"></i> חנויות ואנשי קשר</button>
-      <button class="gs-scope"                 data-scope="calls"    onclick="gsSetScope('calls')"><i class="bi bi-headset"></i> קריאות שירות</button>
-      <button class="gs-scope"                 data-scope="products" onclick="gsSetScope('products')"><i class="bi bi-box-seam"></i> מוצרים</button>
-      <?php if (!empty($canPbxSearch)): ?><button class="gs-scope" data-scope="pbx" onclick="gsSetScope('pbx')"><i class="bi bi-telephone-outbound"></i> שיחות מרכזיה</button><?php else: ?><button class="gs-scope gs-scope-soon" data-scope="pbx" disabled title="ללא הרשאה"><i class="bi bi-telephone-outbound"></i> שיחות מרכזיה</button><?php endif; ?>
+      <?php
+      $gsPills = [
+        'stores'   => ['bi-shop', 'חנויות ואנשי קשר'],
+        'calls'    => ['bi-headset', 'קריאות שירות'],
+        'products' => ['bi-box-seam', 'מוצרים'],
+        'pbx'      => ['bi-telephone-outbound', 'שיחות מרכזיה'],
+      ];
+      foreach ($gsScopeList as $i => $sc): [$ic, $lb] = $gsPills[$sc]; ?>
+      <button class="gs-scope<?= $i === 0 ? ' gs-scope-active' : '' ?>" data-scope="<?= $sc ?>" onclick="gsSetScope('<?= $sc ?>')"><i class="bi <?= $ic ?>"></i> <?= $lb ?></button>
+      <?php endforeach; ?>
     </div>
     <!-- Results -->
     <div id="gs-results" style="max-height:58vh;overflow-y:auto;min-height:72px;"></div>
@@ -1350,7 +1372,8 @@ loadNav();
 const si=document.getElementById('global-search');
 const _gsModal=document.getElementById('gs-modal');
 const _gsInput=document.getElementById('gs-input');
-let _gsScope='stores';
+const _gsScopes=<?= json_encode($gsScopeList) ?>;
+let _gsScope=_gsScopes[0]||'';
 let _gsHighlightIdx=-1;
 
 function gsOpen(q,fromTopbar){
@@ -1376,7 +1399,6 @@ function gsEmpty(){
     (hints[_gsScope]?'<div style="font-size:11px;margin-top:5px;opacity:.55;">'+hints[_gsScope]+'</div>':'')+
     '</div>';
 }
-const _gsScopes=['stores','calls','products'<?= !empty($canPbxSearch)?",'pbx'":'' ?>];
 function gsSetScope(scope){
   _gsScope=scope;
   document.querySelectorAll('.gs-scope').forEach(b=>b.classList.toggle('gs-scope-active',b.dataset.scope===scope));
@@ -1513,12 +1535,14 @@ function gsNavResult(dir){
   if(target){target.style.background='var(--bg3)';target.scrollIntoView({block:'nearest'});}
 }
 async function gsAutoSearch(q){
+  const PERMS=window.__PERMS||{};
   const res=document.getElementById('gs-results');
   const E=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   res.innerHTML='<div class="gs-empty"><i class="bi bi-hourglass-split"></i>מחפש...</div>';
   const[contacts,stores,users,tasks]=await Promise.all([
-    fetch(BASE+'/api/contacts?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]),
+    PERMS.contacts?fetch(BASE+'/api/contacts?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]):[],
     (()=>{
+      if(!PERMS.stores)return Promise.resolve([]);
       const pool=[...(window.ALL_BUG||[]),...(window.ALL_MODAN||[])];
       if(pool.length){
         const ql=q.toLowerCase();
@@ -1533,8 +1557,8 @@ async function gsAutoSearch(q){
       }
       return fetch(BASE+'/api/stores?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]);
     })(),
-    fetch(BASE+'/api/users/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]),
-    fetch(BASE+'/api/tasks/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[])
+    PERMS.users?fetch(BASE+'/api/users/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]):[],
+    PERMS.tasks?fetch(BASE+'/api/tasks/search?q='+encodeURIComponent(q)).then(r=>r.json()).catch(()=>[]):[]
   ]);
   let cArr=Array.isArray(contacts)?contacts:[];
   const sArr=Array.isArray(stores)?stores:[];

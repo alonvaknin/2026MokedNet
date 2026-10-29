@@ -12,6 +12,15 @@ class UserModel
        מפתח = permission_key,  ערך = תיאור עברי
        ══════════════════════════════════════════════════════════════ */
     public const PERM_CATEGORIES = [
+        'גישה למודולים' => [
+            'canViewDashboard' => 'גישה לדף הבית (חנויות / מודן / משחק)',
+            'canViewStores'    => 'גישה לחנויות',
+            'canViewCrm'       => 'גישה ל-CRM (שירות והערות מתקשר)',
+            'canViewTasks'     => 'גישה למשימות',
+            'canViewContacts'  => 'גישה לאנשי קשר ונותני שירות',
+            'canViewSupport'   => 'גישה לתמיכה (מוצרים ותקלות)',
+            'canViewServiceCalls' => 'גישה לקריאות שירות (חיפוש Wizenet)',
+        ],
         'מרכזיה וטלפוניה' => [
             'pbxSearch'            => 'חיפוש שיחות מרכזיה',
             'pbxRecordings'        => 'האזנה להקלטות',
@@ -62,6 +71,13 @@ class UserModel
 
     /* flat map — backward compat + savePermGroup */
     public const PERM_LABELS = [
+        'canViewDashboard'             => 'גישה לדף הבית (חנויות / מודן / משחק)',
+        'canViewStores'                => 'גישה לחנויות',
+        'canViewCrm'                   => 'גישה ל-CRM (שירות והערות מתקשר)',
+        'canViewTasks'                 => 'גישה למשימות',
+        'canViewContacts'              => 'גישה לאנשי קשר ונותני שירות',
+        'canViewSupport'               => 'גישה לתמיכה (מוצרים ותקלות)',
+        'canViewServiceCalls'          => 'גישה לקריאות שירות (חיפוש Wizenet)',
         'pbxSearch'                    => 'חיפוש שיחות מרכזיה',
         'pbxRecordings'                => 'האזנה להקלטות',
         'canSeeCallRec'                => 'צפייה בהקלטות (V1)',

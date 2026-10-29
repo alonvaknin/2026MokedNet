@@ -128,7 +128,7 @@ class FormatterController extends Controller
 
     public function getTemplate(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canFormatter');
         $id = (int)$this->get('id', 0);
         if (!$id) $this->json(['error' => 'id חסר'], 400);
         $tpl = FormatterModel::fullTemplate($id);
@@ -140,7 +140,7 @@ class FormatterController extends Controller
 
     public function apiList(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canFormatter');
         $this->json(FormatterModel::categorised());
     }
 
@@ -148,14 +148,14 @@ class FormatterController extends Controller
 
     public function apiStores(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canFormatter');
         $this->json(FormatterModel::storeList());
     }
 
     // ── GET /api/products?query=... ─────────────────────────────────────────────
     public function apiProducts(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canFormatter');
         $q = trim($this->get('query', ''));
         if (!$q || mb_strlen($q) < 2) { $this->json([]); return; }
 
@@ -191,7 +191,7 @@ class FormatterController extends Controller
     // ── GET /api/inventory?itemid=... ────────────────────────────────────────
     public function apiInventory(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canFormatter');
         $id = (int)$this->get('itemid', 0);
         if (!$id) { $this->json(['error' => 'itemid חסר'], 400); return; }
 

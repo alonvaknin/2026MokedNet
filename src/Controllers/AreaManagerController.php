@@ -13,7 +13,7 @@ class AreaManagerController extends Controller
 {
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $managers = AreaManagerModel::all();
         $canEdit  = Auth::can('canEditStore');
         $this->view('pages/area-managers/index', compact('managers', 'canEdit'));
@@ -106,13 +106,13 @@ class AreaManagerController extends Controller
 
     public function apiList(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $this->json(AreaManagerModel::all());
     }
 
     public function apiStores(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $this->json(AreaManagerModel::allStoresWithManagerFlags((int)$id));
     }
 
@@ -160,7 +160,7 @@ class AreaManagerController extends Controller
 
     public function apiForStore(string $storeId): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewStores');
         $this->json(AreaManagerModel::managersForStore((int)$storeId));
     }
 }

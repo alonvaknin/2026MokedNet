@@ -11,7 +11,7 @@ class SupportController extends Controller
     /** דף ראשי — רשימת קטגוריות */
     public function index(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewSupport');
         $categories = SupportModel::categories();
         $this->view('pages/support/index', compact('categories'));
     }
@@ -19,7 +19,7 @@ class SupportController extends Controller
     /** מוצרים לפי קטגוריה */
     public function category(string $id): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewSupport');
         $products = SupportModel::productsByCategory((int)$id);
         $this->view('pages/support/products', compact('products', 'id'));
     }
@@ -27,7 +27,7 @@ class SupportController extends Controller
     /** חיפוש מוצר */
     public function searchProduct(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewSupport');
         $q        = trim($this->get('q', ''));
         $products = $q ? SupportModel::searchProduct($q) : [];
         $this->json($products);
@@ -36,7 +36,7 @@ class SupportController extends Controller
     /** בעיות ופתרונות לפי מוצר (AJAX) */
     public function issues(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewSupport');
         $barcode = trim($this->post('barcode', '')) ?: null;
         $catId   = (int)$this->post('cat_id', 0) ?: null;
         $issues  = SupportModel::issuesByProduct($barcode, $catId);

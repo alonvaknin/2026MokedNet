@@ -18,6 +18,12 @@ if (!Auth::user()) {
     exit;
 }
 
+if (!Auth::can('canViewServiceCalls')) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'אין הרשאה']);
+    exit;
+}
+
 $phone = preg_replace('/\D/', '', $_GET['phone'] ?? '');
 if (strlen($phone) < 7) {
     echo json_encode(['ok' => false, 'error' => 'invalid phone', 'data' => []]);

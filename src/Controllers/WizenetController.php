@@ -120,7 +120,7 @@ class WizenetController extends Controller
      */
     public function getCall(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewServiceCalls');
         $id = preg_replace('/\D/', '', $this->get('id', ''));
         if (!$id) $this->json(['error' => 'מספר קריאה חסר'], 400);
 
@@ -147,7 +147,7 @@ class WizenetController extends Controller
      */
     public function search(): void
     {
-        $this->requireAuth();
+        $this->requirePermission('canViewServiceCalls');
 
         $q    = trim($this->get('q', ''));
         $from = trim($this->get('from', ''));
