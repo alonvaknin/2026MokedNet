@@ -17,7 +17,7 @@ $gsPerms = [
     'tasks'    => \Core\Auth::can('canViewTasks'),
     'users'    => \Core\Auth::can('canViewTasks') || \Core\Auth::can('canAddUsers'),
     'calls'    => \Core\Auth::can('canViewServiceCalls'),
-    'products' => \Core\Auth::can('canFormatter'),
+    'products' => \Core\Auth::can('canUseFormatter') || \Core\Auth::can('canFormatter'),
     'pbx'      => $canPbxSearch,
 ];
 // סקופים זמינים בחיפוש הכללי לפי הרשאות (הסדר קובע גם את ברירת המחדל)
